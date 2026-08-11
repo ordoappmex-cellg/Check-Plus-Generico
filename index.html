@@ -226,6 +226,9 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .emp-table td{padding:12px 14px;border-bottom:1px solid var(--cp-gray-100);vertical-align:middle;}
 .emp-table tr:last-child td{border-bottom:none;}
 .emp-table tr:hover td{background:var(--cp-gray-50);cursor:pointer;}
+/* Prospectos — lista: separador entre filas más tenue que el default de .emp-table */
+#prosp-table td{border-bottom:1px solid rgba(15,10,30,.045);}
+#prosp-table tr:last-child td{border-bottom:none;}
 .emp-avatar{border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:600;object-fit:cover;flex-shrink:0;}
 .emp-name{font-weight:500;color:var(--cp-navy);font-size:13px;}
 .emp-position{font-size:12px;color:var(--cp-gray-400);}
@@ -2110,8 +2113,8 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
         <!-- Lista view -->
         <div id="prosp-lista-view">
-          <table class="emp-table">
-            <thead><tr><th>Nombre</th><th>Contacto</th><th>Canal</th><th>Vendedor</th><th>Etapa</th><th>Valor est.</th><th></th></tr></thead>
+          <table class="emp-table" id="prosp-table">
+            <thead id="prosp-thead"></thead>
             <tbody id="prosp-tbody"></tbody>
           </table>
         </div>
@@ -8726,6 +8729,19 @@ let prospSegData = [];
 let prospCurrentId = null;
 let prospOpenEtapaValue = null; // etapa con la que se abrió la ficha actual — ver prospOnEtapaSelectChange()
 let prospViewMode = 'lista';
+// Vista lista — orden por columna (click en encabezado) + orden de columnas (drag),
+// mismo patrón que _initFactTableInteractions()/getFactColOrder() (línea ~9108).
+const PROSP_ALL_COLS=[
+  {key:'nombre',label:'Nombre'},
+  {key:'contacto',label:'Contacto'},
+  {key:'canal',label:'Canal'},
+  {key:'vendedor',label:'Vendedor'},
+  {key:'etapa',label:'Etapa'},
+  {key:'valor',label:'Valor est.'},
+];
+let prospSort={col:null,dir:'asc'};
+try{const s=localStorage.getItem('cp_prosp_sort');if(s)prospSort=JSON.parse(s);}catch(e){}
+let _prospDragCol=null;
 function prospSaveSB(prosp) { return sbUpsert('hb_crm_prospectos', prosp); }
 let currentCliId = null;
 let cliEditMode = false;
@@ -9801,29 +9817,109 @@ function prospContactLinkHtml(tel,mail){
   return parts.length?parts.join('<br>'):'—';
 }
 
+// ── LISTA — orden de columnas (drag) ────────────────
+function getProspColOrder(){
+  try{
+    const s=localStorage.getItem('cp_prosp_col_order');
+    if(s){const arr=JSON.parse(s);if(Array.isArray(arr)&&arr.length===PROSP_ALL_COLS.length&&PROSP_ALL_COLS.every(c=>arr.includes(c.key)))return arr;}
+  }catch(e){}
+  return PROSP_ALL_COLS.map(c=>c.key);
+}
+function getProspActiveCols(){
+  return getProspColOrder().map(k=>PROSP_ALL_COLS.find(c=>c.key===k)).filter(Boolean);
+}
+function _prospTableHeaderHtml(cols){
+  let h='<tr>';
+  cols.forEach(col=>{
+    const arrow=prospSort.col===col.key?(prospSort.dir==='asc'?' ▲':' ▼'):'';
+    h+='<th data-col="'+col.key+'" draggable="true" onclick="sortProsp(\''+col.key+'\')" style="cursor:pointer;user-select:none">'+escHtml(col.label)+'<span style="color:var(--cp-blue)">'+arrow+'</span></th>';
+  });
+  h+='<th style="width:80px"></th></tr>';
+  return h;
+}
+function _initProspTableInteractions(){
+  const tbl=document.getElementById('prosp-table');if(!tbl)return;
+  tbl.querySelectorAll('th[draggable]').forEach(th=>{
+    th.addEventListener('dragstart',function(e){
+      _prospDragCol=this.dataset.col;
+      e.dataTransfer.setData('text/plain',this.dataset.col);
+      e.dataTransfer.effectAllowed='move';
+      setTimeout(()=>this.style.opacity='0.5',0);
+    });
+    th.addEventListener('dragend',function(){this.style.opacity='';_prospDragCol=null;});
+    th.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';this.style.background='var(--cp-blue-light)';});
+    th.addEventListener('dragleave',function(){this.style.background='';});
+    th.addEventListener('drop',function(e){
+      e.preventDefault();this.style.background='';
+      const from=e.dataTransfer.getData('text/plain');
+      const to=this.dataset.col;
+      if(!from||from===to)return;
+      let order=getProspColOrder();
+      const fromIdx=order.indexOf(from),toIdx=order.indexOf(to);
+      if(fromIdx<0||toIdx<0)return;
+      order.splice(fromIdx,1);order.splice(toIdx,0,from);
+      localStorage.setItem('cp_prosp_col_order',JSON.stringify(order));
+      renderProspLista();
+    });
+  });
+}
+function sortProsp(col){
+  if(prospSort.col===col)prospSort.dir=prospSort.dir==='asc'?'desc':'asc';
+  else{prospSort.col=col;prospSort.dir='asc';}
+  localStorage.setItem('cp_prosp_sort',JSON.stringify(prospSort));
+  renderProspLista();
+}
+function _prospSortValue(p,key){
+  switch(key){
+    case'nombre':return (p.nombre||'').toLowerCase();
+    case'contacto':return (p.contactoTel||p.contactoMail||'').toLowerCase();
+    case'canal':{const c=prospCanales.find(x=>x.id===p.canalEntrada);return (c?c.nombre:'').toLowerCase();}
+    case'vendedor':{const v=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;return (v?(v.display_name||v.email):'').toLowerCase();}
+    case'etapa':{const e=prospEtapas.find(x=>x.id===p.estado);return (e?e.nombre:(p.estado||'')).toLowerCase();}
+    case'valor':return Number(p.valorEstimado)||0;
+    default:return '';
+  }
+}
+function _prospCellHtml(p,key){
+  switch(key){
+    case'nombre':return '<td><div class="emp-name" style="font-size:13px">'+escHtml(p.nombre)+'</div></td>';
+    case'contacto':return '<td style="font-size:12px;color:var(--cp-gray-600)">'+prospContactLinkHtml(p.contactoTel,p.contactoMail)+'</td>';
+    case'canal':{const canal=prospCanales.find(c=>c.id===p.canalEntrada);return '<td>'+(canal?escHtml(canal.nombre):'—')+'</td>';}
+    case'vendedor':{const vend=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;return '<td>'+(vend?escHtml(vend.display_name||vend.email):'—')+'</td>';}
+    case'etapa':{const etapa=prospEtapas.find(e=>e.id===p.estado);return '<td>'+(etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':escHtml(p.estado||'—'))+'</td>';}
+    case'valor':return '<td>'+(p.valorEstimado!=null?'$'+Number(p.valorEstimado).toLocaleString('es-MX'):'—')+'</td>';
+    default:return '<td></td>';
+  }
+}
+
 // ── LISTA ──────────────────────────────────────────
 function renderProspLista(){
   const etapaF=document.getElementById('prosp-filter-etapa')?.value||'';
   let items=_prospFilteredData();
   if(etapaF)items=items.filter(p=>p.estado===etapaF);
-  items.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  if(prospSort.col){
+    const dir=prospSort.dir==='asc'?1:-1;
+    items.sort((a,b)=>{
+      const va=_prospSortValue(a,prospSort.col),vb=_prospSortValue(b,prospSort.col);
+      if(typeof va==='number'||typeof vb==='number')return (va-vb)*dir;
+      return String(va).localeCompare(String(vb))*dir;
+    });
+  }else{
+    items.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  }
+  const cols=getProspActiveCols();
+  const thead=document.getElementById('prosp-thead');
+  if(thead)thead.innerHTML=_prospTableHeaderHtml(cols);
   const tbody=document.getElementById('prosp-tbody');
-  if(!tbody)return;
-  if(!items.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><i class="ti ti-user-search"></i><p>Sin leads registrados.</p></div></td></tr>';return;}
+  if(!tbody){_initProspTableInteractions();return;}
+  if(!items.length){tbody.innerHTML='<tr><td colspan="'+(cols.length+1)+'"><div class="empty-state"><i class="ti ti-user-search"></i><p>Sin leads registrados.</p></div></td></tr>';_initProspTableInteractions();return;}
   tbody.innerHTML=items.map(p=>{
-    const etapa=prospEtapas.find(e=>e.id===p.estado);
-    const canal=prospCanales.find(c=>c.id===p.canalEntrada);
-    const vend=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;
     return '<tr onclick="openEditProspecto(\''+p.id+'\')" style="cursor:pointer">'+
-      '<td><div class="emp-name" style="font-size:13px">'+escHtml(p.nombre)+'</div></td>'+
-      '<td style="font-size:12px;color:var(--cp-gray-600)">'+prospContactLinkHtml(p.contactoTel,p.contactoMail)+'</td>'+
-      '<td>'+(canal?escHtml(canal.nombre):'—')+'</td>'+
-      '<td>'+(vend?escHtml(vend.display_name||vend.email):'—')+'</td>'+
-      '<td>'+(etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':escHtml(p.estado||'—'))+'</td>'+
-      '<td>'+(p.valorEstimado!=null?'$'+Number(p.valorEstimado).toLocaleString('es-MX'):'—')+'</td>'+
+      cols.map(col=>_prospCellHtml(p,col.key)).join('')+
       '<td><button class="btn-sm btn-ghost" onclick="event.stopPropagation();openEditProspecto(\''+p.id+'\')"><i class="ti ti-edit"></i> Editar</button></td>'+
     '</tr>';
   }).join('');
+  _initProspTableInteractions();
 }
 
 // ── PIPELINE (columnas dinámicas desde crm_etapas) ─
