@@ -2264,6 +2264,21 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <!-- DERECHA: bloques complementarios (por ahora solo Documentos —
                estructura lista para agregar más .section-card hermanas después) -->
           <div id="prosp-det-side-blocks">
+            <!-- Cotización — destacada del resto de documentos: mismo bucket/upload
+                 (uploadProspDocFile) y misma tabla (hb_crm_documentos), solo que su
+                 fila se distingue con tipo='cotizacion' en vez del mime real (ver
+                 prospMarkCotizacion/prospUploadCotizacion). Fondo verde tenue en vez
+                 de borde duro, para no romper el lenguaje "solo sombra" del resto
+                 de tarjetas. -->
+            <div class="section-card" style="background:var(--cp-green-light)">
+              <div class="section-header" style="border-bottom-color:transparent">
+                <div class="section-title"><i class="ti ti-file-invoice" style="margin-right:6px;color:var(--cp-green)"></i>Cotización</div>
+              </div>
+              <div class="section-body" style="padding-top:0">
+                <div id="prosp-cotizacion-body"></div>
+                <input type="file" id="prosp-cotizacion-input" style="display:none" onchange="prospHandleCotizacionSelect(event)">
+              </div>
+            </div>
             <div class="section-card">
               <div class="section-header"><div class="section-title"><i class="ti ti-paperclip" style="margin-right:6px;color:var(--cp-blue)"></i>Documentos</div></div>
               <div class="section-body">
@@ -10527,7 +10542,7 @@ async function openProspDetail(id){
   document.getElementById('prosp-docs-list').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
   const [segData,docsData]=await Promise.all([prospSegLoad(id),prospDocsLoad(id)]);
   prospSegData=segData;renderProspSegTimeline();
-  prospDocsData=docsData;renderProspDocsList();
+  prospDocsData=docsData;renderProspDocsList();renderProspCotizacion();
 }
 function renderProspDetailHeader(p){
   if(!p)return;
@@ -10753,11 +10768,15 @@ async function prospDocsLoad(prospectoId){
 }
 // Los documentos se muestran SIEMPRE completos, sin filtrar por la etapa
 // actual del lead — 'etapaId' es solo una etiqueta informativa de en qué
-// etapa se subió cada uno, nunca un filtro de qué se ve.
+// etapa se subió cada uno, nunca un filtro de qué se ve. La cotización
+// (tipo==='cotizacion', ver bloque de abajo) NO aparece aquí — vive en su
+// propia tarjeta destacada — pero sí puede "volver" a esta lista si se
+// reemplaza por otra más reciente (queda como documento normal, no se borra).
 function renderProspDocsList(){
   const el=document.getElementById('prosp-docs-list');if(!el)return;
-  if(!prospDocsData.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">Sin documentos adjuntos.</div>';return;}
-  el.innerHTML=prospDocsData.map(d=>{
+  const items=prospDocsData.filter(function(d){return d.tipo!=='cotizacion';});
+  if(!items.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">Sin documentos adjuntos.</div>';return;}
+  el.innerHTML=items.map(d=>{
     const {icon,color}=_docIconFor(d.nombre);
     const etapa=prospEtapas.find(e=>e.id===d.etapaId);
     return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--cp-gray-100)">'+
@@ -10767,6 +10786,7 @@ function renderProspDocsList(){
         (etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+';font-size:9px;margin-top:2px">'+escHtml(etapa.nombre)+'</span>':'')+
       '</div>'+
       '<span style="font-size:10px;color:var(--cp-gray-400);flex-shrink:0">'+fmtFileSize(d.size)+'</span>'+
+      '<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px;color:var(--cp-green)" onclick="prospMarkCotizacion(\''+d.id+'\')" title="Marcar como cotización"><i class="ti ti-file-invoice"></i></button>'+
       '<a href="'+d.url+'" target="_blank" class="btn-sm btn-ghost" style="padding:3px 7px"><i class="ti ti-download"></i></a>'+
       '<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px;color:var(--cp-red)" onclick="deleteProspDoc(\''+d.id+'\')"><i class="ti ti-trash"></i></button>'+
     '</div>';
@@ -10809,8 +10829,81 @@ async function deleteProspDoc(id){
   if(doc.url)deleteProspDocFile(doc.url);
   auditLog('eliminar','hb_crm_documentos',id,'Documento eliminado: '+doc.nombre);
   prospDocsData=prospDocsData.filter(x=>x.id!==id);
-  renderProspDocsList();
+  renderProspDocsList();renderProspCotizacion();
   toast('Documento eliminado.','info');
+}
+
+// ── COTIZACIÓN — no es una tabla ni columna nueva: reutiliza
+// hb_crm_documentos tal cual, solo que su fila se distingue con
+// tipo='cotizacion' en vez del mime real que guardan los documentos normales
+// (uploadProspDocFile/prospUploadDocs). 'tipo' no se lee para nada más en
+// todo el módulo (el ícono sale de la extensión del nombre, ver
+// _docIconFor), así que reutilizarlo así no pierde ni rompe nada — y evita
+// tener que agregar una columna nueva. Solo puede haber UNA cotización
+// vigente por lead: marcar/subir una nueva SIEMPRE desmarca la anterior (no
+// la borra — queda como documento normal en la lista de abajo), así que
+// "cuál es la vigente" nunca es ambiguo.
+function _prospCotizacionDoc(){
+  return prospDocsData.find(function(d){return d.tipo==='cotizacion';})||null;
+}
+function renderProspCotizacion(){
+  const el=document.getElementById('prosp-cotizacion-body');if(!el)return;
+  const doc=_prospCotizacionDoc();
+  if(!doc){
+    el.innerHTML='<div style="text-align:center;padding:6px 0 4px">'+
+      '<div style="font-size:12px;color:var(--cp-gray-600);margin-bottom:10px">Sin cotización adjunta.</div>'+
+      (canEdit('prospectos')?'<button type="button" class="btn-sm btn-blue" onclick="document.getElementById(\'prosp-cotizacion-input\').click()"><i class="ti ti-upload"></i> Subir cotización</button>':'')+
+    '</div>';
+    return;
+  }
+  const {icon,color}=_docIconFor(doc.nombre);
+  const canEditP=canEdit('prospectos');
+  el.innerHTML='<div style="display:flex;align-items:center;gap:10px">'+
+      '<i class="ti '+icon+'" style="font-size:28px;color:'+color+';flex-shrink:0"></i>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:12px;font-weight:600;color:var(--cp-navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(doc.nombre)+'</div>'+
+        '<div style="font-size:10px;color:var(--cp-gray-600)">'+fmtFileSize(doc.size)+' · '+prospFmtCreatedAt(doc.createdAt)+'</div>'+
+      '</div>'+
+    '</div>'+
+    '<div style="display:flex;gap:6px;margin-top:10px">'+
+      '<a href="'+doc.url+'" target="_blank" class="btn-sm btn-ghost" style="flex:1;justify-content:center"><i class="ti ti-download"></i> Descargar</a>'+
+      (canEditP?'<button type="button" class="btn-sm btn-ghost" style="flex:1;justify-content:center" onclick="document.getElementById(\'prosp-cotizacion-input\').click()"><i class="ti ti-replace"></i> Reemplazar</button>':'')+
+      (canEditP?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-red);padding:6px 9px" onclick="deleteProspDoc(\''+doc.id+'\')" title="Eliminar"><i class="ti ti-trash"></i></button>':'')+
+    '</div>';
+}
+function prospHandleCotizacionSelect(e){
+  const file=e.target.files[0];
+  e.target.value='';
+  if(file)prospUploadCotizacion(file);
+}
+async function prospUploadCotizacion(file){
+  if(!canEdit('prospectos'))return;
+  if(!prospCurrentId)return;
+  const prospectoId=prospCurrentId;
+  const etapaActual=(prospData.find(function(x){return x.id===prospectoId;})||{}).estado||null;
+  try{
+    const uploaded=await uploadProspDocFile(file,prospectoId);
+    const prevCotiz=_prospCotizacionDoc();
+    if(prevCotiz)await sbUpsert('hb_crm_documentos',{id:prevCotiz.id,tipo:null});
+    const row={id:uid9(),prospecto_id:prospectoId,etapa_id:etapaActual,nombre:file.name,url:uploaded.url,tipo:'cotizacion',size:uploaded.size,usuario_id:state.currentUser?.id||null};
+    const ok=await sbUpsert('hb_crm_documentos',row);
+    if(ok)auditLog('crear','hb_crm_documentos',row.id,'Cotización adjuntada: '+file.name);
+  }catch(err){toast('Error subiendo '+file.name+': '+(err.message||''),'error');return;}
+  prospDocsData=await prospDocsLoad(prospectoId);
+  renderProspDocsList();renderProspCotizacion();
+  toast('Cotización guardada ✓');
+}
+async function prospMarkCotizacion(id){
+  if(!canEdit('prospectos'))return;
+  const doc=prospDocsData.find(function(x){return x.id===id;});if(!doc)return;
+  const prevCotiz=_prospCotizacionDoc();
+  if(prevCotiz&&prevCotiz.id!==doc.id)await sbUpsert('hb_crm_documentos',{id:prevCotiz.id,tipo:null});
+  const ok=await sbUpsert('hb_crm_documentos',{id:doc.id,tipo:'cotizacion'});
+  if(!ok){toast('Error al marcar como cotización.','error');return;}
+  auditLog('editar','hb_crm_documentos',doc.id,'Marcado como cotización: '+doc.nombre);
+  prospDocsData=await prospDocsLoad(prospCurrentId);
+  renderProspDocsList();renderProspCotizacion();
+  toast('Cotización actualizada ✓');
 }
 
 // ── CONFIGURACIÓN DEL CRM (vista 'config' dentro de Prospectos) ──
