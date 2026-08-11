@@ -19,17 +19,17 @@
 <style>
 :root{
   --cp-blue:#7B2FF7;--cp-blue-dark:#6020D0;--cp-blue-light:#F0E8FF;--cp-blue-mid:#9B5FF8;
-  --cp-navy:#0F0A1E;--cp-navy-2:#1A1030;--cp-bg:#F5F3FF;
+  --cp-navy:#0F0A1E;--cp-navy-2:#1A1030;--cp-bg:#F4F4F7;
   --cp-gray-50:#F9FAFB;--cp-gray-100:#F0F2F7;--cp-gray-200:#E1E6F0;
-  --cp-gray-400:#94A0BB;--cp-gray-600:#56637E;--cp-gray-800:#1E2637;
+  --cp-gray-400:#94A0BB;--cp-gray-500:#6B7688;--cp-gray-600:#56637E;--cp-gray-700:#3A4256;--cp-gray-800:#1E2637;--cp-gray-900:#14161D;
   --cp-green:#10C080;--cp-green-light:#E0FAF2;
   --cp-amber:#F5A623;--cp-amber-light:#FEF3D7;
   --cp-red:#EF4444;--cp-red-light:#FEE2E2;
   --cp-purple:#7C3AED;--cp-purple-light:#EDE9FE;
   --cp-pink:#EC4899;--cp-pink-light:#FCE7F3;
   --font-display:'DM Sans',sans-serif;--font-body:'Inter',sans-serif;
-  --shadow-sm:0 1px 4px rgba(0,0,0,.07);--shadow-md:0 4px 16px rgba(0,0,0,.09);--shadow-lg:0 12px 36px rgba(0,0,0,.16);
-  --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-xl:20px;
+  --shadow-sm:0 1px 2px rgba(16,17,25,.04),0 1px 3px rgba(16,17,25,.06);--shadow-md:0 2px 8px rgba(16,17,25,.05),0 8px 24px rgba(16,17,25,.07);--shadow-lg:0 4px 16px rgba(16,17,25,.08),0 16px 48px rgba(16,17,25,.12);
+  --radius-sm:6px;--radius-md:10px;--radius-lg:16px;--radius-xl:22px;
   /* Escala general de la app — no hay font-size en :root/html/body que
      cascadee de forma útil aquí, porque casi todo el CSS está en px fijos
      (paddings/anchos/gaps), no en rem/em. Un font-size más chico solo
@@ -191,10 +191,11 @@ body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-80
 .stat-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
 .stat-value{font-family:var(--font-display);font-weight:700;font-size:26px;color:var(--cp-navy);}
 .stat-label{font-size:12px;color:var(--cp-gray-400);margin-top:2px;}
-.section-card{background:white;border-radius:var(--radius-lg);border:1px solid var(--cp-gray-200);box-shadow:var(--shadow-sm);margin-bottom:16px;overflow:hidden;}
-.section-header{padding:15px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--cp-gray-100);}
+.section-card{background:white;border-radius:var(--radius-lg);box-shadow:var(--shadow-md);margin-bottom:16px;overflow:hidden;transition:box-shadow .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);}
+.section-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);}
+.section-header{padding:19px 25px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--cp-gray-100);}
 .section-title{font-family:var(--font-display);font-weight:600;font-size:14px;color:var(--cp-navy);}
-.section-body{padding:18px 20px;}
+.section-body{padding:23px 25px;}
 
 /* FORMS */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
@@ -226,8 +227,10 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .emp-table td{padding:12px 14px;border-bottom:1px solid var(--cp-gray-100);vertical-align:middle;}
 .emp-table tr:last-child td{border-bottom:none;}
 .emp-table tr:hover td{background:var(--cp-gray-50);cursor:pointer;}
-/* Prospectos — lista: separador entre filas más tenue que el default de .emp-table */
-#prosp-table td{border-bottom:1px solid rgba(15,10,30,.045);}
+/* Prospectos — lista: separador entre filas más tenue que el default de
+   .emp-table, y valores en gray-900 (el nombre conserva su propio color vía
+   .emp-name, más específico por selector, y la etapa su badge de color). */
+#prosp-table td{border-bottom:1px solid rgba(15,10,30,.045);color:var(--cp-gray-900);}
 #prosp-table tr:last-child td{border-bottom:none;}
 .emp-avatar{border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:600;object-fit:cover;flex-shrink:0;}
 .emp-name{font-weight:500;color:var(--cp-navy);font-size:13px;}
@@ -235,13 +238,14 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 
 /* DETAIL */
 .detail-grid{display:grid;grid-template-columns:270px 1fr;gap:18px;}
-.profile-card{background:white;border-radius:var(--radius-lg);border:1px solid var(--cp-gray-200);padding:22px 18px;text-align:center;box-shadow:var(--shadow-sm);align-self:start;}
+.profile-card{background:white;border-radius:var(--radius-xl);padding:28px 23px;text-align:center;box-shadow:var(--shadow-md);align-self:start;transition:box-shadow .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);}
+.profile-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);}
 .profile-avatar-wrap{position:relative;width:76px;height:76px;margin:0 auto 12px;}
 .profile-avatar-img{width:76px;height:76px;border-radius:50%;object-fit:cover;border:3px solid var(--cp-gray-100);}
 .profile-avatar-fallback{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;}
 .profile-avatar-edit{position:absolute;bottom:0;right:0;width:24px;height:24px;background:var(--cp-blue);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid white;}
 .profile-avatar-edit i{font-size:12px;color:white;}
-.profile-name{font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--cp-navy);}
+.profile-name{font-family:var(--font-display);font-weight:600;font-size:16px;color:var(--cp-navy);}
 .profile-role{color:var(--cp-gray-600);font-size:12px;margin:3px 0 10px;}
 .profile-stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0;}
 .profile-stat{background:var(--cp-gray-50);border-radius:var(--radius-sm);padding:9px;}
@@ -439,8 +443,8 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .empty-state p{font-size:13px;}
 .info-row{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--cp-gray-100);}
 .info-row:last-child{border-bottom:none;}
-.info-lbl{font-size:12px;color:var(--cp-gray-400);min-width:140px;}
-.info-val{font-size:13px;color:var(--cp-navy);font-weight:500;}
+.info-lbl{font-size:12px;color:var(--cp-gray-400);font-weight:500;min-width:140px;}
+.info-val{font-size:13px;color:var(--cp-gray-900);font-weight:500;}
 .chip-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:500;background:var(--cp-blue-light);color:var(--cp-blue);}
 
 /* ─── KANBAN ─────────────────────────────────────── */
@@ -477,6 +481,12 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .dev-pipe-card:active{cursor:grabbing;}
 .dev-pipe-card.dev-dragging{opacity:.35;transform:rotate(1.5deg) scale(1.02);box-shadow:var(--shadow-lg);}
 .dev-pipe-col-body{transition:background .15s,border-color .15s;}
+/* Pipeline de Prospectos (buildProspPipeCard) — clase adicional sobre
+   .dev-pipe-card para no tocar el pipeline de Desarrollos, que comparte esa
+   misma clase base. Hover en CSS en vez del onmouseover/onmouseout inline
+   que tenía antes. */
+.prosp-pipe-card{box-shadow:var(--shadow-sm);transition:box-shadow .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);}
+.prosp-pipe-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
 .dev-pipe-col-body.dev-drag-over{background:rgba(123,47,247,.08)!important;border-color:var(--cp-purple)!important;outline:2px dashed var(--cp-purple);outline-offset:-2px;}
 .dev-pipe-col-body.dev-drag-over-reject{background:rgba(239,68,68,.05)!important;outline:2px dashed #EF4444;outline-offset:-2px;}
 /* Prospectos — timeline de seguimiento (mismo look que direccion-bitacora-entry/diseno-chip, sin depender de sus wrappers .direccion-modulo/.diseno-modulo) */
@@ -10031,10 +10041,9 @@ function buildProspPipeCard(p){
   const canal=prospCanales.find(c=>c.id===p.canalEntrada);
   const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
   const tempDotHtml=temp?'<span title="'+escHtml(temp.nombre)+'" style="position:absolute;top:7px;right:7px;width:9px;height:9px;border-radius:50%;background:'+temp.color+'"></span>':'';
-  return '<div class="dev-pipe-card" draggable="true" data-prosp-id="'+p.id+'" data-prosp-etapa="'+p.estado+'"'+
+  return '<div class="dev-pipe-card prosp-pipe-card" draggable="true" data-prosp-id="'+p.id+'" data-prosp-etapa="'+p.estado+'"'+
     ' onclick="openProspDetail(\''+p.id+'\')"'+
-    ' style="position:relative;background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-sm);padding:9px;cursor:pointer"'+
-    ' onmouseover="this.style.boxShadow=\'var(--shadow-md)\'" onmouseout="this.style.boxShadow=\'none\'">'+
+    ' style="position:relative;background:white;border-radius:var(--radius-lg);padding:9px;cursor:pointer">'+
     tempDotHtml+
     '<div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">'+
       '<i class="ti ti-grip-vertical" style="font-size:12px;color:var(--cp-gray-300);flex-shrink:0;margin-top:2px"></i>'+
