@@ -8861,6 +8861,8 @@ let prospEtapas = [];
 let prospTiposContacto = [];
 let prospCanales = [];
 let prospTemperaturas = [];
+let prospGiros = [];
+let prospPlantillas = [];
 let prospSegData = [];
 let prospCurrentId = null;
 let prospOpenEtapaValue = null; // etapa con la que se abrió la ficha actual — ver prospOnEtapaSelectChange()
@@ -8871,6 +8873,7 @@ const PROSP_ALL_COLS=[
   {key:'nombre',label:'Nombre'},
   {key:'contacto',label:'Contacto'},
   {key:'canal',label:'Canal'},
+  {key:'giro',label:'Giro / Industria'},
   {key:'vendedor',label:'Vendedor'},
   {key:'etapa',label:'Etapa'},
   {key:'valor',label:'Valor est.'},
@@ -9893,7 +9896,7 @@ async function prospLoad(){
     sbGetAll('hb_config')
   ]);
   prospData = prospRaw.map(r=>({
-    id:r.id, nombre:r.nombre, empresa:r.empresa, cargo:r.cargo, fotoUrl:r.foto_url, contactoTel:r.contacto_tel, contactoMail:r.contacto_mail,
+    id:r.id, nombre:r.nombre, empresa:r.empresa, cargo:r.cargo, giro:r.giro, fotoUrl:r.foto_url, contactoTel:r.contacto_tel, contactoMail:r.contacto_mail,
     canalEntrada:r.canal_entrada, estado:r.estado, vendedorId:r.vendedor_id, temperatura:r.temperatura,
     notas:r.notas, valorEstimado:r.valor_estimado, createdAt:r.created_at, updatedAt:r.updated_at
   }));
@@ -9910,6 +9913,8 @@ async function prospLoad(){
   prospTiposContacto=cfgGet('crm_tipos_contacto');
   prospCanales=cfgGet('crm_canales');
   prospTemperaturas=cfgGet('crm_temperatura');
+  prospGiros=cfgGet('crm_giros');
+  prospPlantillas=cfgGet('crm_plantillas');
   if(!(_userProfilesCache||[]).length){try{await loadAllUserProfiles();}catch(e){}}
 }
 
@@ -10029,6 +10034,7 @@ function _prospSortValue(p,key){
     case'nombre':return (p.nombre||'').toLowerCase();
     case'contacto':return (p.contactoTel||p.contactoMail||'').toLowerCase();
     case'canal':{const c=prospCanales.find(x=>x.id===p.canalEntrada);return (c?c.nombre:'').toLowerCase();}
+    case'giro':{const g=prospGiros.find(x=>x.id===p.giro);return (g?g.nombre:'').toLowerCase();}
     case'vendedor':{const v=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;return (v?(v.display_name||v.email):'').toLowerCase();}
     case'etapa':{const e=prospEtapas.find(x=>x.id===p.estado);return (e?e.nombre:(p.estado||'')).toLowerCase();}
     case'valor':return Number(p.valorEstimado)||0;
@@ -10041,6 +10047,7 @@ function _prospCellHtml(p,key){
     case'nombre':return '<td><div class="emp-name" style="font-size:13px">'+escHtml(p.nombre)+'</div></td>';
     case'contacto':return '<td style="font-size:12px;color:var(--cp-gray-600)">'+prospContactLinkHtml(p.contactoTel,p.contactoMail)+'</td>';
     case'canal':{const canal=prospCanales.find(c=>c.id===p.canalEntrada);return '<td>'+(canal?escHtml(canal.nombre):'—')+'</td>';}
+    case'giro':{const giro=prospGiros.find(g=>g.id===p.giro);return '<td>'+(giro?escHtml(giro.nombre):'—')+'</td>';}
     case'vendedor':{const vend=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;return '<td>'+(vend?escHtml(vend.display_name||vend.email):'—')+'</td>';}
     case'etapa':{const etapa=prospEtapas.find(e=>e.id===p.estado);return '<td>'+(etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':escHtml(p.estado||'—'))+'</td>';}
     case'valor':return '<td>'+(p.valorEstimado!=null?'$'+Number(p.valorEstimado).toLocaleString('es-MX'):'—')+'</td>';
@@ -10204,13 +10211,15 @@ function prospLogEtapaChange(prospId,fromEtapaId,toEtapaId,obs){
 // (index.html ~22319): un catálogo desactivado deja de ofrecerse para leads
 // NUEVOS, pero no le cambia el valor por sorpresa a uno que ya lo tenía.
 function populateProspFormSelects(current){
-  const keepCanal=current?.canalEntrada,keepTemp=current?.temperatura;
+  const keepCanal=current?.canalEntrada,keepTemp=current?.temperatura,keepGiro=current?.giro;
   const canales=prospCanales.filter(c=>c.activo!==false||c.id===keepCanal);
   const temps=prospTemperaturas.filter(t=>t.activo!==false||t.id===keepTemp);
+  const giros=prospGiros.filter(g=>g.activo!==false||g.id===keepGiro);
   document.getElementById('prospf-canal').innerHTML=canales.map(c=>'<option value="'+c.id+'">'+escHtml(c.nombre)+'</option>').join('');
   document.getElementById('prospf-vendedor').innerHTML='<option value="">— Sin asignar —</option>'+(_userProfilesCache||[]).map(u=>'<option value="'+u.user_id+'">'+escHtml(u.display_name||u.email)+'</option>').join('');
   document.getElementById('prospf-etapa').innerHTML=prospEtapas.map(e=>'<option value="'+e.id+'">'+escHtml(e.nombre)+'</option>').join('');
   document.getElementById('prospf-temperatura').innerHTML='<option value="">— Sin definir —</option>'+temps.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
+  document.getElementById('prospf-giro').innerHTML='<option value="">— Sin definir —</option>'+giros.map(g=>'<option value="'+g.id+'">'+escHtml(g.nombre)+'</option>').join('');
 }
 // Barra de etapas conectadas — inspirada en el "stepper" de Desarrollos
 // (openDevDetail, ver línea ~10815) pero con semántica de recorrido: pasadas
