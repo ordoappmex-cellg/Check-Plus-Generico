@@ -2112,13 +2112,18 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <button class="org-view-btn active" id="prosp-vw-lista" onclick="setProspView('lista',this)"><i class="ti ti-list"></i> Lista</button>
             <button class="org-view-btn" id="prosp-vw-pipeline" onclick="setProspView('pipeline',this)"><i class="ti ti-layout-kanban"></i> Pipeline</button>
           </div>
-          <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+          <div id="prosp-toolbar-filters" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
             <input type="text" id="prosp-search" placeholder="Buscar lead…" oninput="renderProspectos()" class="form-input" style="width:170px;padding:7px 10px;font-size:13px">
             <select class="form-input" id="prosp-filter-etapa" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todas las etapas</option></select>
             <select class="form-input" id="prosp-filter-vendedor" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los vendedores</option></select>
             <select class="form-input" id="prosp-filter-canal" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los canales</option></select>
             <button class="btn-sm btn-blue" id="btn-nuevo-prospecto" onclick="openAddProspecto()"><i class="ti ti-plus"></i> Nuevo lead</button>
           </div>
+          <!-- Engranaje de config del CRM — deliberadamente NO usa .org-view-btn:
+               Lista/Pipeline son formas de ver los mismos datos, Configuración
+               es otra cosa, así que se ve distinto (ícono suelto, no parte del
+               grupo de pastillas). -->
+          <button class="btn-sm btn-ghost" id="prosp-cfg-btn" onclick="setProspView('config',this)" title="Configuración del CRM"><i class="ti ti-settings"></i></button>
         </div>
 
         <!-- Lista view -->
@@ -2132,6 +2137,79 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <!-- Pipeline view (hidden by default) -->
         <div id="prosp-pipeline-view" style="display:none">
           <div id="prosp-pipeline-board" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;min-height:400px"></div>
+        </div>
+
+        <!-- Config view (hidden by default) — configuración del CRM interno,
+             separada de la Configuración general de la app (ver renderUsersList
+             etc.): catálogos crm_* (hb_config) + preferencia personal de
+             columnas de la lista (localStorage). -->
+        <div id="prosp-config-view" style="display:none">
+          <div class="section-card">
+            <div class="section-header"><div class="section-title"><i class="ti ti-route" style="margin-right:6px;color:var(--cp-purple)"></i>Etapas del pipeline</div></div>
+            <div class="section-body">
+              <div id="prosp-cfg-etapas-list" style="margin-bottom:14px"></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <input type="color" id="prosp-cfg-etapa-color" value="#7B2FF7" style="width:36px;height:32px;padding:2px;border:1px solid var(--cp-gray-200);border-radius:6px;cursor:pointer" title="Color">
+                <input type="text" class="form-input" id="prosp-cfg-etapa-icon" placeholder="ti-flag" style="width:110px" title="Clase de ícono Tabler, ej. ti-flag">
+                <input type="text" class="form-input" id="prosp-cfg-etapa-nombre" placeholder="Nueva etapa…" style="flex:1;min-width:140px" onkeydown="if(event.key==='Enter'){event.preventDefault();prospCfgEtapaAdd();}">
+                <button type="button" class="btn-sm btn-ghost" onclick="prospCfgEtapaAdd()"><i class="ti ti-plus"></i> Agregar</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:16px 0">
+            <div class="section-card" style="margin-bottom:0">
+              <div class="section-header"><div class="section-title">Canales de entrada</div></div>
+              <div class="section-body">
+                <div id="prosp-cfg-canales-list" style="margin-bottom:10px"></div>
+                <div style="display:flex;gap:8px">
+                  <input type="color" id="prosp-cfg-canales-color" value="#7B2FF7" style="width:34px;height:32px;padding:2px;border:1px solid var(--cp-gray-200);border-radius:6px;cursor:pointer">
+                  <input type="text" class="form-input" id="prosp-cfg-canales-nombre" placeholder="Nuevo canal…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();prospCfgCatalogAdd('canales');}">
+                  <button type="button" class="btn-sm btn-ghost" onclick="prospCfgCatalogAdd('canales')"><i class="ti ti-plus"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="section-card" style="margin-bottom:0">
+              <div class="section-header"><div class="section-title">Tipos de contacto</div></div>
+              <div class="section-body">
+                <div id="prosp-cfg-tipos_contacto-list" style="margin-bottom:10px"></div>
+                <div style="display:flex;gap:8px">
+                  <input type="color" id="prosp-cfg-tipos_contacto-color" value="#7B2FF7" style="width:34px;height:32px;padding:2px;border:1px solid var(--cp-gray-200);border-radius:6px;cursor:pointer">
+                  <input type="text" class="form-input" id="prosp-cfg-tipos_contacto-nombre" placeholder="Nuevo tipo…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();prospCfgCatalogAdd('tipos_contacto');}">
+                  <button type="button" class="btn-sm btn-ghost" onclick="prospCfgCatalogAdd('tipos_contacto')"><i class="ti ti-plus"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="section-card" style="margin-bottom:0">
+              <div class="section-header"><div class="section-title">Temperatura</div></div>
+              <div class="section-body">
+                <div id="prosp-cfg-temperatura-list" style="margin-bottom:10px"></div>
+                <div style="display:flex;gap:8px">
+                  <input type="color" id="prosp-cfg-temperatura-color" value="#7B2FF7" style="width:34px;height:32px;padding:2px;border:1px solid var(--cp-gray-200);border-radius:6px;cursor:pointer">
+                  <input type="text" class="form-input" id="prosp-cfg-temperatura-nombre" placeholder="Nueva temperatura…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();prospCfgCatalogAdd('temperatura');}">
+                  <button type="button" class="btn-sm btn-ghost" onclick="prospCfgCatalogAdd('temperatura')"><i class="ti ti-plus"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-columns" style="margin-right:6px;color:var(--cp-blue)"></i>Columnas de la lista</div>
+              <button class="btn-sm btn-ghost" onclick="resetProspCols()"><i class="ti ti-refresh"></i> Restablecer</button>
+            </div>
+            <div class="section-body">
+              <div style="font-size:12px;color:var(--cp-gray-400);margin-bottom:10px">Elige qué columnas ves en la lista de Prospectos. Es una preferencia personal de este navegador, no afecta a otros usuarios.</div>
+              <div id="prosp-cfg-cols-panel"></div>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header"><div class="section-title"><i class="ti ti-message-2" style="margin-right:6px;color:var(--cp-gray-400)"></i>Plantillas de mensajes</div></div>
+            <div class="section-body">
+              <div class="empty-state" style="padding:20px"><i class="ti ti-clock"></i><p>Próximamente.</p></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -9836,16 +9914,26 @@ async function prospLoad(){
 }
 
 // ── VIEW TOGGLE ───────────────────────────────────
+// 'config' es un tercer modo (además de lista/pipeline) para la vista de
+// Configuración del CRM — el engranaje del toolbar llama a
+// setProspView('config',this) igual que las pastillas Lista/Pipeline, pero el
+// botón del engranaje no lleva la clase .org-view-btn así que
+// btn.classList.add('active') aquí no le pinta el estilo de pastilla activa
+// (deliberado, ver comentario en el HTML del botón).
 function setProspView(mode,btn){
   prospViewMode=mode;
   document.querySelectorAll('#prosp-vw-lista,#prosp-vw-pipeline').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   document.getElementById('prosp-lista-view').style.display=mode==='lista'?'block':'none';
   document.getElementById('prosp-pipeline-view').style.display=mode==='pipeline'?'block':'none';
-  renderProspectos();
+  document.getElementById('prosp-config-view').style.display=mode==='config'?'block':'none';
+  const filtersBar=document.getElementById('prosp-toolbar-filters');if(filtersBar)filtersBar.style.display=mode==='config'?'none':'flex';
+  if(mode==='config')renderProspConfigView();
+  else renderProspectos();
 }
 function renderProspectos(){
   const addBtn=document.getElementById('btn-nuevo-prospecto');if(addBtn)addBtn.style.display=canEdit('prospectos')?'':'none';
+  if(prospViewMode==='config')return; // se repinta con renderProspConfigView(), no aquí
   populateProspFilters();
   if(prospViewMode==='pipeline')renderProspPipeline();
   else renderProspLista();
@@ -9892,7 +9980,8 @@ function getProspColOrder(){
   return PROSP_ALL_COLS.map(c=>c.key);
 }
 function getProspActiveCols(){
-  return getProspColOrder().map(k=>PROSP_ALL_COLS.find(c=>c.key===k)).filter(Boolean);
+  const vis=getProspVisibleCols();
+  return getProspColOrder().filter(k=>vis.includes(k)).map(k=>PROSP_ALL_COLS.find(c=>c.key===k)).filter(Boolean);
 }
 function _prospTableHeaderHtml(cols){
   let h='<tr>';
@@ -10108,11 +10197,20 @@ function prospLogEtapaChange(prospId,fromEtapaId,toEtapaId,obs){
 }
 
 // ── FICHA DEL LEAD (modal crear/editar) ────────────
-function populateProspFormSelects(){
-  document.getElementById('prospf-canal').innerHTML=prospCanales.map(c=>'<option value="'+c.id+'">'+escHtml(c.nombre)+'</option>').join('');
+// 'current' (opcional) = el lead que se está editando — sus valores actuales
+// de canal/temperatura se conservan en la lista aunque ese catálogo se haya
+// desactivado desde la config, mismo criterio que
+// direccionConfig.areas.filter(a=>a.activo!==false||a.id===selected)
+// (index.html ~22319): un catálogo desactivado deja de ofrecerse para leads
+// NUEVOS, pero no le cambia el valor por sorpresa a uno que ya lo tenía.
+function populateProspFormSelects(current){
+  const keepCanal=current?.canalEntrada,keepTemp=current?.temperatura;
+  const canales=prospCanales.filter(c=>c.activo!==false||c.id===keepCanal);
+  const temps=prospTemperaturas.filter(t=>t.activo!==false||t.id===keepTemp);
+  document.getElementById('prospf-canal').innerHTML=canales.map(c=>'<option value="'+c.id+'">'+escHtml(c.nombre)+'</option>').join('');
   document.getElementById('prospf-vendedor').innerHTML='<option value="">— Sin asignar —</option>'+(_userProfilesCache||[]).map(u=>'<option value="'+u.user_id+'">'+escHtml(u.display_name||u.email)+'</option>').join('');
   document.getElementById('prospf-etapa').innerHTML=prospEtapas.map(e=>'<option value="'+e.id+'">'+escHtml(e.nombre)+'</option>').join('');
-  document.getElementById('prospf-temperatura').innerHTML='<option value="">— Sin definir —</option>'+prospTemperaturas.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
+  document.getElementById('prospf-temperatura').innerHTML='<option value="">— Sin definir —</option>'+temps.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
 }
 // Barra de etapas conectadas — inspirada en el "stepper" de Desarrollos
 // (openDevDetail, ver línea ~10815) pero con semántica de recorrido: pasadas
@@ -10231,7 +10329,7 @@ function openEditProspecto(){
   const p=prospData.find(x=>x.id===prospCurrentId);if(!p)return;
   document.getElementById('prosp-modal-title').textContent='Editar lead';
   document.getElementById('prosp-stage-stepper').innerHTML=buildProspStageStepper(p.estado);
-  populateProspFormSelects();
+  populateProspFormSelects(p);
   prospPhotoData=p.fotoUrl||null;
   const img=document.getElementById('prospf-photo-preview');
   const zone=document.getElementById('prospf-photo-zone');
@@ -10424,7 +10522,7 @@ function renderProspSegTimeline(){
 }
 function openAddProspSeg(){
   if(!prospCurrentId)return;
-  document.getElementById('prospsegf-tipo').innerHTML=prospTiposContacto.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
+  document.getElementById('prospsegf-tipo').innerHTML=prospTiposContacto.filter(t=>t.activo!==false).map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
   document.getElementById('prospsegf-nota').value='';
   document.getElementById('prospsegf-proximo').value='';
   document.getElementById('prospsegf-fecha').value='';
@@ -10559,6 +10657,273 @@ async function deleteProspDoc(id){
   prospDocsData=prospDocsData.filter(x=>x.id!==id);
   renderProspDocsList();
   toast('Documento eliminado.','info');
+}
+
+// ── CONFIGURACIÓN DEL CRM (vista 'config' dentro de Prospectos) ──
+// Distinta de la Configuración general de la app (Usuarios, etc.) — vive
+// dentro del propio módulo Prospectos, vía el engranaje del toolbar. Los
+// catálogos crm_* se guardan en hb_config (clave/valor), no en app_config —
+// mismo patrón de upsert, tabla distinta. Todas las funciones mutan
+// prospEtapas/prospCanales/prospTiposContacto/prospTemperaturas EN SITIO
+// (nunca los reasignan) para que el resto del módulo, ya cargado en memoria
+// por loadModuleData (que corre una sola vez por sesión), vea el cambio sin
+// recargar la página.
+async function prospCfgSaveSB(clave,valor){
+  const {error}=await sb.from('hb_config').upsert({clave,valor});
+  if(error){console.error('hb_config upsert error ('+clave+'):',error);return false;}
+  return true;
+}
+function renderProspConfigView(){
+  renderProspCfgEtapas();
+  prospCfgCatalogRender('canales');
+  prospCfgCatalogRender('tipos_contacto');
+  prospCfgCatalogRender('temperatura');
+  renderProspColPanel();
+}
+
+// ── Etapas del pipeline (crm_etapas) — con ícono + orden, sin 'activo' (cada
+// etapa es una columna real del pipeline; desactivarla no tiene un estado
+// intermedio con sentido, a diferencia de canales/tipos/temperatura). ──
+let _prospCfgEtapaDragId=null;
+function renderProspCfgEtapas(){
+  const el=document.getElementById('prosp-cfg-etapas-list');if(!el)return;
+  if(!prospEtapas.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400)">Sin etapas configuradas.</div>';return;}
+  el.innerHTML=prospEtapas.map(function(et){
+    const isPerdido=et.id==='perdido';
+    return '<div class="prosp-cfg-row" draggable="true" data-etapa-id="'+et.id+'" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--cp-gray-100)">'+
+      '<i class="ti ti-grip-vertical" style="cursor:grab;color:var(--cp-gray-300);flex-shrink:0" title="Arrastrar para reordenar"></i>'+
+      '<input type="color" value="'+(et.color||'#94A0BB')+'" onchange="prospCfgEtapaSetColor(\''+et.id+'\',this.value)" style="width:28px;height:28px;padding:1px;border:1px solid var(--cp-gray-200);border-radius:5px;cursor:pointer;flex-shrink:0">'+
+      '<i class="ti '+(et.icon||'ti-flag')+'" style="color:'+(et.color||'#94A0BB')+';flex-shrink:0;width:16px;text-align:center" title="Vista previa del ícono"></i>'+
+      '<input type="text" value="'+escHtml(et.icon||'')+'" placeholder="ti-flag" onchange="prospCfgEtapaSetIcon(\''+et.id+'\',this.value)" style="width:100px;border:1px solid var(--cp-gray-200);border-radius:5px;background:none;font-size:11px;color:var(--cp-navy);padding:4px 6px;flex-shrink:0">'+
+      '<input type="text" value="'+escHtml(et.nombre)+'" onchange="prospCfgEtapaRename(\''+et.id+'\',this.value)" style="flex:1;border:none;background:none;font-size:12px;color:var(--cp-navy);padding:4px 0;min-width:80px">'+
+      (isPerdido?'<span class="badge badge-gray" style="flex-shrink:0" title="Etapa protegida — usada por \'Marcar perdido\', no se puede eliminar">Protegida</span>'
+        :'<button type="button" style="background:none;border:none;color:var(--cp-red);cursor:pointer;padding:4px;flex-shrink:0;display:inline-flex" onclick="prospCfgEtapaDelete(\''+et.id+'\')" title="Eliminar"><i class="ti ti-trash"></i></button>')+
+    '</div>';
+  }).join('');
+  _initProspCfgEtapaDrag();
+}
+function _initProspCfgEtapaDrag(){
+  const el=document.getElementById('prosp-cfg-etapas-list');if(!el)return;
+  el.querySelectorAll('.prosp-cfg-row[draggable]').forEach(function(row){
+    row.addEventListener('dragstart',function(){_prospCfgEtapaDragId=this.dataset.etapaId;this.style.opacity='0.5';});
+    row.addEventListener('dragend',function(){this.style.opacity='';_prospCfgEtapaDragId=null;});
+    row.addEventListener('dragover',function(e){e.preventDefault();this.style.background='var(--cp-blue-light)';});
+    row.addEventListener('dragleave',function(){this.style.background='';});
+    row.addEventListener('drop',function(e){
+      e.preventDefault();this.style.background='';
+      const from=_prospCfgEtapaDragId,to=this.dataset.etapaId;
+      if(!from||from===to)return;
+      const fromIdx=prospEtapas.findIndex(function(x){return x.id===from;});
+      const toIdx=prospEtapas.findIndex(function(x){return x.id===to;});
+      if(fromIdx<0||toIdx<0)return;
+      const [moved]=prospEtapas.splice(fromIdx,1);
+      prospEtapas.splice(toIdx,0,moved);
+      prospCfgEtapaSaveOrder();
+    });
+  });
+}
+async function prospCfgEtapaSaveOrder(){
+  const prev=JSON.parse(JSON.stringify(prospEtapas));
+  prospEtapas.forEach(function(et,i){et.orden=i;});
+  const ok=await prospCfgSaveSB('crm_etapas',prospEtapas);
+  if(!ok){prospEtapas.length=0;prospEtapas.push(...prev);toast('Error al guardar el orden.','error');}
+  renderProspCfgEtapas();
+  renderProspectos();populateProspFormSelects2();
+}
+// populateProspFormSelects() vive dentro del modal-prospecto — solo tiene
+// sentido refrescarla si el modal está abierto; envuelta aparte para no
+// llamarla (ni fallar) cuando no lo está.
+function populateProspFormSelects2(){
+  if(document.getElementById('modal-prospecto')?.classList.contains('open'))populateProspFormSelects(prospData.find(x=>x.id===prospCurrentId));
+}
+async function prospCfgEtapaAdd(){
+  const nombre=sanitizeInput(document.getElementById('prosp-cfg-etapa-nombre').value,60);
+  if(!nombre)return;
+  const color=document.getElementById('prosp-cfg-etapa-color').value||'#94A0BB';
+  const icon=sanitizeInput(document.getElementById('prosp-cfg-etapa-icon').value,40)||null;
+  const prev=JSON.parse(JSON.stringify(prospEtapas));
+  prospEtapas.push({id:uid9(),nombre,color,icon,orden:prospEtapas.length});
+  const ok=await prospCfgSaveSB('crm_etapas',prospEtapas);
+  if(!ok){prospEtapas.length=0;prospEtapas.push(...prev);toast('Error al guardar.','error');return;}
+  document.getElementById('prosp-cfg-etapa-nombre').value='';
+  document.getElementById('prosp-cfg-etapa-icon').value='';
+  renderProspCfgEtapas();
+  renderProspectos();populateProspFormSelects2();
+}
+async function prospCfgEtapaRename(id,nombre){
+  nombre=sanitizeInput(nombre,60);if(!nombre)return;
+  const prev=JSON.parse(JSON.stringify(prospEtapas));
+  const it=prospEtapas.find(function(x){return x.id===id;});if(!it)return;
+  it.nombre=nombre;
+  const ok=await prospCfgSaveSB('crm_etapas',prospEtapas);
+  if(!ok){prospEtapas.length=0;prospEtapas.push(...prev);toast('Error al guardar.','error');}
+  renderProspCfgEtapas();
+  renderProspectos();populateProspFormSelects2();
+}
+async function prospCfgEtapaSetColor(id,color){
+  const prev=JSON.parse(JSON.stringify(prospEtapas));
+  const it=prospEtapas.find(function(x){return x.id===id;});if(!it)return;
+  it.color=color;
+  const ok=await prospCfgSaveSB('crm_etapas',prospEtapas);
+  if(!ok){prospEtapas.length=0;prospEtapas.push(...prev);toast('Error al guardar.','error');}
+  renderProspCfgEtapas();
+  renderProspectos();
+}
+async function prospCfgEtapaSetIcon(id,icon){
+  icon=sanitizeInput(icon,40)||null;
+  const prev=JSON.parse(JSON.stringify(prospEtapas));
+  const it=prospEtapas.find(function(x){return x.id===id;});if(!it)return;
+  it.icon=icon;
+  const ok=await prospCfgSaveSB('crm_etapas',prospEtapas);
+  if(!ok){prospEtapas.length=0;prospEtapas.push(...prev);toast('Error al guardar.','error');}
+  renderProspCfgEtapas();
+}
+async function prospCfgEtapaDelete(id){
+  if(id==='perdido'){toast('Esta etapa está protegida — la usa "Marcar perdido".','error');return;}
+  if(prospEtapas.length<=1){toast('Debe quedar al menos una etapa.','error');return;}
+  const enUso=prospData.filter(function(p){return p.estado===id;}).length;
+  if(enUso>0){toast('No se puede eliminar: '+enUso+' lead(s) están en esta etapa. Muévelos primero.','error');return;}
+  if(!confirm('¿Eliminar esta etapa?'))return;
+  const prev=JSON.parse(JSON.stringify(prospEtapas));
+  prospEtapas=prospEtapas.filter(function(x){return x.id!==id;});
+  const ok=await prospCfgSaveSB('crm_etapas',prospEtapas);
+  if(!ok){prospEtapas.length=0;prospEtapas.push(...prev);toast('Error al guardar.','error');return;}
+  renderProspCfgEtapas();
+  renderProspectos();populateProspFormSelects2();
+  toast('Etapa eliminada.','info');
+}
+
+// ── Canales / Tipos de contacto / Temperatura — mismo CRUD que
+// direccionRenderCfgList/direccionCfgAdd/Rename/SetColor/ToggleActivo/Delete
+// (index.html ~22071-22156), calcado sobre hb_config en vez de app_config. Los
+// tres catálogos comparten shape {id,nombre,color,activo?} desde que se
+// unificaron por SQL (ver prospLoad), así que un único set de funciones por
+// 'kind' les sirve a los tres sin triplicar lógica. ──
+const PROSP_CFG_CATALOGS={
+  canales:{clave:'crm_canales',getArr:function(){return prospCanales;}},
+  tipos_contacto:{clave:'crm_tipos_contacto',getArr:function(){return prospTiposContacto;}},
+  temperatura:{clave:'crm_temperatura',getArr:function(){return prospTemperaturas;}}
+};
+// Los seguimientos (hb_crm_seguimientos) no se cargan completos en memoria —
+// solo el del lead abierto (prospSegData) — así que "¿está en uso este tipo
+// de contacto?" necesita una consulta en vivo; canales/temperatura sí viven
+// completos en prospData y se revisan en memoria sin ir a la base.
+async function prospCfgCatalogUsageCount(kind,id){
+  if(kind==='canales')return prospData.filter(function(p){return p.canalEntrada===id;}).length;
+  if(kind==='temperatura')return prospData.filter(function(p){return p.temperatura===id;}).length;
+  if(kind==='tipos_contacto'){
+    const {count,error}=await sb.from('hb_crm_seguimientos').select('id',{count:'exact',head:true}).eq('tipo',id);
+    if(error){console.error('prospCfgCatalogUsageCount tipos_contacto',error);return 0;}
+    return count||0;
+  }
+  return 0;
+}
+function prospCfgCatalogRender(kind){
+  const cfg=PROSP_CFG_CATALOGS[kind];if(!cfg)return;
+  const el=document.getElementById('prosp-cfg-'+kind+'-list');if(!el)return;
+  const items=cfg.getArr();
+  if(!items.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400)">Sin elementos.</div>';return;}
+  el.innerHTML=items.map(function(it){
+    const activo=it.activo!==false;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--cp-gray-100)'+(activo?'':';opacity:.5')+'">'+
+      '<input type="color" value="'+(it.color||'#94A0BB')+'" onchange="prospCfgCatalogSetColor(\''+kind+'\',\''+it.id+'\',this.value)" style="width:26px;height:26px;padding:1px;border:1px solid var(--cp-gray-200);border-radius:5px;cursor:pointer">'+
+      '<input type="text" value="'+escHtml(it.nombre)+'" onchange="prospCfgCatalogRename(\''+kind+'\',\''+it.id+'\',this.value)" style="flex:1;border:none;background:none;font-size:12px;color:var(--cp-navy);padding:4px 0">'+
+      '<button type="button" style="background:none;border:none;color:var(--cp-purple);cursor:pointer;padding:4px;display:inline-flex" onclick="prospCfgCatalogToggleActivo(\''+kind+'\',\''+it.id+'\')" title="'+(activo?'Desactivar':'Activar')+'"><i class="ti ti-'+(activo?'eye':'eye-off')+'"></i></button>'+
+      '<button type="button" style="background:none;border:none;color:var(--cp-red);cursor:pointer;padding:4px;display:inline-flex" onclick="prospCfgCatalogDelete(\''+kind+'\',\''+it.id+'\')" title="Eliminar"><i class="ti ti-trash"></i></button>'+
+    '</div>';
+  }).join('');
+}
+async function prospCfgCatalogAdd(kind){
+  const cfg=PROSP_CFG_CATALOGS[kind];if(!cfg)return;
+  const nombreEl=document.getElementById('prosp-cfg-'+kind+'-nombre');
+  const colorEl=document.getElementById('prosp-cfg-'+kind+'-color');
+  const nombre=sanitizeInput(nombreEl.value,60);if(!nombre)return;
+  const arr=cfg.getArr();
+  const prev=JSON.parse(JSON.stringify(arr));
+  arr.push({id:uid9(),nombre,color:colorEl.value||'#94A0BB',activo:true});
+  const ok=await prospCfgSaveSB(cfg.clave,arr);
+  if(!ok){arr.length=0;arr.push(...prev);toast('Error al guardar.','error');return;}
+  nombreEl.value='';
+  prospCfgCatalogRender(kind);
+  renderProspectos();populateProspFormSelects2();
+}
+async function prospCfgCatalogRename(kind,id,nombre){
+  const cfg=PROSP_CFG_CATALOGS[kind];if(!cfg)return;
+  nombre=sanitizeInput(nombre,60);if(!nombre)return;
+  const arr=cfg.getArr();
+  const prev=JSON.parse(JSON.stringify(arr));
+  const it=arr.find(function(x){return x.id===id;});if(!it)return;
+  it.nombre=nombre;
+  const ok=await prospCfgSaveSB(cfg.clave,arr);
+  if(!ok){arr.length=0;arr.push(...prev);toast('Error al guardar.','error');}
+  prospCfgCatalogRender(kind);
+  renderProspectos();populateProspFormSelects2();
+}
+async function prospCfgCatalogSetColor(kind,id,color){
+  const cfg=PROSP_CFG_CATALOGS[kind];if(!cfg)return;
+  const arr=cfg.getArr();
+  const prev=JSON.parse(JSON.stringify(arr));
+  const it=arr.find(function(x){return x.id===id;});if(!it)return;
+  it.color=color;
+  const ok=await prospCfgSaveSB(cfg.clave,arr);
+  if(!ok){arr.length=0;arr.push(...prev);toast('Error al guardar.','error');}
+  prospCfgCatalogRender(kind);
+  renderProspectos();
+}
+async function prospCfgCatalogToggleActivo(kind,id){
+  const cfg=PROSP_CFG_CATALOGS[kind];if(!cfg)return;
+  const arr=cfg.getArr();
+  const prev=JSON.parse(JSON.stringify(arr));
+  const it=arr.find(function(x){return x.id===id;});if(!it)return;
+  it.activo=it.activo===false?true:false;
+  const ok=await prospCfgSaveSB(cfg.clave,arr);
+  if(!ok){arr.length=0;arr.push(...prev);toast('Error al guardar.','error');}
+  prospCfgCatalogRender(kind);
+  renderProspectos();populateProspFormSelects2();
+}
+async function prospCfgCatalogDelete(kind,id){
+  const cfg=PROSP_CFG_CATALOGS[kind];if(!cfg)return;
+  const enUso=await prospCfgCatalogUsageCount(kind,id);
+  if(enUso>0){toast('Está en uso ('+enUso+') — desactívalo en su lugar.','error');return;}
+  if(!confirm('¿Eliminar este elemento?'))return;
+  const arr=cfg.getArr();
+  const prev=JSON.parse(JSON.stringify(arr));
+  const filtered=arr.filter(function(x){return x.id!==id;});
+  arr.length=0;arr.push(...filtered);
+  const ok=await prospCfgSaveSB(cfg.clave,arr);
+  if(!ok){arr.length=0;arr.push(...prev);toast('Error al guardar.','error');return;}
+  prospCfgCatalogRender(kind);
+  renderProspectos();populateProspFormSelects2();
+}
+
+// ── Columnas de la lista — preferencia personal (localStorage), calcada de
+// getCrmVisibleCols/toggleCrmColVisibility/renderCrmColPanel del CRM Clientify
+// (index.html ~16196-16593) sobre PROSP_ALL_COLS en vez de CRM_ALL_COLS. ──
+function getProspVisibleCols(){
+  try{const s=localStorage.getItem('cp_prosp_visible_cols');if(s){const arr=JSON.parse(s);if(Array.isArray(arr)&&arr.length)return arr;}}catch(e){}
+  return PROSP_ALL_COLS.map(function(c){return c.key;});
+}
+function toggleProspColVisibility(key,visible){
+  let cols=getProspVisibleCols();
+  if(visible){if(!cols.includes(key))cols.push(key);}
+  else{cols=cols.filter(function(k){return k!==key;});if(!cols.length)return;}
+  localStorage.setItem('cp_prosp_visible_cols',JSON.stringify(cols));
+  renderProspColPanel();
+  renderProspLista();
+}
+function resetProspCols(){
+  localStorage.removeItem('cp_prosp_visible_cols');
+  localStorage.removeItem('cp_prosp_col_order');
+  renderProspColPanel();
+  renderProspLista();
+}
+function renderProspColPanel(){
+  const el=document.getElementById('prosp-cfg-cols-panel');if(!el)return;
+  const vis=getProspVisibleCols();
+  el.innerHTML=PROSP_ALL_COLS.map(function(col){
+    const chk=vis.includes(col.key);
+    return '<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--cp-navy)"><input type="checkbox" '+(chk?'checked':'')+' onchange="toggleProspColVisibility(\''+col.key+'\',this.checked)">'+escHtml(col.label)+'</label>';
+  }).join('');
 }
 
 // ── DOCUMENTOS CLIENTE ──────────────────────────
