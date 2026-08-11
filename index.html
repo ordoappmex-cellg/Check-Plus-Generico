@@ -2125,6 +2125,58 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         </div>
       </div>
 
+      <!-- PROSPECTO DETAIL VIEW (perfil del lead — reemplaza el modal como forma
+           principal de abrir un lead; el modal-prospecto queda como formulario
+           de edición, igual que modal-cliente en Clientes) -->
+      <div id="view-prosp-detail" class="view">
+        <button class="btn-sm btn-ghost" onclick="nav('prospectos')" style="margin-bottom:16px"><i class="ti ti-arrow-left"></i> Regresar</button>
+        <div style="display:grid;grid-template-columns:280px 1fr 300px;gap:18px;align-items:start">
+          <!-- IZQUIERDA: tarjeta de identidad -->
+          <div>
+            <div class="profile-card">
+              <div id="prosp-det-icon" style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;margin:0 auto 12px;background:var(--cp-blue-light);color:var(--cp-blue);overflow:hidden"></div>
+              <div class="profile-name" id="prosp-det-name"></div>
+              <div class="profile-role" id="prosp-det-cargo" style="margin-bottom:2px"></div>
+              <div id="prosp-det-empresa" style="font-size:12px;color:var(--cp-gray-500);margin-bottom:10px"></div>
+              <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:12px" id="prosp-det-chips"></div>
+              <div style="display:flex;gap:8px;justify-content:center;margin-bottom:4px" id="prosp-det-contact-btns"></div>
+              <div id="prosp-det-info-body" style="text-align:left;margin-top:10px"></div>
+              <div class="profile-action-btns" id="prosp-det-action-btns">
+                <button class="btn-sm btn-blue" onclick="openEditProspecto()"><i class="ti ti-edit"></i> Editar lead</button>
+              </div>
+            </div>
+          </div>
+          <!-- CENTRO: bitácora de seguimiento (protagonista) -->
+          <div>
+            <div class="section-card">
+              <div class="section-header">
+                <div class="section-title"><i class="ti ti-history" style="margin-right:6px;color:var(--cp-purple)"></i>Bitácora de seguimiento</div>
+                <button class="btn-sm btn-purple" id="prosp-det-add-seg-btn" onclick="openAddProspSeg()"><i class="ti ti-clipboard-check"></i> Registrar seguimiento</button>
+              </div>
+              <div class="section-body">
+                <div id="prosp-seg-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+                <div id="prosp-seg-timeline"></div>
+              </div>
+            </div>
+          </div>
+          <!-- DERECHA: bloques complementarios (por ahora solo Documentos —
+               estructura lista para agregar más .section-card hermanas después) -->
+          <div id="prosp-det-side-blocks">
+            <div class="section-card">
+              <div class="section-header"><div class="section-title"><i class="ti ti-paperclip" style="margin-right:6px;color:var(--cp-blue)"></i>Documentos</div></div>
+              <div class="section-body">
+                <div id="prosp-doc-drop" onclick="document.getElementById('prosp-doc-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--cp-purple)'" ondragleave="this.style.borderColor=''" ondrop="prospHandleDocDrop(event)" style="border:2px dashed var(--cp-gray-200);border-radius:var(--radius-sm);padding:16px;text-align:center;cursor:pointer;color:var(--cp-gray-400);font-size:12px;margin-bottom:10px">
+                  <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px"></i>
+                  Arrastra archivos aquí o haz clic para elegir (máx. 5MB c/u)
+                  <input type="file" id="prosp-doc-input" multiple style="display:none" onchange="prospHandleDocSelect(event)">
+                </div>
+                <div id="prosp-docs-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- CLIENTE DETAIL VIEW -->
       <div id="view-cliente-detail" class="view">
         <button class="btn-sm btn-ghost" onclick="nav('clientes')" style="margin-bottom:16px"><i class="ti ti-arrow-left"></i> Regresar</button>
@@ -4700,8 +4752,20 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
     <div class="modal-body">
       <div id="prosp-stage-stepper"></div>
       <div class="form-grid">
+        <!-- Foto — mismo patrón que clf-photo-zone de Clientes: FileReader.readAsDataURL,
+             base64 directo en la columna foto_url (sin Storage). -->
+        <div class="form-field full" style="display:flex;align-items:center;gap:16px;margin-bottom:4px">
+          <div id="prospf-photo-zone" onclick="document.getElementById('prospf-photo-input').click()" style="width:72px;height:72px;border-radius:50%;border:2px dashed var(--cp-gray-200);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;background:var(--cp-gray-50);overflow:hidden;position:relative;flex-shrink:0">
+            <img id="prospf-photo-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0">
+            <i class="ti ti-user" style="font-size:22px;color:var(--cp-gray-400)"></i>
+            <span style="font-size:9px;color:var(--cp-gray-400);margin-top:2px">Foto</span>
+            <input type="file" id="prospf-photo-input" accept="image/*" style="display:none" onchange="previewProspPhoto(event)">
+          </div>
+          <div style="font-size:11px;color:var(--cp-gray-400);flex:1">Foto del contacto (opcional). Si no se sube, se muestran las iniciales.</div>
+        </div>
         <div class="form-field full"><label class="form-label">Nombre *</label><input class="form-input" id="prospf-nombre" placeholder="Ej. Juan Pérez"></div>
-        <div class="form-field full"><label class="form-label">Empresa</label><input class="form-input" id="prospf-empresa" placeholder="Ej. Constructora del Valle"></div>
+        <div class="form-field"><label class="form-label">Cargo</label><input class="form-input" id="prospf-cargo" placeholder="Ej. Director de Compras"></div>
+        <div class="form-field"><label class="form-label">Empresa</label><input class="form-input" id="prospf-empresa" placeholder="Ej. Constructora del Valle"></div>
         <div class="form-field"><label class="form-label">Contacto (teléfono)</label><div style="display:flex;gap:6px;align-items:center"><input class="form-input" id="prospf-tel" placeholder="+52 999 000 0000" style="flex:1"><a href="#" onclick="event.preventDefault();prospOpenWhatsapp();" title="Abrir en WhatsApp" style="color:var(--cp-green);font-size:18px;flex-shrink:0;display:flex"><i class="ti ti-brand-whatsapp"></i></a></div></div>
         <div class="form-field"><label class="form-label">Contacto (correo)</label><div style="display:flex;gap:6px;align-items:center"><input type="email" class="form-input" id="prospf-mail" placeholder="contacto@empresa.com" style="flex:1"><a href="#" onclick="event.preventDefault();prospOpenMailto();" title="Enviar correo" style="color:var(--cp-blue);font-size:18px;flex-shrink:0;display:flex"><i class="ti ti-mail"></i></a></div></div>
         <div class="form-field"><label class="form-label">Canal de entrada</label><select class="form-input" id="prospf-canal"></select></div>
@@ -4711,22 +4775,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <div class="form-field full" id="prospf-etapa-obs-wrap" style="display:none"><label class="form-label">Observación del cambio (opcional)</label><input class="form-input" id="prospf-etapa-obs" placeholder="Ej. Cliente pidió una semana más para decidir"></div>
         <div class="form-field"><label class="form-label">Valor estimado</label><input type="number" step="0.01" class="form-input" id="prospf-valor" placeholder="0.00"></div>
         <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-input" id="prospf-notas" rows="2" placeholder="Observaciones…"></textarea></div>
-      </div>
-      <div id="prosp-seg-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--cp-gray-100)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:13px;font-weight:700;color:var(--cp-navy)">Bitácora de seguimiento</div>
-          <button type="button" class="btn-sm btn-purple" onclick="openAddProspSeg()"><i class="ti ti-clipboard-check"></i> Registrar seguimiento</button>
-        </div>
-        <div id="prosp-seg-timeline" style="max-height:280px;overflow-y:auto"></div>
-      </div>
-      <div id="prosp-docs-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--cp-gray-100)">
-        <div style="font-size:13px;font-weight:700;color:var(--cp-navy);margin-bottom:10px">Documentos</div>
-        <div id="prosp-doc-drop" onclick="document.getElementById('prosp-doc-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--cp-purple)'" ondragleave="this.style.borderColor=''" ondrop="prospHandleDocDrop(event)" style="border:2px dashed var(--cp-gray-200);border-radius:var(--radius-sm);padding:16px;text-align:center;cursor:pointer;color:var(--cp-gray-400);font-size:12px;margin-bottom:10px">
-          <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px"></i>
-          Arrastra archivos aquí o haz clic para elegir (máx. 5MB c/u)
-          <input type="file" id="prosp-doc-input" multiple style="display:none" onchange="prospHandleDocSelect(event)">
-        </div>
-        <div id="prosp-docs-list"></div>
       </div>
     </div>
     <div class="modal-footer">
@@ -8738,7 +8786,15 @@ const PROSP_ALL_COLS=[
   {key:'vendedor',label:'Vendedor'},
   {key:'etapa',label:'Etapa'},
   {key:'valor',label:'Valor est.'},
+  {key:'creado',label:'Fecha de creación'},
 ];
+// created_at es timestamptz (con hora) — fmtDate()/fmtDateShort() (línea ~5567)
+// asumen fecha pura 'YYYY-MM-DD' y le agregan 'T12:00:00', lo que rompe un ISO
+// que ya trae hora. Mismas opciones de locale que fmtDate, pero sobre el Date tal cual.
+function prospFmtCreatedAt(iso){
+  if(!iso)return '—';
+  return new Date(iso).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'});
+}
 let prospSort={col:null,dir:'asc'};
 try{const s=localStorage.getItem('cp_prosp_sort');if(s)prospSort=JSON.parse(s);}catch(e){}
 let _prospDragCol=null;
@@ -9749,7 +9805,7 @@ async function prospLoad(){
     sbGetAll('hb_config')
   ]);
   prospData = prospRaw.map(r=>({
-    id:r.id, nombre:r.nombre, empresa:r.empresa, contactoTel:r.contacto_tel, contactoMail:r.contacto_mail,
+    id:r.id, nombre:r.nombre, empresa:r.empresa, cargo:r.cargo, fotoUrl:r.foto_url, contactoTel:r.contacto_tel, contactoMail:r.contacto_mail,
     canalEntrada:r.canal_entrada, estado:r.estado, vendedorId:r.vendedor_id, temperatura:r.temperatura,
     notas:r.notas, valorEstimado:r.valor_estimado, createdAt:r.created_at, updatedAt:r.updated_at
   }));
@@ -9877,6 +9933,7 @@ function _prospSortValue(p,key){
     case'vendedor':{const v=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;return (v?(v.display_name||v.email):'').toLowerCase();}
     case'etapa':{const e=prospEtapas.find(x=>x.id===p.estado);return (e?e.nombre:(p.estado||'')).toLowerCase();}
     case'valor':return Number(p.valorEstimado)||0;
+    case'creado':return p.createdAt?new Date(p.createdAt).getTime():0;
     default:return '';
   }
 }
@@ -9888,6 +9945,7 @@ function _prospCellHtml(p,key){
     case'vendedor':{const vend=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;return '<td>'+(vend?escHtml(vend.display_name||vend.email):'—')+'</td>';}
     case'etapa':{const etapa=prospEtapas.find(e=>e.id===p.estado);return '<td>'+(etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':escHtml(p.estado||'—'))+'</td>';}
     case'valor':return '<td>'+(p.valorEstimado!=null?'$'+Number(p.valorEstimado).toLocaleString('es-MX'):'—')+'</td>';
+    case'creado':return '<td style="font-size:12px;color:var(--cp-gray-600)">'+prospFmtCreatedAt(p.createdAt)+'</td>';
     default:return '<td></td>';
   }
 }
@@ -9914,9 +9972,9 @@ function renderProspLista(){
   if(!tbody){_initProspTableInteractions();return;}
   if(!items.length){tbody.innerHTML='<tr><td colspan="'+(cols.length+1)+'"><div class="empty-state"><i class="ti ti-user-search"></i><p>Sin leads registrados.</p></div></td></tr>';_initProspTableInteractions();return;}
   tbody.innerHTML=items.map(p=>{
-    return '<tr onclick="openEditProspecto(\''+p.id+'\')" style="cursor:pointer">'+
+    return '<tr onclick="openProspDetail(\''+p.id+'\')" style="cursor:pointer">'+
       cols.map(col=>_prospCellHtml(p,col.key)).join('')+
-      '<td><button class="btn-sm btn-ghost" onclick="event.stopPropagation();openEditProspecto(\''+p.id+'\')"><i class="ti ti-edit"></i> Editar</button></td>'+
+      '<td><button class="btn-sm btn-ghost" onclick="event.stopPropagation();openProspDetail(\''+p.id+'\')"><i class="ti ti-eye"></i> Ver</button></td>'+
     '</tr>';
   }).join('');
   _initProspTableInteractions();
@@ -9974,7 +10032,7 @@ function buildProspPipeCard(p){
   const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
   const tempDotHtml=temp?'<span title="'+escHtml(temp.nombre)+'" style="position:absolute;top:7px;right:7px;width:9px;height:9px;border-radius:50%;background:'+temp.color+'"></span>':'';
   return '<div class="dev-pipe-card" draggable="true" data-prosp-id="'+p.id+'" data-prosp-etapa="'+p.estado+'"'+
-    ' onclick="openEditProspecto(\''+p.id+'\')"'+
+    ' onclick="openProspDetail(\''+p.id+'\')"'+
     ' style="position:relative;background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-sm);padding:9px;cursor:pointer"'+
     ' onmouseover="this.style.boxShadow=\'var(--shadow-md)\'" onmouseout="this.style.boxShadow=\'none\'">'+
     tempDotHtml+
@@ -10090,14 +10148,19 @@ function buildProspStageStepper(estadoId){
   '</div>';
 }
 // Atajos de contacto — no envían nada desde la app, solo abren WhatsApp Web /
-// el cliente de correo con el chat/destinatario ya cargado.
+// el cliente de correo con el chat/destinatario ya cargado. Leen de prospData
+// (por prospCurrentId), no del DOM del form: así sirven igual desde el botón
+// del modal (editando un lead ya guardado) y desde los botones prominentes de
+// la vista de perfil, que no tiene inputs de por sí.
 function prospOpenWhatsapp(){
-  const tel=(document.getElementById('prospf-tel')?.value||'').trim();
+  const p=prospData.find(x=>x.id===prospCurrentId);
+  const tel=(p?.contactoTel||'').trim();
   if(!tel){toast('No hay teléfono capturado.','error');return;}
   window.open('https://wa.me/'+encodeURIComponent(tel.replace(/[\s\-()]/g,'')),'_blank');
 }
 function prospOpenMailto(){
-  const mail=(document.getElementById('prospf-mail')?.value||'').trim();
+  const p=prospData.find(x=>x.id===prospCurrentId);
+  const mail=(p?.contactoMail||'').trim();
   if(!mail){toast('No hay correo capturado.','error');return;}
   location.href='mailto:'+mail;
 }
@@ -10111,18 +10174,33 @@ function prospOnEtapaSelectChange(){
   wrap.style.display=changed?'':'none';
   if(!changed)document.getElementById('prospf-etapa-obs').value='';
 }
+// Foto del lead — mismo patrón que previewCliPhoto (Clientes): FileReader.
+// readAsDataURL(), base64 guardado directo en foto_url, sin Storage.
+let prospPhotoData=null;
+function previewProspPhoto(event){
+  const file=event.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    prospPhotoData=e.target.result;
+    const img=document.getElementById('prospf-photo-preview');
+    img.src=e.target.result;img.style.display='block';
+    const zone=document.getElementById('prospf-photo-zone');
+    zone.querySelector('i').style.display='none';
+    zone.querySelector('span').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
 function openAddProspecto(){
   if(!canEdit('prospectos'))return;
   prospCurrentId=null;
   prospOpenEtapaValue=null;
+  prospPhotoData=null;
   document.getElementById('prosp-modal-title').textContent='Nuevo lead';
   document.getElementById('prosp-perdido-btn').style.display='none';
-  document.getElementById('prosp-seg-section').style.display='none';
-  document.getElementById('prosp-docs-section').style.display='none';
-  prospDocsData=[];
   document.getElementById('prosp-stage-stepper').innerHTML=''; // solo aplica al editar un lead existente
   populateProspFormSelects();
   document.getElementById('prospf-nombre').value='';
+  document.getElementById('prospf-cargo').value='';
   document.getElementById('prospf-empresa').value='';
   document.getElementById('prospf-tel').value='';
   document.getElementById('prospf-mail').value='';
@@ -10132,15 +10210,26 @@ function openAddProspecto(){
   document.getElementById('prospf-notas').value='';
   document.getElementById('prospf-etapa-obs').value='';
   document.getElementById('prospf-etapa-obs-wrap').style.display='none';
+  const img=document.getElementById('prospf-photo-preview');img.src='';img.style.display='none';
+  const zone=document.getElementById('prospf-photo-zone');zone.querySelector('i').style.display='';zone.querySelector('span').style.display='';
   openModal('modal-prospecto');
 }
-async function openEditProspecto(id){
-  const p=prospData.find(x=>x.id===id);if(!p)return;
-  prospCurrentId=id;
+// Ahora es solo el formulario de edición de campos del lead (bitácora y
+// documentos viven en la vista de perfil, ver openProspDetail) — igual que
+// openEditCliente() en Clientes, edita el lead actualmente abierto
+// (prospCurrentId), sin recibir id.
+function openEditProspecto(){
+  const p=prospData.find(x=>x.id===prospCurrentId);if(!p)return;
   document.getElementById('prosp-modal-title').textContent='Editar lead';
   document.getElementById('prosp-stage-stepper').innerHTML=buildProspStageStepper(p.estado);
   populateProspFormSelects();
+  prospPhotoData=p.fotoUrl||null;
+  const img=document.getElementById('prospf-photo-preview');
+  const zone=document.getElementById('prospf-photo-zone');
+  if(p.fotoUrl){img.src=p.fotoUrl;img.style.display='block';zone.querySelector('i').style.display='none';zone.querySelector('span').style.display='none';}
+  else{img.src='';img.style.display='none';zone.querySelector('i').style.display='';zone.querySelector('span').style.display='';}
   document.getElementById('prospf-nombre').value=p.nombre||'';
+  document.getElementById('prospf-cargo').value=p.cargo||'';
   document.getElementById('prospf-empresa').value=p.empresa||'';
   document.getElementById('prospf-tel').value=p.contactoTel||'';
   document.getElementById('prospf-mail').value=p.contactoMail||'';
@@ -10156,15 +10245,68 @@ async function openEditProspecto(id){
   const perdidoBtn=document.getElementById('prosp-perdido-btn');
   const perdidoEtapa=prospEtapas.find(e=>e.id==='perdido');
   perdidoBtn.style.display=(perdidoEtapa&&p.estado!=='perdido')?'flex':'none';
-  document.getElementById('prosp-seg-section').style.display='block';
-  document.getElementById('prosp-seg-timeline').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
-  document.getElementById('prosp-docs-section').style.display='block';
-  document.getElementById('prosp-docs-list').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
   openModal('modal-prospecto');
-  prospSegData=await prospSegLoad(id);
-  renderProspSegTimeline();
-  prospDocsData=await prospDocsLoad(id);
-  renderProspDocsList();
+}
+
+// ── VISTA DE PERFIL DEL LEAD ────────────────────────
+// Reemplaza el modal como punto de entrada principal (clic en fila de lista
+// o tarjeta de pipeline) — mismo mecanismo que openClienteDetail(): activa
+// #view-prosp-detail a mano (no pasa por nav()) y "Regresar" vuelve por
+// nav('prospectos'). Bitácora y documentos son los mismos subsistemas de
+// siempre (prospSegLoad/renderProspSegTimeline, prospDocsLoad/
+// renderProspDocsList), solo que ahora viven permanentemente en esta vista
+// en vez de dentro del modal.
+async function openProspDetail(id){
+  const p=prospData.find(x=>x.id===id);if(!p)return;
+  prospCurrentId=id;
+  prospSegFilterTipo=null;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-prosp-detail').classList.add('active');
+  document.getElementById('page-title').textContent=p.nombre;
+  renderProspDetailHeader(p);
+  document.getElementById('prosp-seg-filter').innerHTML='';
+  document.getElementById('prosp-seg-timeline').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
+  document.getElementById('prosp-docs-list').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
+  const [segData,docsData]=await Promise.all([prospSegLoad(id),prospDocsLoad(id)]);
+  prospSegData=segData;renderProspSegTimeline();
+  prospDocsData=docsData;renderProspDocsList();
+}
+function renderProspDetailHeader(p){
+  if(!p)return;
+  const canEditP=canEdit('prospectos');
+  const etapa=prospEtapas.find(e=>e.id===p.estado);
+  const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
+  const canal=prospCanales.find(c=>c.id===p.canalEntrada);
+  const vend=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;
+  const iconColor=etapa?etapa.color:'#7B2FF7';
+  const iconEl=document.getElementById('prosp-det-icon');
+  if(p.fotoUrl){
+    iconEl.style.background='transparent';
+    iconEl.innerHTML='<img src="'+p.fotoUrl+'" style="width:100%;height:100%;object-fit:cover">';
+  }else{
+    const initials=(p.nombre||'').split(' ').map(w=>w[0]||'').slice(0,2).join('').toUpperCase();
+    iconEl.style.background=iconColor+'22';iconEl.style.color=iconColor;
+    iconEl.textContent=initials;
+  }
+  document.getElementById('prosp-det-name').textContent=p.nombre||'';
+  document.getElementById('prosp-det-cargo').textContent=p.cargo||'';
+  document.getElementById('prosp-det-empresa').textContent=p.empresa||'';
+  document.getElementById('prosp-det-chips').innerHTML=
+    (etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':'')+
+    (temp?'<span class="badge" style="background:'+temp.color+'22;color:'+temp.color+'">'+escHtml(temp.nombre)+'</span>':'');
+  document.getElementById('prosp-det-contact-btns').innerHTML=
+    (p.contactoTel?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-green)" onclick="prospOpenWhatsapp()"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>':'')+
+    (p.contactoMail?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-blue)" onclick="prospOpenMailto()"><i class="ti ti-mail"></i> Correo</button>':'');
+  document.getElementById('prosp-det-info-body').innerHTML=[
+    ['Teléfono',p.contactoTel||'—'],
+    ['Correo',p.contactoMail||'—'],
+    ['Canal de entrada',canal?escHtml(canal.nombre):'—'],
+    ['Vendedor asignado',vend?escHtml(vend.display_name||vend.email):'—'],
+    ['Valor estimado',p.valorEstimado!=null?'$'+Number(p.valorEstimado).toLocaleString('es-MX'):'—'],
+    ['Fecha de creación',prospFmtCreatedAt(p.createdAt)],
+  ].map(([l,v])=>'<div class="info-row"><div class="info-lbl">'+l+'</div><div class="info-val">'+v+'</div></div>').join('');
+  const actBtns=document.getElementById('prosp-det-action-btns');if(actBtns)actBtns.style.display=canEditP?'':'none';
+  const addSegBtn=document.getElementById('prosp-det-add-seg-btn');if(addSegBtn)addSegBtn.style.display=canEditP?'':'none';
 }
 async function saveProspecto(){
   const nombre=sanitizeInput(document.getElementById('prospf-nombre')?.value,150);
@@ -10175,6 +10317,7 @@ async function saveProspecto(){
   const row={
     id:prospCurrentId||uid9(),
     nombre,
+    cargo:sanitizeInput(document.getElementById('prospf-cargo').value,100),
     empresa:sanitizeInput(document.getElementById('prospf-empresa').value,150),
     contacto_tel:sanitizeInput(document.getElementById('prospf-tel').value,50),
     contacto_mail:sanitizeInput(document.getElementById('prospf-mail').value,150),
@@ -10183,12 +10326,13 @@ async function saveProspecto(){
     estado:document.getElementById('prospf-etapa').value,
     temperatura:document.getElementById('prospf-temperatura').value||null,
     valor_estimado:parseFloat(document.getElementById('prospf-valor').value)||null,
-    notas:sanitizeInput(document.getElementById('prospf-notas').value,2000)
+    notas:sanitizeInput(document.getElementById('prospf-notas').value,2000),
+    foto_url:prospPhotoData||null
   };
   const ok=await prospSaveSB(row);
   setBtn('save-prosp-btn',false);
   if(!ok)return;
-  const mapped={id:row.id,nombre:row.nombre,empresa:row.empresa,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas};
+  const mapped={id:row.id,nombre:row.nombre,cargo:row.cargo,fotoUrl:row.foto_url,empresa:row.empresa,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas};
   const idx=prospData.findIndex(x=>x.id===row.id);
   if(idx!==-1)prospData[idx]={...prospData[idx],...mapped};else prospData.push(mapped);
   auditLog(prospCurrentId?'editar':'crear','hb_crm_prospectos',row.id,'Lead: '+nombre);
@@ -10200,6 +10344,14 @@ async function saveProspecto(){
   if(prevEstado&&prevEstado!==row.estado)prospLogEtapaChange(row.id,prevEstado,row.estado,etapaObs);
   closeModal('modal-prospecto');
   renderProspectos();
+  // Si el modal se abrió desde la vista de perfil de este mismo lead,
+  // refresca la tarjeta de identidad y la bitácora (por si se registró un
+  // cambio de etapa) sin obligar a salir y volver a entrar a la vista.
+  if(document.getElementById('view-prosp-detail')?.classList.contains('active')&&prospCurrentId===row.id){
+    renderProspDetailHeader(prospData.find(x=>x.id===row.id));
+    prospSegData=await prospSegLoad(row.id);
+    renderProspSegTimeline();
+  }
   toast(prospCurrentId?'Lead actualizado ✓':'Lead creado ✓');
 }
 // No hay soft-delete con booleano en prospectos (la tabla no tiene columna
@@ -10220,10 +10372,26 @@ async function prospSegLoad(prospectoId){
   if(error){console.error('prospSegLoad',error);return [];}
   return (data||[]).map(r=>({id:r.id,prospectoId:r.prospecto_id,fecha:r.fecha,tipo:r.tipo,nota:r.nota,proximoPaso:r.proximo_paso,proximoPasoFecha:r.proximo_paso_fecha,usuarioId:r.usuario_id,createdAt:r.created_at}));
 }
+// Pestañas "Todos" + una por cada crm_tipos_contacto — mismo mecanismo de
+// chip-filter que la bitácora de Dirección (_direccionBitacoraFilterTipo /
+// direccionSetBitacoraFilter, ver línea ~20927), pero de selección única en
+// vez de toggle-a-null-al-repetir, y sin llevar el filtro por id de proyecto
+// (aquí solo se ve un lead a la vez).
+let prospSegFilterTipo=null;
+function setProspSegFilter(tipoId){
+  prospSegFilterTipo=tipoId;
+  renderProspSegTimeline();
+}
 function renderProspSegTimeline(){
   const el=document.getElementById('prosp-seg-timeline');if(!el)return;
-  if(!prospSegData.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">Sin seguimientos registrados.</div>';return;}
-  el.innerHTML=prospSegData.map(s=>{
+  const filterEl=document.getElementById('prosp-seg-filter');
+  if(filterEl){
+    filterEl.innerHTML='<button type="button" class="direccion-bitacora-minichip'+(!prospSegFilterTipo?' active':'')+'" onclick="setProspSegFilter(null)">Todos</button>'+
+      prospTiposContacto.map(t=>'<button type="button" class="direccion-bitacora-minichip'+(prospSegFilterTipo===t.id?' active':'')+'" onclick="setProspSegFilter(\''+t.id+'\')">'+escHtml(t.nombre)+'</button>').join('');
+  }
+  const items=prospSegFilterTipo?prospSegData.filter(s=>s.tipo===prospSegFilterTipo):prospSegData;
+  if(!items.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">'+(prospSegFilterTipo?'Sin seguimientos de este tipo.':'Sin seguimientos registrados.')+'</div>';return;}
+  el.innerHTML=items.map(s=>{
     // 'tipo' normalmente es un id de crm_tipos_contacto, pero las entradas
     // automáticas de cambio de etapa (prospLogEtapaChange) guardan el texto
     // literal 'Cambio de etapa' — no matchea ningún id del catálogo, así que
