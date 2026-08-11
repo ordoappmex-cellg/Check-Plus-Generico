@@ -30,8 +30,18 @@
   --font-display:'DM Sans',sans-serif;--font-body:'Inter',sans-serif;
   --shadow-sm:0 1px 4px rgba(0,0,0,.07);--shadow-md:0 4px 16px rgba(0,0,0,.09);--shadow-lg:0 12px 36px rgba(0,0,0,.16);
   --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-xl:20px;
+  /* Escala general de la app — no hay font-size en :root/html/body que
+     cascadee de forma útil aquí, porque casi todo el CSS está en px fijos
+     (paddings/anchos/gaps), no en rem/em. Un font-size más chico solo
+     encogería texto y dejaría cajas/espaciados igual de grandes — layout roto.
+     'zoom' escala TODO uniformemente (texto + cajas + espaciados), igual que
+     el zoom del navegador; ya hay precedente de este mismo mecanismo en el
+     archivo (ver body.direccion-presenting #direccion-rm-scroll{zoom:1.2}
+     más abajo). Ajusta este único valor para compactar/expandir toda la app. */
+  --app-zoom:75%;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
+html{zoom:var(--app-zoom);}
 body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-800);min-height:100vh;font-size:14px;line-height:1.5;}
 #global-loading{display:none;position:fixed;inset:0;background:rgba(13,17,23,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
 .spin{width:36px;height:36px;border:3px solid rgba(255,255,255,.15);border-top-color:#9B5FF8;border-radius:50%;animation:spin .7s linear infinite;}
@@ -466,6 +476,9 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .dev-pipe-col-body{transition:background .15s,border-color .15s;}
 .dev-pipe-col-body.dev-drag-over{background:rgba(123,47,247,.08)!important;border-color:var(--cp-purple)!important;outline:2px dashed var(--cp-purple);outline-offset:-2px;}
 .dev-pipe-col-body.dev-drag-over-reject{background:rgba(239,68,68,.05)!important;outline:2px dashed #EF4444;outline-offset:-2px;}
+/* Prospectos — timeline de seguimiento (mismo look que direccion-bitacora-entry/diseno-chip, sin depender de sus wrappers .direccion-modulo/.diseno-modulo) */
+.prosp-seg-entry{padding:8px 0;border-bottom:1px solid var(--cp-gray-100);}
+.prosp-seg-chip{display:inline-flex;align-items:center;gap:3px;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:500;border:none;white-space:nowrap;line-height:1.5;}
 /* Confirm stage change modal */
 .dev-stage-confirm-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;font-size:13px;font-weight:600;}
 .kanban-col-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;color:rgba(255,255,255,.18);text-align:center;border:2px dashed rgba(255,255,255,.08);border-radius:var(--radius-md);margin-bottom:8px;}
@@ -1064,7 +1077,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <body>
 
 <div id="cp-splash">
-  <div id="cp-splash-logo"><span class="cp-splash-glow"><img src="/assets/Logo.png" alt=""></span></div>
+  <div id="cp-splash-logo"><span class="cp-splash-glow" id="splash-brand-content"><img src="/assets/Logo.png" alt=""></span></div>
   <div id="cp-splash-dots"><span></span><span></span><span></span></div>
 </div>
 
@@ -1098,7 +1111,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <div id="recovery-screen" style="display:none;min-height:100vh;background:#0F0A1E;overflow:hidden">
   <div class="login-left" style="max-width:460px;margin:0 auto;float:none">
     <div class="login-dots-bg"></div><div class="login-glow"></div>
-    <div class="login-left-brand"><div><span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span></div></div>
+    <div class="login-left-brand"><div id="recovery-brand-content"><span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span></div></div>
     <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:14px;width:100%;max-width:340px">
       <div style="text-align:center;margin-bottom:6px"><div style="font-size:22px;font-weight:700;color:white;font-family:var(--font-display)">Establecer nueva contraseña</div><div style="font-size:13px;color:rgba(255,255,255,.45);margin-top:4px">Ingresa y confirma tu nueva contraseña</div></div>
       <div id="recovery-error" class="login-error" style="display:none"><i class="ti ti-alert-circle" style="margin-right:6px"></i><span id="recovery-error-msg">Error al guardar la contraseña.</span></div>
@@ -2045,6 +2058,67 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <!-- Client list -->
             <div id="cli-list"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- PROVEEDORES VIEW -->
+      <div id="view-proveedores" class="view">
+        <div class="section-card">
+          <div class="section-body">
+            <div class="search-bar">
+              <div class="search-input-wrap">
+                <i class="ti ti-search search-icon"></i>
+                <input type="text" id="prov-search" placeholder="Buscar proveedor por nombre…" oninput="renderProveedores()">
+              </div>
+              <select class="form-input" id="prov-filter-tipo" onchange="renderProveedores()" style="width:170px">
+                <option value="">Todos los tipos</option>
+                <option value="hospedaje">Hospedaje</option>
+                <option value="transporte">Transporte</option>
+                <option value="yate">Yate</option>
+                <option value="vuelo">Vuelo</option>
+                <option value="renta_auto">Renta de auto</option>
+                <option value="alimentos">Alimentos</option>
+              </select>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cp-gray-600);cursor:pointer;white-space:nowrap">
+                <input type="checkbox" id="prov-show-inactivos" onchange="renderProveedores()"> Ver inactivos
+              </label>
+              <button class="btn-sm btn-blue" id="btn-nuevo-proveedor" onclick="openAddProveedor()"><i class="ti ti-plus"></i> Nuevo proveedor</button>
+            </div>
+            <table class="emp-table">
+              <thead><tr><th>Nombre</th><th>Tipo de servicio</th><th>Moneda default</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="prov-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROSPECTOS VIEW (CRM interno) -->
+      <div id="view-prospectos" class="view">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="display:flex;gap:3px;background:var(--cp-gray-100);padding:3px;border-radius:var(--radius-md)">
+            <button class="org-view-btn active" id="prosp-vw-lista" onclick="setProspView('lista',this)"><i class="ti ti-list"></i> Lista</button>
+            <button class="org-view-btn" id="prosp-vw-pipeline" onclick="setProspView('pipeline',this)"><i class="ti ti-layout-kanban"></i> Pipeline</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+            <input type="text" id="prosp-search" placeholder="Buscar lead…" oninput="renderProspectos()" class="form-input" style="width:170px;padding:7px 10px;font-size:13px">
+            <select class="form-input" id="prosp-filter-etapa" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todas las etapas</option></select>
+            <select class="form-input" id="prosp-filter-vendedor" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los vendedores</option></select>
+            <select class="form-input" id="prosp-filter-canal" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los canales</option></select>
+            <button class="btn-sm btn-blue" id="btn-nuevo-prospecto" onclick="openAddProspecto()"><i class="ti ti-plus"></i> Nuevo lead</button>
+          </div>
+        </div>
+
+        <!-- Lista view -->
+        <div id="prosp-lista-view">
+          <table class="emp-table">
+            <thead><tr><th>Nombre</th><th>Contacto</th><th>Canal</th><th>Vendedor</th><th>Etapa</th><th>Valor est.</th><th></th></tr></thead>
+            <tbody id="prosp-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Pipeline view (hidden by default) -->
+        <div id="prosp-pipeline-view" style="display:none">
+          <div id="prosp-pipeline-board" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;min-height:400px"></div>
         </div>
       </div>
 
@@ -4578,6 +4652,107 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
   </div>
 </div>
 
+<!-- PROVEEDOR MODAL -->
+<div class="modal-overlay" id="modal-proveedor">
+  <div class="modal" style="width:480px">
+    <div class="modal-header"><div class="modal-title" id="prov-modal-title">Nuevo proveedor</div><button class="modal-close" onclick="closeModal('modal-proveedor')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Nombre *</label><input class="form-input" id="provf-nombre" placeholder="Ej. Hotel Riviera"></div>
+        <div class="form-field"><label class="form-label">Tipo de servicio</label>
+          <select class="form-input" id="provf-tipo">
+            <option value="hospedaje">Hospedaje</option>
+            <option value="transporte">Transporte</option>
+            <option value="yate">Yate</option>
+            <option value="vuelo">Vuelo</option>
+            <option value="renta_auto">Renta de auto</option>
+            <option value="alimentos">Alimentos</option>
+          </select>
+        </div>
+        <div class="form-field"><label class="form-label">Moneda default</label>
+          <select class="form-input" id="provf-moneda">
+            <option value="MXN">MXN</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+          </select>
+        </div>
+        <div class="form-field"><label class="form-label">Tipo de cambio default</label><input type="number" step="0.0001" class="form-input" id="provf-tc" placeholder="Opcional"></div>
+        <div class="form-field"><label class="form-label">Contacto</label><input class="form-input" id="provf-contacto" placeholder="Nombre, teléfono o correo"></div>
+        <div class="form-field full"><label class="form-label">Datos de pago</label><textarea class="form-input" id="provf-datos-pago" rows="2" placeholder="Banco, cuenta, CLABE, etc."></textarea></div>
+        <div class="form-field full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--cp-navy)"><input type="checkbox" id="provf-activo" checked> Activo</label></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-red" id="prov-del-btn" onclick="deleteProveedor()" style="display:none;margin-right:auto"><i class="ti ti-trash"></i> Eliminar</button>
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-proveedor')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-prov-btn" onclick="saveProveedor()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FICHA DE PROSPECTO (lead) MODAL -->
+<div class="modal-overlay" id="modal-prospecto">
+  <div class="modal" style="width:640px">
+    <div class="modal-header"><div class="modal-title" id="prosp-modal-title">Nuevo lead</div><button class="modal-close" onclick="closeModal('modal-prospecto')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div id="prosp-stage-stepper"></div>
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Nombre *</label><input class="form-input" id="prospf-nombre" placeholder="Ej. Juan Pérez"></div>
+        <div class="form-field full"><label class="form-label">Empresa</label><input class="form-input" id="prospf-empresa" placeholder="Ej. Constructora del Valle"></div>
+        <div class="form-field"><label class="form-label">Contacto (teléfono)</label><div style="display:flex;gap:6px;align-items:center"><input class="form-input" id="prospf-tel" placeholder="+52 999 000 0000" style="flex:1"><a href="#" onclick="event.preventDefault();prospOpenWhatsapp();" title="Abrir en WhatsApp" style="color:var(--cp-green);font-size:18px;flex-shrink:0;display:flex"><i class="ti ti-brand-whatsapp"></i></a></div></div>
+        <div class="form-field"><label class="form-label">Contacto (correo)</label><div style="display:flex;gap:6px;align-items:center"><input type="email" class="form-input" id="prospf-mail" placeholder="contacto@empresa.com" style="flex:1"><a href="#" onclick="event.preventDefault();prospOpenMailto();" title="Enviar correo" style="color:var(--cp-blue);font-size:18px;flex-shrink:0;display:flex"><i class="ti ti-mail"></i></a></div></div>
+        <div class="form-field"><label class="form-label">Canal de entrada</label><select class="form-input" id="prospf-canal"></select></div>
+        <div class="form-field"><label class="form-label">Vendedor asignado</label><select class="form-input" id="prospf-vendedor"><option value="">— Sin asignar —</option></select></div>
+        <div class="form-field"><label class="form-label">Etapa</label><select class="form-input" id="prospf-etapa" onchange="prospOnEtapaSelectChange()"></select></div>
+        <div class="form-field"><label class="form-label">Temperatura</label><select class="form-input" id="prospf-temperatura"><option value="">— Sin definir —</option></select></div>
+        <div class="form-field full" id="prospf-etapa-obs-wrap" style="display:none"><label class="form-label">Observación del cambio (opcional)</label><input class="form-input" id="prospf-etapa-obs" placeholder="Ej. Cliente pidió una semana más para decidir"></div>
+        <div class="form-field"><label class="form-label">Valor estimado</label><input type="number" step="0.01" class="form-input" id="prospf-valor" placeholder="0.00"></div>
+        <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-input" id="prospf-notas" rows="2" placeholder="Observaciones…"></textarea></div>
+      </div>
+      <div id="prosp-seg-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--cp-gray-100)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:13px;font-weight:700;color:var(--cp-navy)">Bitácora de seguimiento</div>
+          <button type="button" class="btn-sm btn-purple" onclick="openAddProspSeg()"><i class="ti ti-clipboard-check"></i> Registrar seguimiento</button>
+        </div>
+        <div id="prosp-seg-timeline" style="max-height:280px;overflow-y:auto"></div>
+      </div>
+      <div id="prosp-docs-section" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--cp-gray-100)">
+        <div style="font-size:13px;font-weight:700;color:var(--cp-navy);margin-bottom:10px">Documentos</div>
+        <div id="prosp-doc-drop" onclick="document.getElementById('prosp-doc-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--cp-purple)'" ondragleave="this.style.borderColor=''" ondrop="prospHandleDocDrop(event)" style="border:2px dashed var(--cp-gray-200);border-radius:var(--radius-sm);padding:16px;text-align:center;cursor:pointer;color:var(--cp-gray-400);font-size:12px;margin-bottom:10px">
+          <i class="ti ti-upload" style="font-size:20px;display:block;margin-bottom:4px"></i>
+          Arrastra archivos aquí o haz clic para elegir (máx. 5MB c/u)
+          <input type="file" id="prosp-doc-input" multiple style="display:none" onchange="prospHandleDocSelect(event)">
+        </div>
+        <div id="prosp-docs-list"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-red" id="prosp-perdido-btn" onclick="marcarProspectoPerdido()" style="display:none;margin-right:auto"><i class="ti ti-x"></i> Marcar perdido</button>
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-prospecto')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-prosp-btn" onclick="saveProspecto()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTRAR SEGUIMIENTO MODAL (sub-modal de la ficha de prospecto) -->
+<div class="modal-overlay" id="modal-prosp-seg">
+  <div class="modal" style="width:440px">
+    <div class="modal-header"><div class="modal-title">Registrar seguimiento</div><button class="modal-close" onclick="closeModal('modal-prosp-seg')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Tipo de contacto</label><select class="form-input" id="prospsegf-tipo"></select></div>
+        <div class="form-field full"><label class="form-label">Nota *</label><textarea class="form-input" id="prospsegf-nota" rows="3" placeholder="¿Qué se habló?"></textarea></div>
+        <div class="form-field full"><label class="form-label">Próximo paso</label><input class="form-input" id="prospsegf-proximo" placeholder="Ej. Enviar cotización"></div>
+        <div class="form-field"><label class="form-label">Fecha próximo paso</label><input type="date" class="form-input" id="prospsegf-fecha"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-prosp-seg')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-prosp-seg-btn" onclick="saveProspSeg()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- FACTURACIÓN MODAL -->
 <div class="modal-overlay" id="modal-facturacion">
   <div class="modal" style="width:540px">
@@ -5257,6 +5432,10 @@ async function _loadModuleDataInner(moduleId) {
         await gpLoad();
         break;
       }
+      case 'prospectos': {
+        await prospLoad();
+        break;
+      }
     }
     _moduleLoaded[moduleId] = true; // only mark as loaded once the fetch actually succeeded
     _moduleLastLoaded[moduleId] = Date.now();
@@ -5279,14 +5458,16 @@ async function dbLoad(){
     // Only what's needed for the sidebar badges + Dashboard's default sections.
     // Everything else loads lazily via loadModuleData() on first visit.
     await loadKbBoards();
-    const [clisRaw, prodsRaw, okrRaw, okrKrRaw, okrCheckinsRaw, appCfgRaw] = await Promise.all([
+    const [clisRaw, prodsRaw, okrRaw, okrKrRaw, okrCheckinsRaw, appCfgRaw, provRaw] = await Promise.all([
       sbGetAll('clientes'), sbGetAll('productos'),
       sbGetAll('okrs').catch(()=>[]), sbGetAll('okr_krs').catch(()=>[]),
       sbGetAll('okr_checkins').catch(()=>[]),
-      sbGetAll('app_config').catch(()=>[])
+      sbGetAll('app_config').catch(()=>[]),
+      sbGetAll('hb_proveedores').catch(()=>[])
     ]);
     cliData = clisRaw.map(r=>({id:r.id,nombre:r.nombre,rfc:r.rfc,email:r.email,tel:r.tel,contacto:r.contacto,direccion:r.direccion,notas:r.notas,status:r.status,color:r.color,fotoUrl:r.foto_url,venc_contrato:r.venc_contrato,alerta_dias:r.alerta_dias,facturacion:r.facturacion||[],productos:r.productos||[],documentos:r.documentos||[],tipo_pago:r.tipo_pago||null,fecha_inicio:r.fecha_inicio||null,fecha_inicio_demo:r.fecha_inicio_demo||null,fecha_fin_demo:r.fecha_fin_demo||null,responsable_id:r.responsable_id||null,responsable_libre:r.responsable_libre||null}));
     prodData = prodsRaw.map(r=>({id:r.id,nombre:r.nombre,descripcion:r.descripcion||'',color:r.color||'#7B2FF7'}));
+    provData = provRaw.map(r=>({id:r.id,nombre:r.nombre,tipo_servicio:r.tipo_servicio,moneda_default:r.moneda_default,tc_default:r.tc_default,contacto:r.contacto,datos_pago:r.datos_pago||{},activo:r.activo!==false}));
     const okrAllMapped = okrRaw.map(r=>({id:r.id,titulo:r.titulo,descripcion:r.descripcion||'',tipo:r.tipo||'empresa',visibilidad:r.visibilidad||'empresa',ownerId:r.owner_id||null,responsableId:r.responsable_id||null,area:r.area||'',periodo:r.periodo||'',fechaInicio:r.fecha_inicio||null,fechaFin:r.fecha_fin||null,estado:r.estado||'activo',members:r.members||[]}));
     // Client-side visibility filter
     const okrMyUid=state.currentUser?.id;
@@ -5436,6 +5617,13 @@ async function nav(view){
     renderBoardSelector();renderKanban();
   }
   if(view==='clientes'){renderClientes();document.getElementById('page-title').textContent='Gestión de Clientes y Facturación';}
+  if(view==='proveedores'){renderProveedores();document.getElementById('page-title').textContent='Proveedores';}
+  if(view==='prospectos'){
+    document.getElementById('page-title').textContent='Prospectos';
+    if(!_moduleLoaded['prospectos'])showModuleSkeleton('prosp-tbody');
+    await loadModuleData('prospectos');
+    renderProspectos();
+  }
   if(view==='crm'){Promise.all([crmLoad(),crmLoadPage(0)]).then(()=>renderCRM());document.getElementById('page-title').textContent='CRM · Clientify';}
   if(view==='desarrollos'){
     document.getElementById('page-title').textContent='Desarrollos';
@@ -7008,7 +7196,7 @@ async function removeVacDoc(vacId, empId) {
 // ═══════════════════════════════
 
 // ── Supabase Auth ─────────────────────────────────
-const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','marketing','clientes','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
+const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','marketing','clientes','proveedores','prospectos','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
 const ROLE_DEFAULTS={
   admin:MODULES_ALL,
   // Legacy roles — kept only so old profiles that haven't been re-saved yet still
@@ -7148,7 +7336,7 @@ async function doLogin(){
     state.readonlyMode=role==='viewer';
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
-    applyRolePermissions();renderSidebarNav();
+    applyRolePermissions();renderSidebarNav();initSidebarState();
     resetActivityTimer();
     auditLog('login', 'auth', user.id, 'Login: ' + email, session?.access_token);
     await dbLoad();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
@@ -7195,7 +7383,7 @@ async function checkExistingSession(){
     state.readonlyMode=role==='viewer';
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
-    applyRolePermissions();renderSidebarNav();
+    applyRolePermissions();renderSidebarNav();initSidebarState();
     await dbLoad();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
     startRealtime();
     ensureNotifPermission();
@@ -8522,6 +8710,23 @@ function prodLoad() { return prodData; } // in-memory; loaded from Supabase in d
 function prodSave(data) { prodData = data; }
 let cliData = [];
 let prodData = [];
+let provData = [];
+let provCurrentId = null;
+function provSaveSB(prov) { return sbUpsert('hb_proveedores', prov); }
+// Prospectos = módulo comercial interno (hb_crm_prospectos/hb_crm_seguimientos).
+// Prefijo 'prosp' a propósito: 'crm'/'crmData'/'renderCRM' ya están tomados por
+// el módulo existente "CRM Clientify" (crm_leads, ver línea ~15252) — son cosas
+// distintas y no deben compartir namespace.
+let prospData = [];
+let prospEtapas = [];
+let prospTiposContacto = [];
+let prospCanales = [];
+let prospTemperaturas = [];
+let prospSegData = [];
+let prospCurrentId = null;
+let prospOpenEtapaValue = null; // etapa con la que se abrió la ficha actual — ver prospOnEtapaSelectChange()
+let prospViewMode = 'lista';
+function prospSaveSB(prosp) { return sbUpsert('hb_crm_prospectos', prosp); }
 let currentCliId = null;
 let cliEditMode = false;
 let cliProdosSelected = []; // products for current client form
@@ -9419,6 +9624,668 @@ function confirmDeleteCliente(){
     auditLog('eliminar','clientes',currentCliId,'Cliente eliminado');
     nav('clientes');toast('Cliente eliminado.','info');
   }
+}
+
+// ── PROVEEDORES ──────────────────────────────────
+function renderProveedores(){
+  const addBtn=document.getElementById('btn-nuevo-proveedor');if(addBtn)addBtn.style.display=canEdit('proveedores')?'':'none';
+  const q=(document.getElementById('prov-search')?.value||'').toLowerCase();
+  const tipoF=document.getElementById('prov-filter-tipo')?.value||'';
+  const showInactivos=document.getElementById('prov-show-inactivos')?.checked||false;
+  let provs=[...provData];
+  if(!showInactivos)provs=provs.filter(p=>p.activo!==false);
+  if(q)provs=provs.filter(p=>(p.nombre||'').toLowerCase().includes(q));
+  if(tipoF)provs=provs.filter(p=>p.tipo_servicio===tipoF);
+  provs.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  const tbody=document.getElementById('prov-tbody');
+  if(!tbody)return;
+  if(!provs.length){tbody.innerHTML='<tr><td colspan="5"><div class="empty-state"><i class="ti ti-truck"></i><p>Sin proveedores registrados.</p></div></td></tr>';return;}
+  const tipoLabels={hospedaje:'Hospedaje',transporte:'Transporte',yate:'Yate',vuelo:'Vuelo',renta_auto:'Renta de auto',alimentos:'Alimentos'};
+  tbody.innerHTML=provs.map(p=>{
+    const activo=p.activo!==false;
+    return '<tr'+(activo?'':' style="opacity:.5"')+'>'+
+      '<td><div class="emp-name" style="font-size:13px">'+escHtml(p.nombre)+'</div></td>'+
+      '<td>'+(tipoLabels[p.tipo_servicio]||p.tipo_servicio||'—')+'</td>'+
+      '<td>'+(p.moneda_default||'—')+'</td>'+
+      '<td><span class="badge '+(activo?'badge-green':'badge-gray')+'">'+(activo?'Activo':'Inactivo')+'</span></td>'+
+      '<td><button class="btn-sm btn-ghost" onclick="openEditProveedor(\''+p.id+'\')"><i class="ti ti-edit"></i> Editar</button></td>'+
+    '</tr>';
+  }).join('');
+}
+function openAddProveedor(){
+  if(!canEdit('proveedores'))return;
+  provCurrentId=null;
+  document.getElementById('prov-modal-title').textContent='Nuevo proveedor';
+  document.getElementById('prov-del-btn').style.display='none';
+  document.getElementById('provf-nombre').value='';
+  document.getElementById('provf-tipo').value='hospedaje';
+  document.getElementById('provf-moneda').value='MXN';
+  document.getElementById('provf-tc').value='';
+  document.getElementById('provf-contacto').value='';
+  document.getElementById('provf-datos-pago').value='';
+  document.getElementById('provf-activo').checked=true;
+  openModal('modal-proveedor');
+}
+function openEditProveedor(id){
+  const p=provData.find(x=>x.id===id);if(!p)return;
+  provCurrentId=id;
+  document.getElementById('prov-modal-title').textContent='Editar proveedor';
+  // Solo se ofrece "Eliminar" (soft-delete) sobre proveedores activos — uno
+  // inactivo se reactiva marcando la casilla Activo de este mismo formulario.
+  document.getElementById('prov-del-btn').style.display=(p.activo!==false)?'flex':'none';
+  document.getElementById('provf-nombre').value=p.nombre||'';
+  document.getElementById('provf-tipo').value=p.tipo_servicio||'hospedaje';
+  document.getElementById('provf-moneda').value=p.moneda_default||'MXN';
+  document.getElementById('provf-tc').value=p.tc_default||'';
+  document.getElementById('provf-contacto').value=p.contacto||'';
+  document.getElementById('provf-datos-pago').value=(p.datos_pago&&p.datos_pago.nota)||'';
+  document.getElementById('provf-activo').checked=p.activo!==false;
+  openModal('modal-proveedor');
+}
+async function saveProveedor(){
+  const nombre=sanitizeInput(document.getElementById('provf-nombre')?.value,150);
+  if(!nombre){toast('El nombre es obligatorio.','error');return;}
+  setBtn('save-prov-btn',true);
+  const prov={
+    id:provCurrentId||uid9(),
+    nombre,
+    tipo_servicio:document.getElementById('provf-tipo').value,
+    moneda_default:document.getElementById('provf-moneda').value,
+    tc_default:parseFloat(document.getElementById('provf-tc').value)||null,
+    contacto:sanitizeInput(document.getElementById('provf-contacto').value,200),
+    datos_pago:{nota:sanitizeInput(document.getElementById('provf-datos-pago').value,1000)},
+    activo:document.getElementById('provf-activo').checked
+  };
+  const ok=await provSaveSB(prov);
+  setBtn('save-prov-btn',false);
+  if(!ok)return;
+  const idx=provData.findIndex(x=>x.id===prov.id);
+  if(idx!==-1)provData[idx]=prov;else provData.push(prov);
+  auditLog(provCurrentId?'editar':'crear','hb_proveedores',prov.id,'Proveedor: '+nombre);
+  closeModal('modal-proveedor');
+  renderProveedores();
+  toast(provCurrentId?'Proveedor actualizado ✓':'Proveedor creado ✓');
+}
+// El botón "Eliminar" del modal NO borra el registro: otras operaciones (facturas,
+// pagos) dependerán de estos proveedores, así que solo se marca activo:false,
+// igual que el patrón de activo/inactivo usado en Configuración de Dirección.
+async function deleteProveedor(){
+  if(!provCurrentId)return;
+  const prov=provData.find(x=>x.id===provCurrentId);if(!prov)return;
+  const updated={...prov,activo:false};
+  const ok=await provSaveSB(updated);
+  if(!ok)return;
+  const idx=provData.findIndex(x=>x.id===provCurrentId);
+  if(idx!==-1)provData[idx]=updated;
+  auditLog('eliminar','hb_proveedores',provCurrentId,'Proveedor desactivado: '+prov.nombre);
+  closeModal('modal-proveedor');
+  renderProveedores();
+  toast('Proveedor desactivado.','info');
+}
+
+// ── PROSPECTOS (CRM interno — hb_crm_prospectos / hb_crm_seguimientos) ──
+// Distinto del módulo "CRM Clientify" existente (crm_leads/renderCRM/crmData):
+// este es el pipeline comercial propio de Grupo Limen, lead → confirmado/perdido.
+
+async function prospLoad(){
+  const [prospRaw, cfgRows] = await Promise.all([
+    sbGetAll('hb_crm_prospectos'),
+    sbGetAll('hb_config')
+  ]);
+  prospData = prospRaw.map(r=>({
+    id:r.id, nombre:r.nombre, empresa:r.empresa, contactoTel:r.contacto_tel, contactoMail:r.contacto_mail,
+    canalEntrada:r.canal_entrada, estado:r.estado, vendedorId:r.vendedor_id, temperatura:r.temperatura,
+    notas:r.notas, valorEstimado:r.valor_estimado, createdAt:r.created_at, updatedAt:r.updated_at
+  }));
+  // Causa raíz real de "canal no se guarda" / chip "undefined": crm_canales y
+  // crm_tipos_contacto vivían en hb_config como arrays de STRINGS sueltos
+  // (["WhatsApp","Redes sociales",...]), mientras crm_etapas/crm_temperatura
+  // ya eran arrays de objetos {id,nombre,color,orden}. Todo este módulo lee
+  // '.id'/'.nombre' de cada catálogo (poblar <select>, buscar por id al
+  // renderizar) — con strings sueltos eso rompía en silencio. Se unificó el
+  // dato en hb_config a objetos {id,nombre,...} vía SQL, así que los 4
+  // catálogos se leen exactamente igual, sin normalización especial por tipo.
+  const cfgGet=clave=>{const row=(cfgRows||[]).find(x=>x.clave===clave);return (row&&row.valor)||[];};
+  prospEtapas=cfgGet('crm_etapas').slice().sort((a,b)=>(a.orden||0)-(b.orden||0));
+  prospTiposContacto=cfgGet('crm_tipos_contacto');
+  prospCanales=cfgGet('crm_canales');
+  prospTemperaturas=cfgGet('crm_temperatura');
+  if(!(_userProfilesCache||[]).length){try{await loadAllUserProfiles();}catch(e){}}
+}
+
+// ── VIEW TOGGLE ───────────────────────────────────
+function setProspView(mode,btn){
+  prospViewMode=mode;
+  document.querySelectorAll('#prosp-vw-lista,#prosp-vw-pipeline').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('prosp-lista-view').style.display=mode==='lista'?'block':'none';
+  document.getElementById('prosp-pipeline-view').style.display=mode==='pipeline'?'block':'none';
+  renderProspectos();
+}
+function renderProspectos(){
+  const addBtn=document.getElementById('btn-nuevo-prospecto');if(addBtn)addBtn.style.display=canEdit('prospectos')?'':'none';
+  populateProspFilters();
+  if(prospViewMode==='pipeline')renderProspPipeline();
+  else renderProspLista();
+}
+function populateProspFilters(){
+  const etapaSel=document.getElementById('prosp-filter-etapa');
+  if(etapaSel){const cur=etapaSel.value;etapaSel.innerHTML='<option value="">Todas las etapas</option>'+prospEtapas.map(e=>'<option value="'+e.id+'"'+(e.id===cur?' selected':'')+'>'+escHtml(e.nombre)+'</option>').join('');}
+  const vendSel=document.getElementById('prosp-filter-vendedor');
+  if(vendSel){const cur=vendSel.value;vendSel.innerHTML='<option value="">Todos los vendedores</option>'+(_userProfilesCache||[]).map(u=>'<option value="'+u.user_id+'"'+(u.user_id===cur?' selected':'')+'>'+escHtml(u.display_name||u.email)+'</option>').join('');}
+  const canalSel=document.getElementById('prosp-filter-canal');
+  if(canalSel){const cur=canalSel.value;canalSel.innerHTML='<option value="">Todos los canales</option>'+prospCanales.map(c=>'<option value="'+c.id+'"'+(c.id===cur?' selected':'')+'>'+escHtml(c.nombre)+'</option>').join('');}
+}
+function _prospFilteredData(){
+  const q=(document.getElementById('prosp-search')?.value||'').toLowerCase();
+  const vendF=document.getElementById('prosp-filter-vendedor')?.value||'';
+  const canalF=document.getElementById('prosp-filter-canal')?.value||'';
+  let items=[...prospData];
+  if(q)items=items.filter(p=>(p.nombre||'').toLowerCase().includes(q));
+  if(vendF)items=items.filter(p=>p.vendedorId===vendF);
+  if(canalF)items=items.filter(p=>p.canalEntrada===canalF);
+  return items;
+}
+// Atajos de contacto en la lista — no envían nada, solo abren WhatsApp Web /
+// el cliente de correo. stopPropagation porque la fila entera es clickable
+// (abre la ficha), y el link no debe disparar eso también.
+function prospContactLinkHtml(tel,mail){
+  const parts=[];
+  if(tel){
+    const clean=tel.replace(/[\s\-()]/g,'');
+    parts.push('<a href="https://wa.me/'+escHtml(clean)+'" target="_blank" onclick="event.stopPropagation()" style="color:var(--cp-green);text-decoration:none;display:inline-flex;align-items:center;gap:3px;white-space:nowrap"><i class="ti ti-brand-whatsapp"></i>'+escHtml(tel)+'</a>');
+  }
+  if(mail){
+    parts.push('<a href="mailto:'+escHtml(mail)+'" onclick="event.stopPropagation()" style="color:var(--cp-blue);text-decoration:none;display:inline-flex;align-items:center;gap:3px;white-space:nowrap"><i class="ti ti-mail"></i>'+escHtml(mail)+'</a>');
+  }
+  return parts.length?parts.join('<br>'):'—';
+}
+
+// ── LISTA ──────────────────────────────────────────
+function renderProspLista(){
+  const etapaF=document.getElementById('prosp-filter-etapa')?.value||'';
+  let items=_prospFilteredData();
+  if(etapaF)items=items.filter(p=>p.estado===etapaF);
+  items.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  const tbody=document.getElementById('prosp-tbody');
+  if(!tbody)return;
+  if(!items.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><i class="ti ti-user-search"></i><p>Sin leads registrados.</p></div></td></tr>';return;}
+  tbody.innerHTML=items.map(p=>{
+    const etapa=prospEtapas.find(e=>e.id===p.estado);
+    const canal=prospCanales.find(c=>c.id===p.canalEntrada);
+    const vend=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;
+    return '<tr onclick="openEditProspecto(\''+p.id+'\')" style="cursor:pointer">'+
+      '<td><div class="emp-name" style="font-size:13px">'+escHtml(p.nombre)+'</div></td>'+
+      '<td style="font-size:12px;color:var(--cp-gray-600)">'+prospContactLinkHtml(p.contactoTel,p.contactoMail)+'</td>'+
+      '<td>'+(canal?escHtml(canal.nombre):'—')+'</td>'+
+      '<td>'+(vend?escHtml(vend.display_name||vend.email):'—')+'</td>'+
+      '<td>'+(etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':escHtml(p.estado||'—'))+'</td>'+
+      '<td>'+(p.valorEstimado!=null?'$'+Number(p.valorEstimado).toLocaleString('es-MX'):'—')+'</td>'+
+      '<td><button class="btn-sm btn-ghost" onclick="event.stopPropagation();openEditProspecto(\''+p.id+'\')"><i class="ti ti-edit"></i> Editar</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ── PIPELINE (columnas dinámicas desde crm_etapas) ─
+let _dndProspId=null;
+let _dndProspFromEtapa=null;
+function renderProspPipeline(){
+  const board=document.getElementById('prosp-pipeline-board');if(!board)return;
+  const items=_prospFilteredData();
+  if(!prospEtapas.length){board.innerHTML='<div class="empty-state"><i class="ti ti-alert-triangle"></i><p>No hay etapas configuradas en el catálogo crm_etapas.</p></div>';return;}
+  let html='';
+  prospEtapas.forEach(et=>{
+    const cards=items.filter(p=>p.estado===et.id);
+    const totalValor=cards.reduce((s,p)=>s+(Number(p.valorEstimado)||0),0);
+    const cardsHtml=cards.length
+      ?cards.map(p=>buildProspPipeCard(p)).join('')
+      :'<div style="padding:16px 8px;text-align:center;color:var(--cp-gray-300);font-size:12px;pointer-events:none"><i class="ti ti-inbox" style="display:block;font-size:18px;margin-bottom:4px"></i>Vacío</div>';
+    html+='<div style="flex:0 0 210px;display:flex;flex-direction:column">'+
+      '<div style="display:flex;align-items:center;gap:6px;padding:7px 9px;background:'+et.color+'18;border-radius:var(--radius-md) var(--radius-md) 0 0;border:1px solid '+et.color+'30;border-bottom:none">'+
+        '<span style="font-size:10px;font-weight:700;color:'+et.color+';text-transform:uppercase;letter-spacing:.06em;flex:1;line-height:1.3">'+escHtml(et.nombre)+'</span>'+
+        '<span style="font-size:10px;background:'+et.color+'20;color:'+et.color+';padding:1px 6px;border-radius:99px;font-weight:700">'+cards.length+'</span>'+
+      '</div>'+
+      '<div class="dev-pipe-col-body" data-etapa="'+et.id+'"'+
+        ' ondragover="prospColDragOver(event,\''+et.id+'\')"'+
+        ' ondragleave="prospColDragLeave(event)"'+
+        ' ondrop="prospColDrop(event,\''+et.id+'\')"'+
+        ' style="flex:1;background:var(--cp-gray-50);border:1px solid '+et.color+'20;border-top:2px solid '+et.color+';border-radius:0 0 var(--radius-md) var(--radius-md);padding:7px;display:flex;flex-direction:column;gap:5px;min-height:160px">'+
+        cardsHtml+
+      '</div>'+
+      '<div style="text-align:center;padding:6px 4px;font-size:11px;color:var(--cp-gray-500);font-weight:600">$'+totalValor.toLocaleString('es-MX')+'</div>'+
+    '</div>';
+  });
+  board.innerHTML=html;
+  // Mismo idioma de drag-and-drop que el pipeline de Desarrollos (dev-pipe-card/
+  // dev-pipe-col-body, ver renderDevPipeline línea ~10120): tarjetas draggable
+  // + variables globales de arrastre. A diferencia de Desarrollos, aquí NO hay
+  // modal de transición — soltar la tarjeta actualiza el estado al instante.
+  board.querySelectorAll('.dev-pipe-card').forEach(card=>{
+    card.addEventListener('dragstart',e=>{
+      _dndProspId=card.dataset.prospId;_dndProspFromEtapa=card.dataset.prospEtapa;
+      card.classList.add('dev-dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',_dndProspId);
+    });
+    card.addEventListener('dragend',()=>{
+      card.classList.remove('dev-dragging');
+      document.querySelectorAll('.dev-pipe-col-body').forEach(col=>col.classList.remove('dev-drag-over','dev-drag-over-reject'));
+    });
+  });
+}
+function buildProspPipeCard(p){
+  const vend=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;
+  const vendIni=vend?((vend.display_name||vend.email||'?')[0].toUpperCase()):'';
+  const canal=prospCanales.find(c=>c.id===p.canalEntrada);
+  const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
+  const tempDotHtml=temp?'<span title="'+escHtml(temp.nombre)+'" style="position:absolute;top:7px;right:7px;width:9px;height:9px;border-radius:50%;background:'+temp.color+'"></span>':'';
+  return '<div class="dev-pipe-card" draggable="true" data-prosp-id="'+p.id+'" data-prosp-etapa="'+p.estado+'"'+
+    ' onclick="openEditProspecto(\''+p.id+'\')"'+
+    ' style="position:relative;background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-sm);padding:9px;cursor:pointer"'+
+    ' onmouseover="this.style.boxShadow=\'var(--shadow-md)\'" onmouseout="this.style.boxShadow=\'none\'">'+
+    tempDotHtml+
+    '<div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">'+
+      '<i class="ti ti-grip-vertical" style="font-size:12px;color:var(--cp-gray-300);flex-shrink:0;margin-top:2px"></i>'+
+      '<div style="font-size:12px;font-weight:600;color:var(--cp-navy);line-height:1.4;flex:1">'+escHtml(p.nombre)+'</div>'+
+    '</div>'+
+    (canal?'<div style="font-size:10px;color:var(--cp-gray-400);margin-bottom:5px;padding-left:17px">'+escHtml(canal.nombre)+'</div>':'')+
+    '<div style="display:flex;align-items:center;gap:4px;padding-left:17px">'+
+      (p.valorEstimado!=null?'<span style="font-size:10px;color:var(--cp-green);font-weight:700">$'+Number(p.valorEstimado).toLocaleString('es-MX')+'</span>':'')+
+      (vendIni?'<div style="width:18px;height:18px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-left:auto">'+vendIni+'</div>':'')+
+    '</div>'+
+  '</div>';
+}
+function prospColDragOver(e,targetEtapa){
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  const col=e.currentTarget;col.classList.remove('dev-drag-over-reject');
+  if(targetEtapa!==_dndProspFromEtapa)col.classList.add('dev-drag-over');
+}
+function prospColDragLeave(e){
+  if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.classList.remove('dev-drag-over','dev-drag-over-reject');
+}
+// Fila snake_case completa a partir de un prospData en memoria — centralizado
+// para que prospColDrop y saveProspecto nunca se desincronicen si se agrega
+// una columna nueva (como empresa/temperatura) en un solo lugar.
+function prospRowFromData(p){
+  return {id:p.id,nombre:p.nombre,empresa:p.empresa,contacto_tel:p.contactoTel,contacto_mail:p.contactoMail,canal_entrada:p.canalEntrada,estado:p.estado,vendedor_id:p.vendedorId,temperatura:p.temperatura,notas:p.notas,valor_estimado:p.valorEstimado};
+}
+async function prospColDrop(e,targetEtapa){
+  e.preventDefault();
+  document.querySelectorAll('.dev-pipe-col-body').forEach(col=>col.classList.remove('dev-drag-over','dev-drag-over-reject'));
+  const prospId=_dndProspId;
+  _dndProspId=null;
+  if(!prospId||!targetEtapa||targetEtapa===_dndProspFromEtapa)return;
+  if(!canEdit('prospectos'))return;
+  const p=prospData.find(x=>x.id===prospId);
+  if(!p||p.estado===targetEtapa)return;
+  const prevEstado=p.estado;
+  p.estado=targetEtapa; // optimista: instantáneo en UI, sin modal intermedio
+  renderProspPipeline();
+  const ok=await prospSaveSB(prospRowFromData(p));
+  if(!ok){p.estado=prevEstado;renderProspPipeline();return;}
+  auditLog('editar','hb_crm_prospectos',p.id,'Etapa cambiada a '+targetEtapa);
+  prospLogEtapaChange(p.id,prevEstado,targetEtapa); // fire-and-forget, no bloquea el drop
+}
+// Entrada automática en la bitácora (hb_crm_seguimientos) por cada cambio de
+// etapa, en cualquier dirección (avance o regreso) y desde cualquier camino
+// (drag-and-drop en el pipeline o guardar la ficha con otra etapa elegida) —
+// así el histórico queda completo, igual que el stageLog de Desarrollos.
+// Fire-and-forget vía sbSaveAsync: nunca bloquea el movimiento de la tarjeta
+// ni el guardado de la ficha.
+// 'obs' es opcional y SOLO puede venir de saveProspecto() — de un input
+// normal del formulario (prospf-etapa-obs), nunca de un prompt() nativo: el
+// arrastre en el pipeline (prospColDrop) llama esta función sin ese 4º
+// argumento a propósito, para que soltar una tarjeta quede siempre
+// instantáneo y sin ningún diálogo de por medio.
+function prospLogEtapaChange(prospId,fromEtapaId,toEtapaId,obs){
+  const fromEtapa=prospEtapas.find(e=>e.id===fromEtapaId);
+  const toEtapa=prospEtapas.find(e=>e.id===toEtapaId);
+  let nota='Cambió de '+(fromEtapa?fromEtapa.nombre:(fromEtapaId||'—'))+' a '+(toEtapa?toEtapa.nombre:toEtapaId);
+  if(obs)nota+=' — '+obs;
+  const row={id:uid9(),prospecto_id:prospId,tipo:'Cambio de etapa',nota,proximo_paso:null,proximo_paso_fecha:null,usuario_id:state.currentUser?.id||null};
+  sbSaveAsync(sbUpsert('hb_crm_seguimientos',row).then(ok=>{if(ok)auditLog('crear','hb_crm_seguimientos',row.id,nota);return ok;}),'Registro de cambio de etapa');
+}
+
+// ── FICHA DEL LEAD (modal crear/editar) ────────────
+function populateProspFormSelects(){
+  document.getElementById('prospf-canal').innerHTML=prospCanales.map(c=>'<option value="'+c.id+'">'+escHtml(c.nombre)+'</option>').join('');
+  document.getElementById('prospf-vendedor').innerHTML='<option value="">— Sin asignar —</option>'+(_userProfilesCache||[]).map(u=>'<option value="'+u.user_id+'">'+escHtml(u.display_name||u.email)+'</option>').join('');
+  document.getElementById('prospf-etapa').innerHTML=prospEtapas.map(e=>'<option value="'+e.id+'">'+escHtml(e.nombre)+'</option>').join('');
+  document.getElementById('prospf-temperatura').innerHTML='<option value="">— Sin definir —</option>'+prospTemperaturas.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
+}
+// Barra de etapas conectadas — inspirada en el "stepper" de Desarrollos
+// (openDevDetail, ver línea ~10815) pero con semántica de recorrido: pasadas
+// = relleno + palomita, actual = resaltada con halo, futuras = tenues, línea
+// recorrida en color sólido vs. gris en lo que falta. Solo lectura por ahora.
+// 'perdido' NO es un paso del camino de avance (Nuevo→Seguimiento→Cotizado→
+// Confirmado) — incluirlo como último círculo daría a entender que todo lead
+// termina ahí. Se excluye de 'pasos' y se resuelve aparte: si el lead está en
+// esa etapa, se muestra un badge rojo en vez del stepper de avance.
+function buildProspStageStepper(estadoId){
+  if(estadoId==='perdido'){
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--cp-red-light);border-radius:var(--radius-md)">'+
+      '<i class="ti ti-mood-sad" style="color:var(--cp-red);font-size:16px"></i>'+
+      '<span style="font-size:12px;font-weight:700;color:var(--cp-red)">Lead perdido</span>'+
+    '</div>';
+  }
+  const pasos=prospEtapas.filter(e=>e.id!=='perdido');
+  if(!pasos.length)return '';
+  const currentIdx=pasos.findIndex(e=>e.id===estadoId);
+  const currentColor=currentIdx>=0?pasos[currentIdx].color:'var(--cp-gray-300)';
+  return '<div style="display:flex;overflow-x:auto;gap:0;margin-bottom:16px;padding:14px 12px 12px;background:var(--cp-gray-50);border-radius:var(--radius-md)">'+
+    pasos.map((et,i)=>{
+      const isCurrent=i===currentIdx;
+      const isDone=currentIdx>=0&&i<currentIdx;
+      const lineColor=(currentIdx>=0&&i<=currentIdx)?currentColor:'var(--cp-gray-200)';
+      const circleBg=isDone||isCurrent?et.color:'var(--cp-gray-200)';
+      const ring=isCurrent?'box-shadow:0 0 0 4px '+et.color+'2E;':'';
+      // Pasadas siguen mostrando la palomita (esa señal de "completada" ya se
+      // aprobó en la iteración anterior); actual/futuras muestran el ícono de
+      // la etapa — 'et.icon' si el catálogo lo trae, si no un genérico neutro
+      // (ningún crm_etapas trae 'icon' todavía, así que hoy se ve el mismo
+      // ícono en todas hasta que se agregue esa columna al catálogo).
+      const innerHtml=isDone
+        ?'<i class="ti ti-check" style="font-size:12px;color:white"></i>'
+        :'<i class="ti '+(et.icon||'ti-flag')+'" style="font-size:11px;color:'+(isCurrent?'white':'var(--cp-gray-400)')+'"></i>';
+      return '<div style="flex:1;min-width:60px;text-align:center;position:relative">'+
+        (i>0?'<div style="position:absolute;top:12px;left:-50%;width:100%;height:3px;z-index:0;background:'+lineColor+'"></div>':'')+
+        '<div style="width:24px;height:24px;border-radius:50%;background:'+circleBg+';display:inline-flex;align-items:center;justify-content:center;position:relative;z-index:1;'+ring+'margin-bottom:5px">'+innerHtml+'</div>'+
+        '<div style="font-size:8px;font-weight:'+(isCurrent?'700':'500')+';color:'+((isCurrent||isDone)?et.color:'var(--cp-gray-400)')+';line-height:1.2">'+escHtml(et.nombre)+'</div>'+
+      '</div>';
+    }).join('')+
+  '</div>';
+}
+// Atajos de contacto — no envían nada desde la app, solo abren WhatsApp Web /
+// el cliente de correo con el chat/destinatario ya cargado.
+function prospOpenWhatsapp(){
+  const tel=(document.getElementById('prospf-tel')?.value||'').trim();
+  if(!tel){toast('No hay teléfono capturado.','error');return;}
+  window.open('https://wa.me/'+encodeURIComponent(tel.replace(/[\s\-()]/g,'')),'_blank');
+}
+function prospOpenMailto(){
+  const mail=(document.getElementById('prospf-mail')?.value||'').trim();
+  if(!mail){toast('No hay correo capturado.','error');return;}
+  location.href='mailto:'+mail;
+}
+// Muestra el campo "Observación del cambio" SOLO cuando el usuario realmente
+// cambió el desplegable de Etapa respecto al valor con el que se abrió la
+// ficha — así no estorba en el caso común de editar otros campos sin tocar
+// la etapa. 'prospOpenEtapaValue' guarda ese valor original al abrir.
+function prospOnEtapaSelectChange(){
+  const wrap=document.getElementById('prospf-etapa-obs-wrap');if(!wrap)return;
+  const changed=!!prospCurrentId&&prospOpenEtapaValue!=null&&document.getElementById('prospf-etapa').value!==prospOpenEtapaValue;
+  wrap.style.display=changed?'':'none';
+  if(!changed)document.getElementById('prospf-etapa-obs').value='';
+}
+function openAddProspecto(){
+  if(!canEdit('prospectos'))return;
+  prospCurrentId=null;
+  prospOpenEtapaValue=null;
+  document.getElementById('prosp-modal-title').textContent='Nuevo lead';
+  document.getElementById('prosp-perdido-btn').style.display='none';
+  document.getElementById('prosp-seg-section').style.display='none';
+  document.getElementById('prosp-docs-section').style.display='none';
+  prospDocsData=[];
+  document.getElementById('prosp-stage-stepper').innerHTML=''; // solo aplica al editar un lead existente
+  populateProspFormSelects();
+  document.getElementById('prospf-nombre').value='';
+  document.getElementById('prospf-empresa').value='';
+  document.getElementById('prospf-tel').value='';
+  document.getElementById('prospf-mail').value='';
+  document.getElementById('prospf-vendedor').value='';
+  document.getElementById('prospf-temperatura').value='';
+  document.getElementById('prospf-valor').value='';
+  document.getElementById('prospf-notas').value='';
+  document.getElementById('prospf-etapa-obs').value='';
+  document.getElementById('prospf-etapa-obs-wrap').style.display='none';
+  openModal('modal-prospecto');
+}
+async function openEditProspecto(id){
+  const p=prospData.find(x=>x.id===id);if(!p)return;
+  prospCurrentId=id;
+  document.getElementById('prosp-modal-title').textContent='Editar lead';
+  document.getElementById('prosp-stage-stepper').innerHTML=buildProspStageStepper(p.estado);
+  populateProspFormSelects();
+  document.getElementById('prospf-nombre').value=p.nombre||'';
+  document.getElementById('prospf-empresa').value=p.empresa||'';
+  document.getElementById('prospf-tel').value=p.contactoTel||'';
+  document.getElementById('prospf-mail').value=p.contactoMail||'';
+  document.getElementById('prospf-canal').value=p.canalEntrada||'';
+  document.getElementById('prospf-vendedor').value=p.vendedorId||'';
+  document.getElementById('prospf-etapa').value=p.estado||'';
+  document.getElementById('prospf-temperatura').value=p.temperatura||'';
+  document.getElementById('prospf-valor').value=p.valorEstimado!=null?p.valorEstimado:'';
+  document.getElementById('prospf-notas').value=p.notas||'';
+  prospOpenEtapaValue=p.estado||'';
+  document.getElementById('prospf-etapa-obs').value='';
+  document.getElementById('prospf-etapa-obs-wrap').style.display='none';
+  const perdidoBtn=document.getElementById('prosp-perdido-btn');
+  const perdidoEtapa=prospEtapas.find(e=>e.id==='perdido');
+  perdidoBtn.style.display=(perdidoEtapa&&p.estado!=='perdido')?'flex':'none';
+  document.getElementById('prosp-seg-section').style.display='block';
+  document.getElementById('prosp-seg-timeline').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
+  document.getElementById('prosp-docs-section').style.display='block';
+  document.getElementById('prosp-docs-list').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
+  openModal('modal-prospecto');
+  prospSegData=await prospSegLoad(id);
+  renderProspSegTimeline();
+  prospDocsData=await prospDocsLoad(id);
+  renderProspDocsList();
+}
+async function saveProspecto(){
+  const nombre=sanitizeInput(document.getElementById('prospf-nombre')?.value,150);
+  if(!nombre){toast('El nombre es obligatorio.','error');return;}
+  setBtn('save-prosp-btn',true);
+  const prevEstado=prospCurrentId?(prospData.find(x=>x.id===prospCurrentId)?.estado||null):null;
+  const etapaObs=sanitizeInput(document.getElementById('prospf-etapa-obs')?.value,500);
+  const row={
+    id:prospCurrentId||uid9(),
+    nombre,
+    empresa:sanitizeInput(document.getElementById('prospf-empresa').value,150),
+    contacto_tel:sanitizeInput(document.getElementById('prospf-tel').value,50),
+    contacto_mail:sanitizeInput(document.getElementById('prospf-mail').value,150),
+    canal_entrada:document.getElementById('prospf-canal').value||null,
+    vendedor_id:document.getElementById('prospf-vendedor').value||null,
+    estado:document.getElementById('prospf-etapa').value,
+    temperatura:document.getElementById('prospf-temperatura').value||null,
+    valor_estimado:parseFloat(document.getElementById('prospf-valor').value)||null,
+    notas:sanitizeInput(document.getElementById('prospf-notas').value,2000)
+  };
+  const ok=await prospSaveSB(row);
+  setBtn('save-prosp-btn',false);
+  if(!ok)return;
+  const mapped={id:row.id,nombre:row.nombre,empresa:row.empresa,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas};
+  const idx=prospData.findIndex(x=>x.id===row.id);
+  if(idx!==-1)prospData[idx]={...prospData[idx],...mapped};else prospData.push(mapped);
+  auditLog(prospCurrentId?'editar':'crear','hb_crm_prospectos',row.id,'Lead: '+nombre);
+  // Cambiar la etapa desde la ficha (incluye "Marcar perdido", que solo pone
+  // el select en 'perdido' y llama esta misma función) también deja rastro —
+  // no solo el drag-and-drop del pipeline. La observación opcional (input de
+  // la ficha, NO prompt()) solo puede venir de aquí — el drag del pipeline
+  // nunca la manda, así que ahí el cambio se registra siempre sin ella.
+  if(prevEstado&&prevEstado!==row.estado)prospLogEtapaChange(row.id,prevEstado,row.estado,etapaObs);
+  closeModal('modal-prospecto');
+  renderProspectos();
+  toast(prospCurrentId?'Lead actualizado ✓':'Lead creado ✓');
+}
+// No hay soft-delete con booleano en prospectos (la tabla no tiene columna
+// 'activo'): el equivalente es mover el lead a la etapa 'perdido' del catálogo
+// crm_etapas, reutilizando el mismo saveProspecto() de siempre.
+function marcarProspectoPerdido(){
+  if(!prospCurrentId)return;
+  const perdidoEtapa=prospEtapas.find(e=>e.id==='perdido');
+  if(!perdidoEtapa){toast('No existe la etapa "perdido" en el catálogo crm_etapas.','error');return;}
+  if(!confirm('¿Marcar este lead como perdido?'))return;
+  document.getElementById('prospf-etapa').value='perdido';
+  saveProspecto();
+}
+
+// ── BITÁCORA DE SEGUIMIENTO (timeline dentro de la ficha) ──
+async function prospSegLoad(prospectoId){
+  const {data,error}=await sb.from('hb_crm_seguimientos').select('*').eq('prospecto_id',prospectoId).order('fecha',{ascending:false});
+  if(error){console.error('prospSegLoad',error);return [];}
+  return (data||[]).map(r=>({id:r.id,prospectoId:r.prospecto_id,fecha:r.fecha,tipo:r.tipo,nota:r.nota,proximoPaso:r.proximo_paso,proximoPasoFecha:r.proximo_paso_fecha,usuarioId:r.usuario_id,createdAt:r.created_at}));
+}
+function renderProspSegTimeline(){
+  const el=document.getElementById('prosp-seg-timeline');if(!el)return;
+  if(!prospSegData.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">Sin seguimientos registrados.</div>';return;}
+  el.innerHTML=prospSegData.map(s=>{
+    // 'tipo' normalmente es un id de crm_tipos_contacto, pero las entradas
+    // automáticas de cambio de etapa (prospLogEtapaChange) guardan el texto
+    // literal 'Cambio de etapa' — no matchea ningún id del catálogo, así que
+    // cae al fallback gris en vez de desaparecer del timeline.
+    const tipoCat=prospTiposContacto.find(t=>t.id===s.tipo);
+    const tipoLabel=tipoCat?tipoCat.nombre:s.tipo;
+    const tipoColor=tipoCat?(tipoCat.color||'#94A0BB'):'#94A0BB';
+    const user=s.usuarioId?(_userProfilesCache||[]).find(u=>u.user_id===s.usuarioId):null;
+    const autorNombre=user?(user.display_name||user.email):'—';
+    const fechaLabel=fmtDate((s.fecha||s.createdAt||'').slice(0,10));
+    return '<div class="prosp-seg-entry">'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">'+
+        (tipoLabel?'<span class="prosp-seg-chip" style="background:'+tipoColor+'22;color:'+tipoColor+'">'+escHtml(tipoLabel)+'</span>':'')+
+        '<span style="font-size:11px;font-weight:600;color:var(--cp-navy)">'+escHtml(autorNombre)+'</span>'+
+        '<span style="font-size:10px;color:var(--cp-gray-400)">'+fechaLabel+'</span>'+
+      '</div>'+
+      '<div style="font-size:12px;color:var(--cp-gray-700);white-space:pre-wrap">'+escHtml(s.nota||'')+'</div>'+
+      (s.proximoPaso?'<div style="font-size:11px;color:var(--cp-purple);margin-top:4px"><i class="ti ti-arrow-right"></i> '+escHtml(s.proximoPaso)+(s.proximoPasoFecha?' · '+fmtDateShort(s.proximoPasoFecha):'')+'</div>':'')+
+    '</div>';
+  }).join('');
+}
+function openAddProspSeg(){
+  if(!prospCurrentId)return;
+  document.getElementById('prospsegf-tipo').innerHTML=prospTiposContacto.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
+  document.getElementById('prospsegf-nota').value='';
+  document.getElementById('prospsegf-proximo').value='';
+  document.getElementById('prospsegf-fecha').value='';
+  openModal('modal-prosp-seg');
+}
+async function saveProspSeg(){
+  if(!prospCurrentId)return;
+  const nota=sanitizeInput(document.getElementById('prospsegf-nota').value,2000);
+  if(!nota){toast('La nota es obligatoria.','error');return;}
+  setBtn('save-prosp-seg-btn',true);
+  const row={
+    id:uid9(),
+    prospecto_id:prospCurrentId,
+    tipo:document.getElementById('prospsegf-tipo').value||null,
+    nota,
+    proximo_paso:sanitizeInput(document.getElementById('prospsegf-proximo').value,300),
+    proximo_paso_fecha:document.getElementById('prospsegf-fecha').value||null,
+    usuario_id:state.currentUser?.id||null
+  };
+  const ok=await sbUpsert('hb_crm_seguimientos',row);
+  setBtn('save-prosp-seg-btn',false);
+  if(!ok)return;
+  auditLog('crear','hb_crm_seguimientos',row.id,'Seguimiento registrado para lead '+prospCurrentId);
+  closeModal('modal-prosp-seg');
+  prospSegData=await prospSegLoad(prospCurrentId);
+  renderProspSegTimeline();
+  toast('Seguimiento registrado ✓');
+}
+
+// ── DOCUMENTOS DEL LEAD (Storage: bucket 'crm-documentos') ──
+// Mismo patrón que uploadEmpDocFile/deleteEmpDocFile de empleados→documentos
+// (ver línea ~6679: fetch directo al REST de Storage, ruta
+// <entidad>/<timestamp>-<nombre-sanitizado>, URL pública guardada en tabla).
+// Se clona en vez de llamarse directo porque ese par tiene el bucket
+// 'documentos-empleados' cableado adentro — es el mismo criterio que ya usa
+// la app en los otros 4 módulos con Storage (Diseño/Dirección/GP/Facturación):
+// cada uno trae su propio par subir/borrar apuntando a su propio bucket: no
+// hay un helper genérico "sube a cualquier bucket" que reutilizar tal cual.
+const CRM_DOC_STORAGE_BUCKET='crm-documentos';
+async function uploadProspDocFile(file,prospectoId){
+  if(!checkFileSize(file)) throw new Error('Archivo demasiado grande.');
+  const session=await sbGetSession();
+  const token=session?.access_token||state.currentUser?.token;
+  const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path=prospectoId+'/'+Date.now()+'-'+safeName;
+  const encodedPath=path.split('/').map(encodeURIComponent).join('/');
+  const res=await fetch(SUPABASE_URL+'/storage/v1/object/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath,{
+    method:'POST',
+    headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'},
+    body:file
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||e.error||'Error al subir archivo. Verifica que el bucket "crm-documentos" exista en Supabase Storage.');}
+  const url=SUPABASE_URL+'/storage/v1/object/public/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath;
+  return {url,tipo:file.type||'',size:file.size};
+}
+async function deleteProspDocFile(url){
+  try{
+    const session=await sbGetSession();
+    const token=session?.access_token||state.currentUser?.token;
+    const marker='/storage/v1/object/public/'+CRM_DOC_STORAGE_BUCKET+'/';
+    const idx=(url||'').indexOf(marker);
+    if(idx>=0){
+      const encodedPath=url.slice(idx+marker.length);
+      await fetch(SUPABASE_URL+'/storage/v1/object/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath,{method:'DELETE',headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token}});
+    }
+  }catch(e){console.warn('deleteProspDocFile storage error:',e);}
+}
+
+let prospDocsData=[];
+async function prospDocsLoad(prospectoId){
+  const {data,error}=await sb.from('hb_crm_documentos').select('*').eq('prospecto_id',prospectoId).order('created_at',{ascending:false});
+  if(error){console.error('prospDocsLoad',error);return [];}
+  return (data||[]).map(r=>({id:r.id,prospectoId:r.prospecto_id,etapaId:r.etapa_id,nombre:r.nombre,url:r.url,tipo:r.tipo,size:r.size,usuarioId:r.usuario_id,createdAt:r.created_at}));
+}
+// Los documentos se muestran SIEMPRE completos, sin filtrar por la etapa
+// actual del lead — 'etapaId' es solo una etiqueta informativa de en qué
+// etapa se subió cada uno, nunca un filtro de qué se ve.
+function renderProspDocsList(){
+  const el=document.getElementById('prosp-docs-list');if(!el)return;
+  if(!prospDocsData.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">Sin documentos adjuntos.</div>';return;}
+  el.innerHTML=prospDocsData.map(d=>{
+    const {icon,color}=_docIconFor(d.nombre);
+    const etapa=prospEtapas.find(e=>e.id===d.etapaId);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--cp-gray-100)">'+
+      '<i class="ti '+icon+'" style="font-size:18px;color:'+color+';flex-shrink:0"></i>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:12px;color:var(--cp-navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(d.nombre)+'</div>'+
+        (etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+';font-size:9px;margin-top:2px">'+escHtml(etapa.nombre)+'</span>':'')+
+      '</div>'+
+      '<span style="font-size:10px;color:var(--cp-gray-400);flex-shrink:0">'+fmtFileSize(d.size)+'</span>'+
+      '<a href="'+d.url+'" target="_blank" class="btn-sm btn-ghost" style="padding:3px 7px"><i class="ti ti-download"></i></a>'+
+      '<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px;color:var(--cp-red)" onclick="deleteProspDoc(\''+d.id+'\')"><i class="ti ti-trash"></i></button>'+
+    '</div>';
+  }).join('');
+}
+function prospHandleDocDrop(e){
+  e.preventDefault();
+  e.currentTarget.style.borderColor='';
+  prospUploadDocs(e.dataTransfer.files);
+}
+function prospHandleDocSelect(e){
+  prospUploadDocs(e.target.files);
+  e.target.value='';
+}
+async function prospUploadDocs(fileList){
+  if(!canEdit('prospectos'))return;
+  if(!prospCurrentId)return;
+  const prospectoId=prospCurrentId;
+  const etapaActual=(prospData.find(x=>x.id===prospectoId)||{}).estado||null;
+  for(const file of fileList){
+    try{
+      const uploaded=await uploadProspDocFile(file,prospectoId);
+      const row={id:uid9(),prospecto_id:prospectoId,etapa_id:etapaActual,nombre:file.name,url:uploaded.url,tipo:uploaded.tipo,size:uploaded.size,usuario_id:state.currentUser?.id||null};
+      const ok=await sbUpsert('hb_crm_documentos',row);
+      if(ok)auditLog('crear','hb_crm_documentos',row.id,'Documento adjuntado: '+file.name);
+    }catch(err){toast('Error subiendo '+file.name+': '+(err.message||''),'error');}
+  }
+  prospDocsData=await prospDocsLoad(prospectoId);
+  renderProspDocsList();
+}
+// Mismo orden que deleteDoc de empleados (línea ~6732): primero se borra la
+// fila de la tabla, luego el archivo de Storage — si Storage falla, solo se
+// deja constancia en consola, nunca se revierte el borrado de la fila.
+async function deleteProspDoc(id){
+  if(!canEdit('prospectos'))return;
+  const doc=prospDocsData.find(x=>x.id===id);if(!doc)return;
+  if(!confirm('¿Eliminar este documento?'))return;
+  const ok=await sbDelete('hb_crm_documentos',id);
+  if(!ok){toast('Error al eliminar.','error');return;}
+  if(doc.url)deleteProspDocFile(doc.url);
+  auditLog('eliminar','hb_crm_documentos',id,'Documento eliminado: '+doc.nombre);
+  prospDocsData=prospDocsData.filter(x=>x.id!==id);
+  renderProspDocsList();
+  toast('Documento eliminado.','info');
 }
 
 // ── DOCUMENTOS CLIENTE ──────────────────────────
@@ -16227,6 +17094,8 @@ const ALL_MODULES = [
   {id:'organigrama',label:'Organigrama',icon:'ti-hierarchy',badge:null},
   {id:'marketing',label:'Marketing',icon:'ti-speakerphone',badge:'mkt-badge'},
   {id:'clientes',label:'Clientes',icon:'ti-building-store',badge:'clientes-count'},
+  {id:'proveedores',label:'Proveedores',icon:'ti-truck',badge:null},
+  {id:'prospectos',label:'Prospectos',icon:'ti-user-search',badge:null},
   {id:'crm',label:'CRM Clientify',icon:'ti-users-group',badge:null},
   {id:'desarrollos',label:'Desarrollos',icon:'ti-code',badge:'dev-count'},
   {id:'configuracion',label:'Configuración',icon:'ti-settings',badge:null,always:true},
@@ -16243,7 +17112,7 @@ const ALL_MODULES = [
 function navConfigDefaults(){
   return [
     {id:'g1',label:'Principal',items:['dashboard','mis-pendientes','kanban','empleados']},
-    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','marketing','clientes','crm','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
+    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','marketing','clientes','proveedores','prospectos','crm','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
     {id:'g4',label:'Sistema',items:['configuracion','ai-chat']},
   ];
 }
@@ -16280,6 +17149,29 @@ function loadNavConfig(){
       g1.items=g1.items||[];
       const dashIdx=g1.items.indexOf('dashboard');
       g1.items.splice(dashIdx>=0?dashIdx+1:0,0,'mis-pendientes');
+      saveMenuOrderConfig(cfg);
+    }
+  }
+  // Proveedores es un módulo nuevo — mismo tipo de inyección que 'mis-pendientes'
+  // arriba, para que aparezca también en sidebars ya personalizados y guardados
+  // en app_config antes de que este módulo existiera.
+  if(!cfg.some(g=>(g.items||[]).includes('proveedores'))){
+    const g2=cfg.find(g=>g.id==='g2')||cfg[0];
+    if(g2){
+      g2.items=g2.items||[];
+      const cliIdx=g2.items.indexOf('clientes');
+      g2.items.splice(cliIdx>=0?cliIdx+1:g2.items.length,0,'proveedores');
+      saveMenuOrderConfig(cfg);
+    }
+  }
+  // Prospectos — mismo tipo de inyección, para sidebars ya guardados antes de
+  // que este módulo existiera.
+  if(!cfg.some(g=>(g.items||[]).includes('prospectos'))){
+    const g2b=cfg.find(g=>g.id==='g2')||cfg[0];
+    if(g2b){
+      g2b.items=g2b.items||[];
+      const provIdx=g2b.items.indexOf('proveedores');
+      g2b.items.splice(provIdx>=0?provIdx+1:g2b.items.length,0,'prospectos');
       saveMenuOrderConfig(cfg);
     }
   }
@@ -16332,9 +17224,10 @@ function renderSidebarNav(){
   updateAllBadges();
 }
 
-// ── SIDEBAR / LOGIN BRANDING (per-client logo, or the static Diamante logo
-// when no custom logoDataUrl is configured). The static /assets/Logo.png
-// markup is already baked into #login-brand-content and #sidebar-brand-content
+// ── SIDEBAR / LOGIN / SPLASH / RECOVERY BRANDING (per-client logo, or the
+// static Diamante logo when no custom logoDataUrl is configured). The static
+// /assets/Logo.png markup is already baked into #login-brand-content,
+// #sidebar-brand-content, #splash-brand-content and #recovery-brand-content
 // in the HTML, so when there's no custom logo we leave those elements
 // completely untouched — no redundant innerHTML rewrite, no flicker, no
 // dependency on how long CDN scripts / this script take to load and parse.
@@ -16349,13 +17242,19 @@ function renderSidebarBranding(){
   const logo = companyInfo?.logoDataUrl;
   const sbEl = document.getElementById('sidebar-brand-content');
   const loginEl = document.getElementById('login-brand-content');
+  const splashEl = document.getElementById('splash-brand-content');
+  const recoveryEl = document.getElementById('recovery-brand-content');
   if(logo){
     if(sbEl) sbEl.innerHTML = '<img src="'+logo+'" alt="'+escHtml(name)+'" style="max-height:40px;max-width:180px;object-fit:contain">';
     if(loginEl) loginEl.innerHTML = '<img src="'+logo+'" alt="'+escHtml(name)+'" style="max-height:90px;max-width:260px;object-fit:contain">';
+    if(splashEl) splashEl.innerHTML = '<img src="'+logo+'" alt="'+escHtml(name)+'">';
+    if(recoveryEl) recoveryEl.innerHTML = '<span class="brand-frost"><img src="'+logo+'" alt="'+escHtml(name)+'"></span>';
     _brandingHasCustomLogo = true;
   } else if(_brandingHasCustomLogo){
     if(sbEl) sbEl.innerHTML = '<span class="brand-frost" style="padding:8px 14px"><img src="/assets/Logo.png" alt="Diamante" style="max-height:52px;width:auto;max-width:100%;flex-shrink:0"></span>';
     if(loginEl) loginEl.innerHTML = '<span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span>';
+    if(splashEl) splashEl.innerHTML = '<img src="/assets/Logo.png" alt="">';
+    if(recoveryEl) recoveryEl.innerHTML = '<span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span>';
     _brandingHasCustomLogo = false;
   }
   // else: no logo, and none was ever shown this session — leave the
@@ -16363,10 +17262,24 @@ function renderSidebarBranding(){
 }
 
 // ── SIDEBAR COLLAPSE SYSTEM ───────────────────────
-let _sbState='expanded';
+// No existía persistencia de esta preferencia antes: _sbState solo vivía en
+// memoria (por eso el sidebar siempre arrancaba expandido, tal como está
+// codificado en la regla CSS estática .sidebar{width:240px}). Se agrega
+// localStorage aquí; el default para quien nunca lo ha tocado pasa a 'icon'.
+const SB_STATE_KEY='cp_sidebar_state';
+let _sbState='icon';
 function cycleSidebar(){
   const next={expanded:'icon',icon:'hidden',hidden:'expanded'};
-  setSbState(next[_sbState]||'expanded');
+  const newState=next[_sbState]||'expanded';
+  setSbState(newState);
+  try{localStorage.setItem(SB_STATE_KEY,newState);}catch(e){}
+}
+// Aplica el estado inicial del sidebar al entrar a la app (login o sesión
+// restaurada) — respeta la preferencia guardada si existe; si no, 'icon'.
+function initSidebarState(){
+  let saved=null;
+  try{saved=localStorage.getItem(SB_STATE_KEY);}catch(e){}
+  setSbState((saved==='expanded'||saved==='icon'||saved==='hidden')?saved:'icon');
 }
 function setSbState(state){
   _sbState=state;
