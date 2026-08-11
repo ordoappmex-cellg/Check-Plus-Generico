@@ -2191,6 +2191,17 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                 </div>
               </div>
             </div>
+            <div class="section-card" style="margin-bottom:0">
+              <div class="section-header"><div class="section-title">Giros / Industrias</div></div>
+              <div class="section-body">
+                <div id="prosp-cfg-giros-list" style="margin-bottom:10px"></div>
+                <div style="display:flex;gap:8px">
+                  <input type="color" id="prosp-cfg-giros-color" value="#7B2FF7" style="width:34px;height:32px;padding:2px;border:1px solid var(--cp-gray-200);border-radius:6px;cursor:pointer">
+                  <input type="text" class="form-input" id="prosp-cfg-giros-nombre" placeholder="Nuevo giro…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();prospCfgCatalogAdd('giros');}">
+                  <button type="button" class="btn-sm btn-ghost" onclick="prospCfgCatalogAdd('giros')"><i class="ti ti-plus"></i></button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="section-card">
@@ -2205,9 +2216,12 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           </div>
 
           <div class="section-card">
-            <div class="section-header"><div class="section-title"><i class="ti ti-message-2" style="margin-right:6px;color:var(--cp-gray-400)"></i>Plantillas de mensajes</div></div>
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-message-2" style="margin-right:6px;color:var(--cp-purple)"></i>Plantillas de mensajes</div>
+              <button class="btn-sm btn-blue" onclick="openAddProspPlantilla()"><i class="ti ti-plus"></i> Nueva plantilla</button>
+            </div>
             <div class="section-body">
-              <div class="empty-state" style="padding:20px"><i class="ti ti-clock"></i><p>Próximamente.</p></div>
+              <div id="prosp-cfg-plantillas-list"></div>
             </div>
           </div>
         </div>
@@ -4857,6 +4871,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <div class="form-field"><label class="form-label">Contacto (teléfono)</label><div style="display:flex;gap:6px;align-items:center"><input class="form-input" id="prospf-tel" placeholder="+52 999 000 0000" style="flex:1"><a href="#" onclick="event.preventDefault();prospOpenWhatsapp();" title="Abrir en WhatsApp" style="color:var(--cp-green);font-size:18px;flex-shrink:0;display:flex"><i class="ti ti-brand-whatsapp"></i></a></div></div>
         <div class="form-field"><label class="form-label">Contacto (correo)</label><div style="display:flex;gap:6px;align-items:center"><input type="email" class="form-input" id="prospf-mail" placeholder="contacto@empresa.com" style="flex:1"><a href="#" onclick="event.preventDefault();prospOpenMailto();" title="Enviar correo" style="color:var(--cp-blue);font-size:18px;flex-shrink:0;display:flex"><i class="ti ti-mail"></i></a></div></div>
         <div class="form-field"><label class="form-label">Canal de entrada</label><select class="form-input" id="prospf-canal"></select></div>
+        <div class="form-field"><label class="form-label">Giro / Industria</label><select class="form-input" id="prospf-giro"><option value="">— Sin definir —</option></select></div>
         <div class="form-field"><label class="form-label">Vendedor asignado</label><select class="form-input" id="prospf-vendedor"><option value="">— Sin asignar —</option></select></div>
         <div class="form-field"><label class="form-label">Etapa</label><select class="form-input" id="prospf-etapa" onchange="prospOnEtapaSelectChange()"></select></div>
         <div class="form-field"><label class="form-label">Temperatura</label><select class="form-input" id="prospf-temperatura"><option value="">— Sin definir —</option></select></div>
@@ -4888,6 +4903,55 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
     <div class="modal-footer">
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-prosp-seg')">Cancelar</button>
       <button class="btn-sm btn-blue" id="save-prosp-seg-btn" onclick="saveProspSeg()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PLANTILLA DE MENSAJE MODAL (Configuración del CRM → Plantillas de mensajes) -->
+<div class="modal-overlay" id="modal-prosp-plantilla">
+  <div class="modal" style="width:520px">
+    <div class="modal-header"><div class="modal-title" id="prosp-plantilla-modal-title">Nueva plantilla</div><button class="modal-close" onclick="closeModal('modal-prosp-plantilla')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Título *</label><input class="form-input" id="prospplf-titulo" placeholder="Ej. Primer contacto"></div>
+        <div class="form-field full"><label class="form-label">Canal</label>
+          <select class="form-input" id="prospplf-canal" onchange="prospPlantillaOnCanalChange()">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="correo">Correo</option>
+          </select>
+        </div>
+        <div class="form-field full" id="prospplf-asunto-wrap"><label class="form-label">Asunto</label><input class="form-input" id="prospplf-asunto" placeholder="Asunto del correo"></div>
+        <div class="form-field full">
+          <label class="form-label">Variables — clic para insertar en el texto donde está el cursor</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px" id="prospplf-vars"></div>
+        </div>
+        <div class="form-field full"><label class="form-label">Texto *</label><textarea class="form-input" id="prospplf-texto" rows="6" placeholder="Escribe el mensaje… usa las variables de arriba donde quieras."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-red" id="prosp-plantilla-delete-btn" onclick="deleteProspPlantilla()" style="display:none;margin-right:auto"><i class="ti ti-trash"></i> Eliminar</button>
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-prosp-plantilla')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-prosp-plantilla-btn" onclick="saveProspPlantilla()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PUENTE WHATSAPP / CORREO (vista de perfil del lead) — elegir plantilla o
+     escribir libre; al usarlo reemplaza variables y registra en bitácora. -->
+<div class="modal-overlay" id="modal-prosp-bridge">
+  <div class="modal" style="width:480px">
+    <div class="modal-header"><div class="modal-title" id="prosp-bridge-modal-title">Enviar WhatsApp</div><button class="modal-close" onclick="closeModal('modal-prosp-bridge')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Plantilla (opcional)</label><select class="form-input" id="prospbf-plantilla" onchange="prospBridgeOnPlantillaChange()"><option value="">— Mensaje libre —</option></select></div>
+        <div class="form-field full" id="prospbf-asunto-wrap" style="display:none"><label class="form-label">Asunto</label><input class="form-input" id="prospbf-asunto"></div>
+        <div class="form-field full"><label class="form-label">Mensaje</label><textarea class="form-input" id="prospbf-texto" rows="6"></textarea></div>
+        <div class="form-field full" style="font-size:11px;color:var(--cp-gray-400)">Se reemplazan las variables ({nombre}, {empresa}, etc.) con los datos de este lead antes de abrir WhatsApp/correo, y el mensaje final queda registrado en la bitácora.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-prosp-bridge')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="prosp-bridge-send-btn" onclick="prospBridgeSend()"><i class="ti ti-send"></i> Abrir y registrar</button>
     </div>
   </div>
 </div>
@@ -8863,6 +8927,15 @@ let prospCanales = [];
 let prospTemperaturas = [];
 let prospGiros = [];
 let prospPlantillas = [];
+let prospPlantillaEditId = null;
+// Variables insertables en el texto de una plantilla/mensaje — {vendedor} es
+// el usuario que ESCRIBE el mensaje (state.currentUser), no el vendedor
+// asignado al lead; las demás salen del propio lead.
+const PROSP_MSG_VARS=[
+  {key:'nombre',label:'Nombre'},{key:'empresa',label:'Empresa'},{key:'cargo',label:'Cargo'},
+  {key:'giro',label:'Giro'},{key:'telefono',label:'Teléfono'},{key:'correo',label:'Correo'},
+  {key:'vendedor',label:'Vendedor'}
+];
 let prospSegData = [];
 let prospCurrentId = null;
 let prospOpenEtapaValue = null; // etapa con la que se abrió la ficha actual — ver prospOnEtapaSelectChange()
@@ -10263,11 +10336,12 @@ function buildProspStageStepper(estadoId){
     }).join('')+
   '</div>';
 }
-// Atajos de contacto — no envían nada desde la app, solo abren WhatsApp Web /
-// el cliente de correo con el chat/destinatario ya cargado. Leen de prospData
-// (por prospCurrentId), no del DOM del form: así sirven igual desde el botón
-// del modal (editando un lead ya guardado) y desde los botones prominentes de
-// la vista de perfil, que no tiene inputs de por sí.
+// Atajos de contacto del MODAL de edición (icono junto a prospf-tel/
+// prospf-mail) — abren directo, sin plantilla ni bitácora, para probar el
+// número/correo que se está tecleando en el formulario. Leen de prospData
+// (por prospCurrentId), no del DOM del form. Los botones prominentes de la
+// vista de perfil YA NO llaman a estas — usan openProspBridge() (ver abajo),
+// que sí ofrece plantillas y registra en la bitácora.
 function prospOpenWhatsapp(){
   const p=prospData.find(x=>x.id===prospCurrentId);
   const tel=(p?.contactoTel||'').trim();
@@ -10279,6 +10353,72 @@ function prospOpenMailto(){
   const mail=(p?.contactoMail||'').trim();
   if(!mail){toast('No hay correo capturado.','error');return;}
   location.href='mailto:'+mail;
+}
+
+// ── PUENTE WhatsApp/Correo (vista de perfil) — a diferencia de los atajos de
+// arriba, este SÍ ofrece elegir una plantilla (crm_plantillas), reemplaza sus
+// variables con los datos reales del lead, y al usarlo registra el mensaje
+// final en la bitácora (hb_crm_seguimientos, mismo insert que
+// prospLogEtapaChange/saveProspSeg arriba). ──
+let _prospBridgeCanal=null;
+function prospFillMsgVars(text,p){
+  const giro=prospGiros.find(function(g){return g.id===p.giro;});
+  const vendedorActual=state.currentUser?(state.currentUser.displayName||state.currentUser.email):'';
+  const map={
+    nombre:p.nombre||'', empresa:p.empresa||'', cargo:p.cargo||'',
+    giro:giro?giro.nombre:'', telefono:p.contactoTel||'', correo:p.contactoMail||'',
+    vendedor:vendedorActual||''
+  };
+  return (text||'').replace(/\{(\w+)\}/g,function(match,key){
+    return Object.prototype.hasOwnProperty.call(map,key)?map[key]:match;
+  });
+}
+function openProspBridge(canal){
+  const p=prospData.find(function(x){return x.id===prospCurrentId;});if(!p)return;
+  if(canal==='whatsapp'&&!(p.contactoTel||'').trim()){toast('No hay teléfono capturado.','error');return;}
+  if(canal==='correo'&&!(p.contactoMail||'').trim()){toast('No hay correo capturado.','error');return;}
+  _prospBridgeCanal=canal;
+  document.getElementById('prosp-bridge-modal-title').textContent=canal==='correo'?'Enviar correo':'Enviar WhatsApp';
+  const plantillaSel=document.getElementById('prospbf-plantilla');
+  const opts=prospPlantillas.filter(function(pl){return pl.canal===canal;});
+  plantillaSel.innerHTML='<option value="">— Mensaje libre —</option>'+opts.map(function(pl){return '<option value="'+pl.id+'">'+escHtml(pl.titulo)+'</option>';}).join('');
+  document.getElementById('prospbf-asunto-wrap').style.display=canal==='correo'?'':'none';
+  document.getElementById('prospbf-asunto').value='';
+  document.getElementById('prospbf-texto').value='';
+  openModal('modal-prosp-bridge');
+}
+function prospBridgeOnPlantillaChange(){
+  const p=prospData.find(function(x){return x.id===prospCurrentId;});if(!p)return;
+  const id=document.getElementById('prospbf-plantilla').value;
+  const pl=prospPlantillas.find(function(x){return x.id===id;});
+  if(!pl){document.getElementById('prospbf-asunto').value='';document.getElementById('prospbf-texto').value='';return;}
+  document.getElementById('prospbf-asunto').value=pl.asunto?prospFillMsgVars(pl.asunto,p):'';
+  document.getElementById('prospbf-texto').value=prospFillMsgVars(pl.texto,p);
+}
+async function prospBridgeSend(){
+  const p=prospData.find(function(x){return x.id===prospCurrentId;});if(!p)return;
+  const canal=_prospBridgeCanal;
+  const texto=sanitizeInput(document.getElementById('prospbf-texto').value,4000);
+  if(!texto){toast('El mensaje no puede estar vacío.','error');return;}
+  setBtn('prosp-bridge-send-btn',true);
+  if(canal==='whatsapp'){
+    const tel=(p.contactoTel||'').replace(/[\s\-()]/g,'');
+    window.open('https://wa.me/'+encodeURIComponent(tel)+'?text='+encodeURIComponent(texto),'_blank');
+  }else{
+    const asunto=sanitizeInput(document.getElementById('prospbf-asunto').value,200);
+    location.href='mailto:'+p.contactoMail+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(texto);
+  }
+  const tipoLabel=canal==='correo'?'Correo':'WhatsApp';
+  const tipoCat=prospTiposContacto.find(function(t){return (t.nombre||'').toLowerCase()===tipoLabel.toLowerCase();});
+  const row={id:uid9(),prospecto_id:prospCurrentId,tipo:tipoCat?tipoCat.id:tipoLabel,nota:texto,proximo_paso:null,proximo_paso_fecha:null,usuario_id:state.currentUser?.id||null};
+  const ok=await sbUpsert('hb_crm_seguimientos',row);
+  setBtn('prosp-bridge-send-btn',false);
+  if(ok){
+    auditLog('crear','hb_crm_seguimientos',row.id,tipoLabel+': '+texto);
+    prospSegData=await prospSegLoad(prospCurrentId);
+    renderProspSegTimeline();
+  }
+  closeModal('modal-prosp-bridge');
 }
 // Muestra el campo "Observación del cambio" SOLO cuando el usuario realmente
 // cambió el desplegable de Etapa respecto al valor con el que se abrió la
@@ -10321,6 +10461,7 @@ function openAddProspecto(){
   document.getElementById('prospf-tel').value='';
   document.getElementById('prospf-mail').value='';
   document.getElementById('prospf-vendedor').value='';
+  document.getElementById('prospf-giro').value='';
   document.getElementById('prospf-temperatura').value='';
   document.getElementById('prospf-valor').value='';
   document.getElementById('prospf-notas').value='';
@@ -10350,6 +10491,7 @@ function openEditProspecto(){
   document.getElementById('prospf-tel').value=p.contactoTel||'';
   document.getElementById('prospf-mail').value=p.contactoMail||'';
   document.getElementById('prospf-canal').value=p.canalEntrada||'';
+  document.getElementById('prospf-giro').value=p.giro||'';
   document.getElementById('prospf-vendedor').value=p.vendedorId||'';
   document.getElementById('prospf-etapa').value=p.estado||'';
   document.getElementById('prospf-temperatura').value=p.temperatura||'';
@@ -10393,6 +10535,7 @@ function renderProspDetailHeader(p){
   const etapa=prospEtapas.find(e=>e.id===p.estado);
   const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
   const canal=prospCanales.find(c=>c.id===p.canalEntrada);
+  const giro=prospGiros.find(g=>g.id===p.giro);
   const vend=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;
   const iconColor=etapa?etapa.color:'#7B2FF7';
   const iconEl=document.getElementById('prosp-det-icon');
@@ -10411,12 +10554,13 @@ function renderProspDetailHeader(p){
     (etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':'')+
     (temp?'<span class="badge" style="background:'+temp.color+'22;color:'+temp.color+'">'+escHtml(temp.nombre)+'</span>':'');
   document.getElementById('prosp-det-contact-btns').innerHTML=
-    (p.contactoTel?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-green)" onclick="prospOpenWhatsapp()"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>':'')+
-    (p.contactoMail?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-blue)" onclick="prospOpenMailto()"><i class="ti ti-mail"></i> Correo</button>':'');
+    (p.contactoTel?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-green)" onclick="openProspBridge(\'whatsapp\')"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>':'')+
+    (p.contactoMail?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-blue)" onclick="openProspBridge(\'correo\')"><i class="ti ti-mail"></i> Correo</button>':'');
   document.getElementById('prosp-det-info-body').innerHTML=[
     ['Teléfono',p.contactoTel||'—'],
     ['Correo',p.contactoMail||'—'],
     ['Canal de entrada',canal?escHtml(canal.nombre):'—'],
+    ['Giro / Industria',giro?escHtml(giro.nombre):'—'],
     ['Vendedor asignado',vend?escHtml(vend.display_name||vend.email):'—'],
     ['Valor estimado',p.valorEstimado!=null?'$'+Number(p.valorEstimado).toLocaleString('es-MX'):'—'],
     ['Fecha de creación',prospFmtCreatedAt(p.createdAt)],
@@ -10438,6 +10582,7 @@ async function saveProspecto(){
     contacto_tel:sanitizeInput(document.getElementById('prospf-tel').value,50),
     contacto_mail:sanitizeInput(document.getElementById('prospf-mail').value,150),
     canal_entrada:document.getElementById('prospf-canal').value||null,
+    giro:document.getElementById('prospf-giro').value||null,
     vendedor_id:document.getElementById('prospf-vendedor').value||null,
     estado:document.getElementById('prospf-etapa').value,
     temperatura:document.getElementById('prospf-temperatura').value||null,
@@ -10448,7 +10593,7 @@ async function saveProspecto(){
   const ok=await prospSaveSB(row);
   setBtn('save-prosp-btn',false);
   if(!ok)return;
-  const mapped={id:row.id,nombre:row.nombre,cargo:row.cargo,fotoUrl:row.foto_url,empresa:row.empresa,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas};
+  const mapped={id:row.id,nombre:row.nombre,cargo:row.cargo,fotoUrl:row.foto_url,empresa:row.empresa,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,giro:row.giro,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas};
   const idx=prospData.findIndex(x=>x.id===row.id);
   if(idx!==-1)prospData[idx]={...prospData[idx],...mapped};else prospData.push(mapped);
   auditLog(prospCurrentId?'editar':'crear','hb_crm_prospectos',row.id,'Lead: '+nombre);
@@ -10687,7 +10832,9 @@ function renderProspConfigView(){
   prospCfgCatalogRender('canales');
   prospCfgCatalogRender('tipos_contacto');
   prospCfgCatalogRender('temperatura');
+  prospCfgCatalogRender('giros');
   renderProspColPanel();
+  renderProspCfgPlantillas();
 }
 
 // ── Etapas del pipeline (crm_etapas) — con ícono + orden, sin 'activo' (cada
@@ -10811,15 +10958,17 @@ async function prospCfgEtapaDelete(id){
 const PROSP_CFG_CATALOGS={
   canales:{clave:'crm_canales',getArr:function(){return prospCanales;}},
   tipos_contacto:{clave:'crm_tipos_contacto',getArr:function(){return prospTiposContacto;}},
-  temperatura:{clave:'crm_temperatura',getArr:function(){return prospTemperaturas;}}
+  temperatura:{clave:'crm_temperatura',getArr:function(){return prospTemperaturas;}},
+  giros:{clave:'crm_giros',getArr:function(){return prospGiros;}}
 };
 // Los seguimientos (hb_crm_seguimientos) no se cargan completos en memoria —
 // solo el del lead abierto (prospSegData) — así que "¿está en uso este tipo
-// de contacto?" necesita una consulta en vivo; canales/temperatura sí viven
-// completos en prospData y se revisan en memoria sin ir a la base.
+// de contacto?" necesita una consulta en vivo; canales/temperatura/giros sí
+// viven completos en prospData y se revisan en memoria sin ir a la base.
 async function prospCfgCatalogUsageCount(kind,id){
   if(kind==='canales')return prospData.filter(function(p){return p.canalEntrada===id;}).length;
   if(kind==='temperatura')return prospData.filter(function(p){return p.temperatura===id;}).length;
+  if(kind==='giros')return prospData.filter(function(p){return p.giro===id;}).length;
   if(kind==='tipos_contacto'){
     const {count,error}=await sb.from('hb_crm_seguimientos').select('id',{count:'exact',head:true}).eq('tipo',id);
     if(error){console.error('prospCfgCatalogUsageCount tipos_contacto',error);return 0;}
@@ -10903,6 +11052,103 @@ async function prospCfgCatalogDelete(kind,id){
   if(!ok){arr.length=0;arr.push(...prev);toast('Error al guardar.','error');return;}
   prospCfgCatalogRender(kind);
   renderProspectos();populateProspFormSelects2();
+}
+
+// ── Plantillas de mensajes (crm_plantillas) — CRUD vía modal (no editor de
+// fila-inline como los catálogos de arriba, porque una plantilla tiene más
+// campos: título, canal, asunto condicional, texto largo). Igual que los
+// demás catálogos, se guarda completo en cada cambio con prospCfgSaveSB. ──
+function renderProspCfgPlantillas(){
+  const el=document.getElementById('prosp-cfg-plantillas-list');if(!el)return;
+  if(!prospPlantillas.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400)">Sin plantillas todavía.</div>';return;}
+  el.innerHTML=prospPlantillas.map(function(pl){
+    const esCorreo=pl.canal==='correo';
+    const canalLabel=esCorreo?'Correo':'WhatsApp';
+    const canalColor=esCorreo?'var(--cp-blue)':'var(--cp-green)';
+    const snippet=(pl.texto||'').slice(0,90);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cp-gray-100);cursor:pointer" onclick="openEditProspPlantilla(\''+pl.id+'\')">'+
+      '<span class="badge" style="background:'+canalColor+'22;color:'+canalColor+';flex-shrink:0">'+canalLabel+'</span>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:12px;font-weight:600;color:var(--cp-navy)">'+escHtml(pl.titulo)+'</div>'+
+        '<div style="font-size:11px;color:var(--cp-gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(snippet)+'</div>'+
+      '</div>'+
+      '<i class="ti ti-chevron-right" style="color:var(--cp-gray-300);flex-shrink:0"></i>'+
+    '</div>';
+  }).join('');
+}
+function renderProspPlantillaVarChips(targetTextareaId){
+  const el=document.getElementById('prospplf-vars');if(!el)return;
+  el.innerHTML=PROSP_MSG_VARS.map(function(v){
+    return '<button type="button" class="btn-sm btn-ghost" style="padding:3px 9px;font-size:11px" onclick="insertProspMsgVar('+"'"+(targetTextareaId||'prospplf-texto')+"'"+',\''+v.key+'\')">{'+v.key+'}</button>';
+  }).join('');
+}
+function insertProspMsgVar(textareaId,key){
+  const ta=document.getElementById(textareaId);if(!ta)return;
+  const start=ta.selectionStart||0,end=ta.selectionEnd||0;
+  const token='{'+key+'}';
+  ta.value=ta.value.slice(0,start)+token+ta.value.slice(end);
+  const pos=start+token.length;
+  ta.focus();ta.setSelectionRange(pos,pos);
+}
+function prospPlantillaOnCanalChange(){
+  const canal=document.getElementById('prospplf-canal').value;
+  document.getElementById('prospplf-asunto-wrap').style.display=canal==='correo'?'':'none';
+}
+function openAddProspPlantilla(){
+  prospPlantillaEditId=null;
+  document.getElementById('prosp-plantilla-modal-title').textContent='Nueva plantilla';
+  document.getElementById('prosp-plantilla-delete-btn').style.display='none';
+  document.getElementById('prospplf-titulo').value='';
+  document.getElementById('prospplf-canal').value='whatsapp';
+  document.getElementById('prospplf-asunto').value='';
+  document.getElementById('prospplf-texto').value='';
+  prospPlantillaOnCanalChange();
+  renderProspPlantillaVarChips('prospplf-texto');
+  openModal('modal-prosp-plantilla');
+}
+function openEditProspPlantilla(id){
+  const pl=prospPlantillas.find(function(x){return x.id===id;});if(!pl)return;
+  prospPlantillaEditId=id;
+  document.getElementById('prosp-plantilla-modal-title').textContent='Editar plantilla';
+  document.getElementById('prosp-plantilla-delete-btn').style.display='flex';
+  document.getElementById('prospplf-titulo').value=pl.titulo||'';
+  document.getElementById('prospplf-canal').value=pl.canal||'whatsapp';
+  document.getElementById('prospplf-asunto').value=pl.asunto||'';
+  document.getElementById('prospplf-texto').value=pl.texto||'';
+  prospPlantillaOnCanalChange();
+  renderProspPlantillaVarChips('prospplf-texto');
+  openModal('modal-prosp-plantilla');
+}
+async function saveProspPlantilla(){
+  const titulo=sanitizeInput(document.getElementById('prospplf-titulo').value,100);
+  if(!titulo){toast('El título es obligatorio.','error');return;}
+  const texto=sanitizeInput(document.getElementById('prospplf-texto').value,4000);
+  if(!texto){toast('El texto es obligatorio.','error');return;}
+  const canal=document.getElementById('prospplf-canal').value==='correo'?'correo':'whatsapp';
+  const asunto=canal==='correo'?sanitizeInput(document.getElementById('prospplf-asunto').value,200):'';
+  setBtn('save-prosp-plantilla-btn',true);
+  const prev=JSON.parse(JSON.stringify(prospPlantillas));
+  const item={id:prospPlantillaEditId||uid9(),titulo,canal,asunto,texto};
+  const idx=prospPlantillas.findIndex(function(x){return x.id===item.id;});
+  if(idx!==-1)prospPlantillas[idx]=item;else prospPlantillas.push(item);
+  const ok=await prospCfgSaveSB('crm_plantillas',prospPlantillas);
+  setBtn('save-prosp-plantilla-btn',false);
+  if(!ok){prospPlantillas.length=0;prospPlantillas.push(...prev);toast('Error al guardar.','error');return;}
+  closeModal('modal-prosp-plantilla');
+  renderProspCfgPlantillas();
+  toast(prospPlantillaEditId?'Plantilla actualizada ✓':'Plantilla creada ✓');
+}
+async function deleteProspPlantilla(){
+  if(!prospPlantillaEditId)return;
+  if(!confirm('¿Eliminar esta plantilla?'))return;
+  const prev=JSON.parse(JSON.stringify(prospPlantillas));
+  const filtered=prospPlantillas.filter(function(x){return x.id!==prospPlantillaEditId;});
+  prospPlantillas.length=0;prospPlantillas.push(...filtered);
+  const ok=await prospCfgSaveSB('crm_plantillas',prospPlantillas);
+  if(!ok){prospPlantillas.length=0;prospPlantillas.push(...prev);toast('Error al guardar.','error');return;}
+  closeModal('modal-prosp-plantilla');
+  renderProspCfgPlantillas();
+  toast('Plantilla eliminada.','info');
 }
 
 // ── Columnas de la lista — preferencia personal (localStorage), calcada de
