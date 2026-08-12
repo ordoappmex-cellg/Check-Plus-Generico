@@ -49,11 +49,6 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html{zoom:var(--app-zoom);}
 body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-800);min-height:100vh;font-size:14px;line-height:1.5;}
-/* html{zoom:var(--app-zoom)} desalinea el 100vh de #login-screen con el
-   viewport real, exponiendo este background claro debajo del panel oscuro del
-   login. body.login-active (ver doLogout/showRecoveryScreen/doLogin/
-   checkExistingSession) tapa ese hueco con el mismo oscuro del login. */
-body.login-active{background:#0F0A1E;}
 #global-loading{display:none;position:fixed;inset:0;background:rgba(13,17,23,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
 .spin{width:36px;height:36px;border:3px solid rgba(255,255,255,.15);border-top-color:#9B5FF8;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -77,7 +72,10 @@ body.login-active{background:#0F0A1E;}
 }
 
 /* LOGIN */
-#login-screen{display:flex;min-height:100vh;background:#0F0A1E;overflow:hidden;}
+/* height en vez de min-height: compensa el encogimiento de html{zoom:var(--app-zoom)}
+   (línea ~47). 0.88 es --app-zoom expresado como decimal, fijo a mano — si
+   --app-zoom cambia de valor, actualizar este cálculo también. */
+#login-screen{display:flex;height:calc(100vh / 0.88);background:#0F0A1E;overflow:hidden;}
 .login-left{flex:1;display:flex;flex-direction:column;justify-content:center;padding:60px;position:relative;z-index:1;}
 .login-dots-bg{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.03) 1px,transparent 1px);background-size:28px 28px;pointer-events:none;}
 .login-glow{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(123,47,247,.22) 0%,rgba(200,60,180,.1) 40%,transparent 70%);top:-150px;left:-150px;pointer-events:none;}
@@ -1114,7 +1112,9 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
   <div class="login-right" style="display:flex;align-items:center;justify-content:center;padding:40px"><div style="max-width:320px;text-align:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:32px 28px"><div style="width:64px;height:64px;background:linear-gradient(135deg,rgba(123,47,247,.18),rgba(200,60,180,.14));border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px"><i class="ti ti-shield-check" style="font-size:28px;color:#7B2FF7"></i></div><div style="font-size:20px;font-weight:700;color:#ffffff;font-family:var(--font-display);margin-bottom:8px">Seguridad en cada acceso</div><div style="font-size:13px;color:rgba(255,255,255,.75);line-height:1.65;margin-bottom:24px">Protegemos la informaci&oacute;n de tu equipo con los m&aacute;s altos est&aacute;ndares de seguridad.</div><div style="display:flex;flex-direction:column;gap:16px;text-align:left"><div style="display:flex;gap:12px;align-items:flex-start"><div style="width:32px;height:32px;border-radius:50%;background:rgba(123,47,247,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-lock" style="color:#7B2FF7;font-size:15px"></i></div><div><div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.92)">Acceso cifrado</div><div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5">Tus datos viajan protegidos de principio a fin.</div></div></div><div style="display:flex;gap:12px;align-items:flex-start"><div style="width:32px;height:32px;border-radius:50%;background:rgba(59,107,245,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-database" style="color:#3B6BF5;font-size:15px"></i></div><div><div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.92)">Informaci&oacute;n resguardada</div><div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5">Aplicamos buenas pr&aacute;cticas de seguridad y respaldo.</div></div></div><div style="display:flex;gap:12px;align-items:flex-start"><div style="width:32px;height:32px;border-radius:50%;background:rgba(16,192,128,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-check" style="color:#10C080;font-size:15px"></i></div><div><div style="font-size:12px;font-weight:600;color:rgba(255,255,255,.92)">Plataforma confiable</div><div style="font-size:11px;color:rgba(255,255,255,.6);line-height:1.5">Disponible y estable para tu operaci&oacute;n diaria.</div></div></div></div></div></div>
 </div>
 <!-- PASSWORD RECOVERY -->
-<div id="recovery-screen" style="display:none;min-height:100vh;background:#0F0A1E;overflow:hidden">
+<!-- height en vez de min-height: mismo fix de #login-screen (línea ~76), compensa
+     html{zoom:var(--app-zoom)}. 0.88 = --app-zoom fijo a mano, actualizar si cambia. -->
+<div id="recovery-screen" style="display:none;height:calc(100vh / 0.88);background:#0F0A1E;overflow:hidden">
   <div class="login-left" style="max-width:460px;margin:0 auto;float:none">
     <div class="login-dots-bg"></div><div class="login-glow"></div>
     <div class="login-left-brand"><div id="recovery-brand-content"><span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span></div></div>
@@ -5192,7 +5192,6 @@ function doLogout(){
   try{localStorage.removeItem('cp_kb_boards_cache');}catch(e){}
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
-  document.body.classList.add('login-active');
   document.getElementById('login-email')?.value;
   document.getElementById('login-error').style.display='none';
   // Remove readonly badge and banner if present
@@ -5211,7 +5210,6 @@ function showRecoveryScreen(){
   _isRecoverySession=true;
   window.hideCpSplash();
   document.getElementById('login-screen').style.display='none';
-  document.body.classList.remove('login-active');
   document.getElementById('app').style.display='none';
   document.getElementById('recovery-screen').style.display='block';
 }
@@ -7307,7 +7305,6 @@ async function doSetNewPassword(){
     await sbSignOut();
     document.getElementById('app').style.display='none';
     document.getElementById('login-screen').style.display='flex';
-    document.body.classList.add('login-active');
     toast('Contraseña cambiada, inicia sesión con tu nueva contraseña.','info');
   }catch(e){
     msgEl.textContent=e.message||'Error al guardar la contraseña.';
@@ -7336,7 +7333,6 @@ async function doLogin(){
     state.currentUser={id:user.id,email:user.email,role,allowedModules,displayName,token:session?.access_token};
     state.readonlyMode=role==='viewer';
     document.getElementById('login-screen').style.display='none';
-    document.body.classList.remove('login-active');
     document.getElementById('app').style.display='block';
     applyRolePermissions();renderSidebarNav();initSidebarState();
     resetActivityTimer();
@@ -7384,7 +7380,6 @@ async function checkExistingSession(){
     state.currentUser={id:session.user.id,email:session.user.email,role,allowedModules,displayName,token:session.access_token};
     state.readonlyMode=role==='viewer';
     document.getElementById('login-screen').style.display='none';
-    document.body.classList.remove('login-active');
     document.getElementById('app').style.display='block';
     applyRolePermissions();renderSidebarNav();initSidebarState();
     await dbLoad();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
