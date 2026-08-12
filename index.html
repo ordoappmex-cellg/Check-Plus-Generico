@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Diamante</title>
+<!-- Pinta el título con el último nombre de compañía visto en ESTE navegador
+     (cacheado por renderSidebarBranding) antes de que Supabase responda —
+     evita el flash de "Diamante" en clientes ya personalizados. Inline y
+     justo después del <title> estático (DEBE ir después, si no el parser lo
+     sobreescribe al llegar a esa etiqueta) y antes de cualquier otra carga. -->
+<script>try{var n=localStorage.getItem('cp_last_company_name');if(n)document.title=n;}catch(e){}</script>
 <meta name="theme-color" content="#0F0A1E">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -43,6 +49,11 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html{zoom:var(--app-zoom);}
 body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-800);min-height:100vh;font-size:14px;line-height:1.5;}
+/* html{zoom:var(--app-zoom)} desalinea el 100vh de #login-screen con el
+   viewport real, exponiendo este background claro debajo del panel oscuro del
+   login. body.login-active (ver doLogout/showRecoveryScreen/doLogin/
+   checkExistingSession) tapa ese hueco con el mismo oscuro del login. */
+body.login-active{background:#0F0A1E;}
 #global-loading{display:none;position:fixed;inset:0;background:rgba(13,17,23,.75);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:14px;}
 .spin{width:36px;height:36px;border:3px solid rgba(255,255,255,.15);border-top-color:#9B5FF8;border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -5181,6 +5192,7 @@ function doLogout(){
   try{localStorage.removeItem('cp_kb_boards_cache');}catch(e){}
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
+  document.body.classList.add('login-active');
   document.getElementById('login-email')?.value;
   document.getElementById('login-error').style.display='none';
   // Remove readonly badge and banner if present
@@ -5199,6 +5211,7 @@ function showRecoveryScreen(){
   _isRecoverySession=true;
   window.hideCpSplash();
   document.getElementById('login-screen').style.display='none';
+  document.body.classList.remove('login-active');
   document.getElementById('app').style.display='none';
   document.getElementById('recovery-screen').style.display='block';
 }
@@ -7294,6 +7307,7 @@ async function doSetNewPassword(){
     await sbSignOut();
     document.getElementById('app').style.display='none';
     document.getElementById('login-screen').style.display='flex';
+    document.body.classList.add('login-active');
     toast('Contraseña cambiada, inicia sesión con tu nueva contraseña.','info');
   }catch(e){
     msgEl.textContent=e.message||'Error al guardar la contraseña.';
@@ -7322,6 +7336,7 @@ async function doLogin(){
     state.currentUser={id:user.id,email:user.email,role,allowedModules,displayName,token:session?.access_token};
     state.readonlyMode=role==='viewer';
     document.getElementById('login-screen').style.display='none';
+    document.body.classList.remove('login-active');
     document.getElementById('app').style.display='block';
     applyRolePermissions();renderSidebarNav();initSidebarState();
     resetActivityTimer();
@@ -7369,6 +7384,7 @@ async function checkExistingSession(){
     state.currentUser={id:session.user.id,email:session.user.email,role,allowedModules,displayName,token:session.access_token};
     state.readonlyMode=role==='viewer';
     document.getElementById('login-screen').style.display='none';
+    document.body.classList.remove('login-active');
     document.getElementById('app').style.display='block';
     applyRolePermissions();renderSidebarNav();initSidebarState();
     await dbLoad();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
@@ -18202,6 +18218,10 @@ function renderSidebarNav(){
 function renderSidebarBranding(){
   const name = companyInfo?.nombre || 'Diamante';
   document.title = name; // (v75) dynamic from companyInfo — replaces the old static "· Equipo vNN" title
+  // Cachea el último nombre REAL recibido (no el fallback 'Diamante') para que
+  // el script inline del <head> pueda pintar el título correcto de inmediato
+  // en la siguiente carga, antes de que Supabase responda — ver <head>.
+  if(companyInfo?.nombre){try{localStorage.setItem('cp_last_company_name',companyInfo.nombre);}catch(e){}}
   const logo = companyInfo?.logoDataUrl;
   const sbEl = document.getElementById('sidebar-brand-content');
   const loginEl = document.getElementById('login-brand-content');
