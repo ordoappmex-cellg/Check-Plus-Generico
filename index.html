@@ -444,7 +444,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .info-row{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--cp-gray-100);}
 .info-row:last-child{border-bottom:none;}
 .info-lbl{font-size:12px;color:var(--cp-gray-400);font-weight:500;min-width:140px;}
-.info-val{font-size:13px;color:var(--cp-gray-900);font-weight:500;}
+.info-val{font-size:13px;color:var(--cp-gray-900);font-weight:500;flex:1;min-width:0;overflow-wrap:anywhere;}
 .chip-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;font-size:11px;font-weight:500;background:var(--cp-blue-light);color:var(--cp-blue);}
 
 /* ─── KANBAN ─────────────────────────────────────── */
@@ -2227,6 +2227,9 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
               <div id="prosp-det-info-body" style="text-align:left;margin-top:10px"></div>
               <div class="profile-action-btns" id="prosp-det-action-btns">
                 <button class="btn-sm btn-blue" onclick="openEditProspecto()"><i class="ti ti-edit"></i> Editar lead</button>
+              </div>
+              <div style="text-align:center;margin-top:6px;display:none" id="prosp-det-delete-btn-wrap">
+                <button class="btn-sm btn-ghost" style="color:var(--cp-red);padding:4px 8px;font-size:11px" onclick="confirmDeleteProspecto()" title="Eliminar lead"><i class="ti ti-trash"></i> Eliminar lead</button>
               </div>
             </div>
           </div>
@@ -10274,6 +10277,28 @@ function openEditProspecto(){
   openModal('modal-prospecto');
 }
 
+// Solo admin (botón oculto para todos los demás, ver renderProspDetailHeader).
+// hb_crm_seguimientos y hb_crm_documentos tienen ON DELETE CASCADE hacia
+// hb_crm_prospectos, así que basta con borrar la fila del lead para que
+// Postgres limpie las tablas hijas — pero el CASCADE no toca los ARCHIVOS
+// físicos en Storage, así que esos se borran a mano primero, uno por uno,
+// con el mismo bucket que usa cada documento (ver deleteProspDocFile).
+async function confirmDeleteProspecto(){
+  if(state.currentUser?.role!=='admin')return;
+  if(!prospCurrentId)return;
+  const p=prospData.find(x=>x.id===prospCurrentId);if(!p)return;
+  if(!confirm('¿Eliminar este lead? Se perderá su bitácora, documentos y cotización.'))return;
+  const id=prospCurrentId;
+  for(const d of prospDocsData){
+    if(d.url)await deleteProspDocFile(d.url,d.bucket);
+  }
+  const ok=await sbDelete('hb_crm_prospectos',id);
+  if(!ok){toast('Error al eliminar el lead.','error');return;}
+  auditLog('eliminar','hb_crm_prospectos',id,'Lead eliminado: '+p.nombre);
+  prospData=prospData.filter(x=>x.id!==id);
+  nav('prospectos');toast('Lead eliminado.','info');
+}
+
 // ── VISTA DE PERFIL DEL LEAD ────────────────────────
 // Reemplaza el modal como punto de entrada principal (clic en fila de lista
 // o tarjeta de pipeline) — mismo mecanismo que openClienteDetail(): activa
@@ -10335,6 +10360,7 @@ function renderProspDetailHeader(p){
   ].map(([l,v])=>'<div class="info-row"><div class="info-lbl">'+l+'</div><div class="info-val">'+v+'</div></div>').join('');
   const actBtns=document.getElementById('prosp-det-action-btns');if(actBtns)actBtns.style.display=canEditP?'':'none';
   const addSegBtn=document.getElementById('prosp-det-add-seg-btn');if(addSegBtn)addSegBtn.style.display=canEditP?'':'none';
+  const delBtnWrap=document.getElementById('prosp-det-delete-btn-wrap');if(delBtnWrap)delBtnWrap.style.display=state.currentUser?.role==='admin'?'':'none';
 }
 async function saveProspecto(){
   const nombre=sanitizeInput(document.getElementById('prospf-nombre')?.value,150);
@@ -10547,8 +10573,10 @@ function renderProspDocsList(){
       '<span style="font-size:10px;color:var(--cp-gray-400);flex-shrink:0">'+fmtFileSize(d.size)+'</span>'+
       '<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px;color:var(--cp-green)" onclick="prospMarkCotizacion(\''+d.id+'\')" title="Marcar como cotización"><i class="ti ti-file-invoice"></i></button>'+
       (d.bucket===CRM_COTIZ_STORAGE_BUCKET
-        ?'<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px" onclick="prospOpenCotizacionSigned(\''+d.id+'\')"><i class="ti ti-download"></i></button>'
-        :'<a href="'+d.url+'" target="_blank" class="btn-sm btn-ghost" style="padding:3px 7px"><i class="ti ti-download"></i></a>')+
+        ?'<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px" onclick="prospOpenCotizacionSigned(\''+d.id+'\')" title="Ver"><i class="ti ti-eye"></i></button>'+
+          '<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px" onclick="prospOpenCotizacionSigned(\''+d.id+'\',true)" title="Descargar"><i class="ti ti-download"></i></button>'
+        :'<a href="'+d.url+'" target="_blank" class="btn-sm btn-ghost" style="padding:3px 7px" title="Ver"><i class="ti ti-eye"></i></a>'+
+          '<a href="'+d.url+'" download="'+escHtml(d.nombre)+'" class="btn-sm btn-ghost" style="padding:3px 7px" title="Descargar"><i class="ti ti-download"></i></a>')+
       '<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px;color:var(--cp-red)" onclick="deleteProspDoc(\''+d.id+'\')"><i class="ti ti-trash"></i></button>'+
     '</div>';
   }).join('');
@@ -10628,8 +10656,10 @@ function renderProspCotizacion(){
     '</div>'+
     '<div style="display:flex;gap:6px;margin-top:10px">'+
       (doc.bucket===CRM_COTIZ_STORAGE_BUCKET
-        ?'<button type="button" class="btn-sm btn-ghost" style="flex:1;justify-content:center" onclick="prospOpenCotizacionSigned(\''+doc.id+'\')"><i class="ti ti-download"></i> Descargar</button>'
-        :'<a href="'+doc.url+'" target="_blank" class="btn-sm btn-ghost" style="flex:1;justify-content:center"><i class="ti ti-download"></i> Descargar</a>')+
+        ?'<button type="button" class="btn-sm btn-ghost" style="flex:1;justify-content:center" onclick="prospOpenCotizacionSigned(\''+doc.id+'\')"><i class="ti ti-eye"></i> Ver</button>'+
+          '<button type="button" class="btn-sm btn-ghost" style="flex:1;justify-content:center" onclick="prospOpenCotizacionSigned(\''+doc.id+'\',true)"><i class="ti ti-download"></i> Descargar</button>'
+        :'<a href="'+doc.url+'" target="_blank" class="btn-sm btn-ghost" style="flex:1;justify-content:center"><i class="ti ti-eye"></i> Ver</a>'+
+          '<a href="'+doc.url+'" download="'+escHtml(doc.nombre)+'" class="btn-sm btn-ghost" style="flex:1;justify-content:center"><i class="ti ti-download"></i> Descargar</a>')+
       (canEditP?'<button type="button" class="btn-sm btn-ghost" style="flex:1;justify-content:center" onclick="document.getElementById(\'prosp-cotizacion-input\').click()"><i class="ti ti-replace"></i> Reemplazar</button>':'')+
       (canEditP?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-red);padding:6px 9px" onclick="deleteProspDoc(\''+doc.id+'\')" title="Eliminar"><i class="ti ti-trash"></i></button>':'')+
     '</div>';
@@ -10639,12 +10669,18 @@ function prospHandleCotizacionSelect(e){
   e.target.value='';
   if(file)prospUploadCotizacion(file);
 }
-async function prospOpenCotizacionSigned(docId){
+async function prospOpenCotizacionSigned(docId,forceDownload){
   const doc=prospDocsData.find(function(d){return d.id===docId;});if(!doc)return;
   const bucket=doc.bucket||CRM_COTIZ_STORAGE_BUCKET;
   const {data,error}=await sb.storage.from(bucket).createSignedUrl(doc.url,3600);
   if(error||!data?.signedUrl){toast('No se pudo abrir la cotización.','error');return;}
-  window.open(data.signedUrl,'_blank');
+  if(forceDownload){
+    const a=document.createElement('a');
+    a.href=data.signedUrl;a.download=doc.nombre||'';a.target='_blank';
+    document.body.appendChild(a);a.click();a.remove();
+  }else{
+    window.open(data.signedUrl,'_blank');
+  }
 }
 async function prospUploadCotizacion(file){
   if(!canEdit('prospectos'))return;
