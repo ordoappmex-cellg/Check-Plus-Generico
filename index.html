@@ -38,7 +38,7 @@
      el zoom del navegador; ya hay precedente de este mismo mecanismo en el
      archivo (ver body.direccion-presenting #direccion-rm-scroll{zoom:1.2}
      más abajo). Ajusta este único valor para compactar/expandir toda la app. */
-  --app-zoom:75%;
+  --app-zoom:88%;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{zoom:var(--app-zoom);}
@@ -2276,6 +2276,18 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         </div>
       </div>
 
+      <!-- MARKETING VIEW (captación de leads — formularios embebibles) -->
+      <div id="view-marketing" class="view">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="font-size:12px;color:var(--cp-gray-400)">Formularios embebibles que capturan leads directo a Prospectos.</div>
+          <button class="btn-sm btn-blue" id="btn-nuevo-mkt-form" style="margin-left:auto" onclick="openAddMktForm()"><i class="ti ti-plus"></i> Nuevo formulario</button>
+        </div>
+        <table class="emp-table" id="mkt-form-table">
+          <thead><tr><th>Nombre</th><th>Slug</th><th>Canal</th><th>Leads captados</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="mkt-form-tbody"></tbody>
+        </table>
+      </div>
+
       <!-- CLIENTE DETAIL VIEW -->
       <div id="view-cliente-detail" class="view">
         <button class="btn-sm btn-ghost" onclick="nav('clientes')" style="margin-bottom:16px"><i class="ti ti-arrow-left"></i> Regresar</button>
@@ -3702,6 +3714,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Asistente IA</span><div style="text-align:center"><input type="radio" name="uf-mod-ai-chat" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-ai-chat" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-ai-chat" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">OKRs</span><div style="text-align:center"><input type="radio" name="uf-mod-okrs" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-okrs" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-okrs" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Diseño</span><div style="text-align:center"><input type="radio" name="uf-mod-diseno" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-diseno" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-diseno" value="oculto"></div></div>
+            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Marketing</span><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;align-items:center"><span style="font-size:12px">Gestión de Proyectos</span><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="oculto"></div></div>
           </div>
         </div>
@@ -4674,6 +4687,51 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
   </div>
 </div>
 
+<!-- MKT FORM MODAL (crear/editar formulario) -->
+<div class="modal-overlay" id="modal-mkt-form">
+  <div class="modal" style="width:640px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header"><div class="modal-title" id="mkt-form-modal-title">Nuevo formulario</div><button class="modal-close" onclick="closeModal('modal-mkt-form')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Nombre *</label><input class="form-input" id="mktformf-nombre" placeholder="Ej. Contacto sitio web" oninput="mktFormOnNombreInput()"></div>
+        <div class="form-field full"><label class="form-label">Slug (URL) *</label><input class="form-input" id="mktformf-slug" placeholder="contacto-sitio-web" oninput="mktFormOnSlugInput()"></div>
+        <div class="form-field"><label class="form-label">Canal de entrada</label><select class="form-input" id="mktformf-canal"></select></div>
+        <div class="form-field"><label class="form-label">Estado</label><select class="form-input" id="mktformf-activo"><option value="true">✅ Activo</option><option value="false">⏸ Inactivo</option></select></div>
+        <div class="form-field full"><label class="form-label">URL de redirección (opcional)</label><input type="url" class="form-input" id="mktformf-redirect" placeholder="https://tusitio.com/gracias"></div>
+        <div class="form-field full">
+          <label class="form-label">Campos del formulario</label>
+          <div style="font-size:11px;color:var(--cp-gray-400);margin:2px 0 8px">El campo "nombre" es obligatorio y no se puede quitar. Arrastra para reordenar.</div>
+          <div id="mktformf-campos-list" style="margin-bottom:10px"></div>
+          <div id="mktformf-campo-add-wrap" style="display:flex;gap:8px;flex-wrap:wrap">
+            <select class="form-input" id="mktformf-campo-key" style="flex:1;min-width:140px"></select>
+            <button type="button" class="btn-sm btn-ghost" onclick="mktFormCampoAdd()"><i class="ti ti-plus"></i> Agregar campo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-mkt-form')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-mkt-form-btn" onclick="saveMktForm()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MKT FORM SNIPPET MODAL -->
+<div class="modal-overlay" id="modal-mkt-snippet">
+  <div class="modal" style="width:560px">
+    <div class="modal-header"><div class="modal-title">Código para embeber</div><button class="modal-close" onclick="closeModal('modal-mkt-snippet')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--cp-gray-400);margin-bottom:10px">Pega este código en la página donde quieras mostrar el formulario.</div>
+      <textarea class="form-input" id="mkt-snippet-code" readonly rows="4" style="font-family:monospace;font-size:12px;background:var(--cp-gray-50)" onclick="this.select()"></textarea>
+      <div style="font-size:11px;color:var(--cp-gray-400);margin-top:8px;word-break:break-all" id="mkt-snippet-url-note"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-mkt-snippet')">Cerrar</button>
+      <button class="btn-sm btn-blue" onclick="copyMktSnippet()"><i class="ti ti-copy"></i> Copiar código</button>
+    </div>
+  </div>
+</div>
+
 <!-- FACTURACIÓN MODAL -->
 <div class="modal-overlay" id="modal-facturacion">
   <div class="modal" style="width:540px">
@@ -5346,6 +5404,10 @@ async function _loadModuleDataInner(moduleId) {
         await prospLoad();
         break;
       }
+      case 'marketing': {
+        await mktFormLoad();
+        break;
+      }
     }
     _moduleLoaded[moduleId] = true; // only mark as loaded once the fetch actually succeeded
     _moduleLastLoaded[moduleId] = Date.now();
@@ -5533,6 +5595,12 @@ async function nav(view){
     if(!_moduleLoaded['prospectos'])showModuleSkeleton('prosp-tbody');
     await loadModuleData('prospectos');
     renderProspectos();
+  }
+  if(view==='marketing'){
+    document.getElementById('page-title').textContent='Marketing';
+    if(!_moduleLoaded['marketing'])showModuleSkeleton('mkt-form-tbody');
+    await loadModuleData('marketing');
+    renderMktForms();
   }
   if(view==='crm'){Promise.all([crmLoad(),crmLoadPage(0)]).then(()=>renderCRM());document.getElementById('page-title').textContent='CRM · Clientify';}
   if(view==='desarrollos'){
@@ -7099,7 +7167,7 @@ async function removeVacDoc(vacId, empId) {
 // ═══════════════════════════════
 
 // ── Supabase Auth ─────────────────────────────────
-const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
+const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','marketing','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
 const ROLE_DEFAULTS={
   admin:MODULES_ALL,
   // Legacy roles — kept only so old profiles that haven't been re-saved yet still
@@ -10957,6 +11025,278 @@ function renderProspColPanel(){
     const chk=vis.includes(col.key);
     return '<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--cp-navy)"><input type="checkbox" '+(chk?'checked':'')+' onchange="toggleProspColVisibility(\''+col.key+'\',this.checked)">'+escHtml(col.label)+'</label>';
   }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// MARKETING (captación de leads — módulo nuevo, distinto del viejo eliminado)
+// Primer peldaño: gestión de formularios embebibles. Guarda en
+// hb_crm_formularios (mismo patrón sbUpsert/sbGetAll/uid9 que Prospectos), el
+// canal de entrada sale del mismo catálogo compartido crm_canales (hb_config)
+// — se carga aparte aquí porque Marketing puede visitarse sin haber cargado
+// nunca Prospectos en la sesión. El form.html público (que realmente inserta
+// leads vía la función segura crm_captar_lead) se construye en otro prompt —
+// aquí solo se genera el snippet que apunta a él.
+// ═══════════════════════════════════════════════
+let mktFormData = [];
+let mktFormCanales = [];
+let mktFormCurrentId = null;
+let mktFormCampos = [];
+let _mktFormCampoDragKey = null;
+let _mktSlugManuallyEdited = false;
+// Únicos 'key' que crm_captar_lead sabe insertar — no son libres, por eso el
+// editor ofrece un <select> de estos en vez de un input de texto.
+const MKT_FORM_FIELD_KEYS=[
+  {key:'nombre',label:'Nombre'},
+  {key:'contacto_tel',label:'Teléfono'},
+  {key:'contacto_mail',label:'Correo'},
+  {key:'empresa',label:'Empresa'},
+  {key:'cargo',label:'Cargo'},
+  {key:'giro',label:'Giro / Industria'},
+  {key:'mensaje',label:'Mensaje'},
+];
+const MKT_FORM_TIPO_DEFAULT={nombre:'texto',contacto_tel:'tel',contacto_mail:'email',empresa:'texto',cargo:'texto',giro:'select',mensaje:'textarea'};
+const MKT_FIELD_TIPO_LABELS={texto:'Texto',email:'Email',tel:'Teléfono',textarea:'Área de texto',select:'Lista (select)'};
+function mktFormSaveSB(row){ return sbUpsert('hb_crm_formularios', row); }
+
+async function mktFormLoad(){
+  const [formsRaw, cfgRows] = await Promise.all([
+    sbGetAll('hb_crm_formularios'),
+    sbGetAll('hb_config')
+  ]);
+  mktFormData = formsRaw.map(r=>({
+    id:r.id, nombre:r.nombre, slug:r.slug, canalId:r.canal_id,
+    redirectUrl:r.redirect_url, campos:r.campos||[], activo:r.activo!==false,
+    createdAt:r.created_at
+  }));
+  const cfgGet=clave=>{const row=(cfgRows||[]).find(x=>x.clave===clave);return (row&&row.valor)||[];};
+  mktFormCanales=cfgGet('crm_canales');
+}
+
+// ── Lista ──────────────────────────────────────────
+function renderMktForms(){
+  const addBtn=document.getElementById('btn-nuevo-mkt-form');if(addBtn)addBtn.style.display=canEdit('marketing')?'':'none';
+  const tbody=document.getElementById('mkt-form-tbody');if(!tbody)return;
+  if(!mktFormData.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><i class="ti ti-forms"></i><p>Sin formularios creados.</p></div></td></tr>';return;}
+  tbody.innerHTML=mktFormData.map(function(f){
+    const canal=mktFormCanales.find(function(c){return c.id===f.canalId;});
+    return '<tr onclick="openEditMktForm(\''+f.id+'\')" style="cursor:pointer">'+
+      '<td><div class="emp-name" style="font-size:13px">'+escHtml(f.nombre)+'</div></td>'+
+      '<td style="font-size:12px;color:var(--cp-gray-600);font-family:monospace">'+escHtml(f.slug)+'</td>'+
+      '<td>'+(canal?escHtml(canal.nombre):'—')+'</td>'+
+      '<td class="mkt-form-lead-count" data-form-id="'+f.id+'"><span style="color:var(--cp-gray-300)">…</span></td>'+
+      '<td>'+(f.activo?'<span class="badge badge-green">Activo</span>':'<span class="badge badge-gray">Inactivo</span>')+'</td>'+
+      '<td onclick="event.stopPropagation()"><button class="btn-sm btn-ghost" onclick="openMktSnippet(\''+f.id+'\')"><i class="ti ti-code"></i> Código</button></td>'+
+    '</tr>';
+  }).join('');
+  mktFormLoadCounts();
+}
+// El conteo de leads por formulario NO se saca de prospData completo (que
+// puede no estar cargado si el usuario nunca visitó Prospectos en la sesión)
+// — se pide con un count puntual a Supabase por formulario, igual criterio
+// que ya se usó para "¿está en uso este tipo de contacto?" en la config del
+// CRM de Prospectos.
+async function mktFormLeadCount(formId){
+  const {count,error}=await sb.from('hb_crm_prospectos').select('id',{count:'exact',head:true}).eq('formulario_id',formId);
+  if(error){console.error('mktFormLeadCount',error);return 0;}
+  return count||0;
+}
+async function mktFormLoadCounts(){
+  await Promise.all(mktFormData.map(async function(f){
+    const count=await mktFormLeadCount(f.id);
+    const cell=document.querySelector('.mkt-form-lead-count[data-form-id="'+f.id+'"]');
+    if(cell)cell.innerHTML=count;
+  }));
+}
+
+// ── Editor de formulario (modal) ────────────────────
+function mktSlugify(text){
+  return (text||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'')
+    .slice(0,60);
+}
+function mktFormOnNombreInput(){
+  if(_mktSlugManuallyEdited)return;
+  document.getElementById('mktformf-slug').value=mktSlugify(document.getElementById('mktformf-nombre').value);
+}
+function mktFormOnSlugInput(){
+  _mktSlugManuallyEdited=true;
+  const el=document.getElementById('mktformf-slug');
+  const pos=el.selectionStart;
+  el.value=mktSlugify(el.value);
+  try{el.setSelectionRange(pos,pos);}catch(e){}
+}
+function populateMktFormCanalSelect(){
+  const sel=document.getElementById('mktformf-canal');if(!sel)return;
+  sel.innerHTML='<option value="">— Sin definir —</option>'+mktFormCanales.map(function(c){return '<option value="'+c.id+'">'+escHtml(c.nombre)+'</option>';}).join('');
+}
+function openAddMktForm(){
+  if(!canEdit('marketing'))return;
+  mktFormCurrentId=null;
+  _mktSlugManuallyEdited=false;
+  document.getElementById('mkt-form-modal-title').textContent='Nuevo formulario';
+  document.getElementById('mktformf-nombre').value='';
+  document.getElementById('mktformf-slug').value='';
+  document.getElementById('mktformf-redirect').value='';
+  document.getElementById('mktformf-activo').value='true';
+  populateMktFormCanalSelect();
+  document.getElementById('mktformf-canal').value='';
+  const saveBtn=document.getElementById('save-mkt-form-btn');if(saveBtn)saveBtn.style.display='';
+  mktFormCampos=[{key:'nombre',label:'Nombre',tipo:'texto',obligatorio:true}];
+  renderMktFormCamposEditor();
+  openModal('modal-mkt-form');
+}
+function openEditMktForm(id){
+  const f=mktFormData.find(function(x){return x.id===id;});if(!f)return;
+  mktFormCurrentId=id;
+  _mktSlugManuallyEdited=true; // ya tiene slug guardado — tocar el nombre no debe regenerarlo
+  document.getElementById('mkt-form-modal-title').textContent='Editar formulario';
+  document.getElementById('mktformf-nombre').value=f.nombre||'';
+  document.getElementById('mktformf-slug').value=f.slug||'';
+  document.getElementById('mktformf-redirect').value=f.redirectUrl||'';
+  document.getElementById('mktformf-activo').value=f.activo?'true':'false';
+  populateMktFormCanalSelect();
+  document.getElementById('mktformf-canal').value=f.canalId||'';
+  mktFormCampos=JSON.parse(JSON.stringify((f.campos&&f.campos.length)?f.campos:[{key:'nombre',label:'Nombre',tipo:'texto',obligatorio:true}]));
+  if(!mktFormCampos.some(function(c){return c.key==='nombre';}))mktFormCampos.unshift({key:'nombre',label:'Nombre',tipo:'texto',obligatorio:true});
+  renderMktFormCamposEditor();
+  const saveBtn=document.getElementById('save-mkt-form-btn');if(saveBtn)saveBtn.style.display=canEdit('marketing')?'':'none';
+  openModal('modal-mkt-form');
+}
+async function saveMktForm(){
+  if(!canEdit('marketing'))return;
+  const nombre=sanitizeInput(document.getElementById('mktformf-nombre').value,120);
+  if(!nombre){toast('El nombre es obligatorio.','error');return;}
+  const slug=mktSlugify(document.getElementById('mktformf-slug').value);
+  if(!slug){toast('El slug es obligatorio.','error');return;}
+  const dup=mktFormData.some(function(f){return f.slug===slug&&f.id!==mktFormCurrentId;});
+  if(dup){toast('Ya existe un formulario con ese slug.','error');return;}
+  if(!mktFormCampos.some(function(c){return c.key==='nombre';})){toast('El campo "nombre" es obligatorio.','error');return;}
+  setBtn('save-mkt-form-btn',true);
+  const row={
+    id:mktFormCurrentId||uid9(),
+    nombre,
+    slug,
+    canal_id:document.getElementById('mktformf-canal').value||null,
+    redirect_url:sanitizeInput(document.getElementById('mktformf-redirect').value,300)||null,
+    campos:mktFormCampos,
+    activo:document.getElementById('mktformf-activo').value==='true'
+  };
+  const ok=await mktFormSaveSB(row);
+  setBtn('save-mkt-form-btn',false);
+  if(!ok)return;
+  const mapped={id:row.id,nombre:row.nombre,slug:row.slug,canalId:row.canal_id,redirectUrl:row.redirect_url,campos:row.campos,activo:row.activo};
+  const idx=mktFormData.findIndex(function(x){return x.id===row.id;});
+  if(idx!==-1)mktFormData[idx]={...mktFormData[idx],...mapped};else mktFormData.push(mapped);
+  auditLog(mktFormCurrentId?'editar':'crear','hb_crm_formularios',row.id,'Formulario: '+nombre);
+  closeModal('modal-mkt-form');
+  renderMktForms();
+  toast(mktFormCurrentId?'Formulario actualizado ✓':'Formulario creado ✓');
+}
+
+// ── Campos configurables (en memoria — se guardan completos con el formulario) ──
+function mktFormAvailableKeys(){
+  const used=mktFormCampos.map(function(c){return c.key;});
+  return MKT_FORM_FIELD_KEYS.filter(function(k){return !used.includes(k.key);});
+}
+function renderMktFormCamposEditor(){
+  const el=document.getElementById('mktformf-campos-list');if(!el)return;
+  const canEditP=canEdit('marketing');
+  el.innerHTML=mktFormCampos.map(function(c){
+    const isNombre=c.key==='nombre';
+    return '<div class="mkt-campo-row" draggable="'+(canEditP?'true':'false')+'" data-campo-key="'+c.key+'" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--cp-gray-100)">'+
+      (canEditP?'<i class="ti ti-grip-vertical" style="cursor:grab;color:var(--cp-gray-300);flex-shrink:0" title="Arrastrar para reordenar"></i>':'<span style="width:14px;flex-shrink:0"></span>')+
+      '<span style="width:95px;font-size:10px;color:var(--cp-gray-400);font-family:monospace;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Nombre interno — mapea a la columna del lead, no editable">'+c.key+'</span>'+
+      '<input type="text" value="'+escHtml(c.label||'')+'" '+(canEditP?'':'disabled')+' onchange="mktFormCampoSetLabel(\''+c.key+'\',this.value)" placeholder="Etiqueta visible" style="flex:1;min-width:100px;border:1px solid var(--cp-gray-200);border-radius:5px;background:none;font-size:12px;color:var(--cp-navy);padding:4px 6px">'+
+      '<select '+(canEditP?'':'disabled')+' onchange="mktFormCampoSetTipo(\''+c.key+'\',this.value)" style="width:120px;border:1px solid var(--cp-gray-200);border-radius:5px;font-size:11px;padding:4px;flex-shrink:0">'+
+        ['texto','email','tel','textarea','select'].map(function(t){return '<option value="'+t+'"'+(c.tipo===t?' selected':'')+'>'+MKT_FIELD_TIPO_LABELS[t]+'</option>';}).join('')+
+      '</select>'+
+      '<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--cp-gray-600);flex-shrink:0;white-space:nowrap"><input type="checkbox" '+(c.obligatorio?'checked':'')+' '+((isNombre||!canEditP)?'disabled':'')+' onchange="mktFormCampoSetObligatorio(\''+c.key+'\',this.checked)"> Oblig.</label>'+
+      (isNombre||!canEditP?'<span style="width:26px;flex-shrink:0"></span>':'<button type="button" style="background:none;border:none;color:var(--cp-red);cursor:pointer;padding:4px;flex-shrink:0;display:inline-flex" onclick="mktFormCampoDelete(\''+c.key+'\')" title="Quitar"><i class="ti ti-trash"></i></button>')+
+    '</div>';
+  }).join('');
+  const addSel=document.getElementById('mktformf-campo-key');
+  const avail=mktFormAvailableKeys();
+  if(addSel)addSel.innerHTML=avail.map(function(k){return '<option value="'+k.key+'">'+k.label+'</option>';}).join('');
+  const addWrap=document.getElementById('mktformf-campo-add-wrap');
+  if(addWrap)addWrap.style.display=(canEditP&&avail.length)?'flex':'none';
+  if(canEditP)_initMktFormCamposDrag();
+}
+function _initMktFormCamposDrag(){
+  const el=document.getElementById('mktformf-campos-list');if(!el)return;
+  el.querySelectorAll('.mkt-campo-row[draggable="true"]').forEach(function(row){
+    row.addEventListener('dragstart',function(){_mktFormCampoDragKey=this.dataset.campoKey;this.style.opacity='0.5';});
+    row.addEventListener('dragend',function(){this.style.opacity='';_mktFormCampoDragKey=null;});
+    row.addEventListener('dragover',function(e){e.preventDefault();this.style.background='var(--cp-blue-light)';});
+    row.addEventListener('dragleave',function(){this.style.background='';});
+    row.addEventListener('drop',function(e){
+      e.preventDefault();this.style.background='';
+      const from=_mktFormCampoDragKey,to=this.dataset.campoKey;
+      if(!from||from===to)return;
+      const fromIdx=mktFormCampos.findIndex(function(x){return x.key===from;});
+      const toIdx=mktFormCampos.findIndex(function(x){return x.key===to;});
+      if(fromIdx<0||toIdx<0)return;
+      const [moved]=mktFormCampos.splice(fromIdx,1);
+      mktFormCampos.splice(toIdx,0,moved);
+      renderMktFormCamposEditor();
+    });
+  });
+}
+function mktFormCampoAdd(){
+  const sel=document.getElementById('mktformf-campo-key');
+  const key=sel.value;if(!key)return;
+  const meta=MKT_FORM_FIELD_KEYS.find(function(k){return k.key===key;});if(!meta)return;
+  mktFormCampos.push({key:key,label:meta.label,tipo:MKT_FORM_TIPO_DEFAULT[key]||'texto',obligatorio:false});
+  renderMktFormCamposEditor();
+}
+function mktFormCampoSetLabel(key,label){
+  const c=mktFormCampos.find(function(x){return x.key===key;});if(!c)return;
+  c.label=sanitizeInput(label,80);
+  renderMktFormCamposEditor();
+}
+function mktFormCampoSetTipo(key,tipo){
+  const c=mktFormCampos.find(function(x){return x.key===key;});if(!c)return;
+  c.tipo=tipo;
+}
+function mktFormCampoSetObligatorio(key,val){
+  if(key==='nombre')return; // protegido, siempre obligatorio
+  const c=mktFormCampos.find(function(x){return x.key===key;});if(!c)return;
+  c.obligatorio=!!val;
+}
+function mktFormCampoDelete(key){
+  if(key==='nombre')return;
+  mktFormCampos=mktFormCampos.filter(function(x){return x.key!==key;});
+  renderMktFormCamposEditor();
+}
+
+// ── Snippet embebible ────────────────────────────────
+// El form.html público (que inserta leads vía crm_captar_lead) se construye
+// en otro prompt — esta función solo arma el <iframe> que apunta a él, con
+// el dominio donde esté desplegada la app en ese momento (location.origin),
+// para que el snippet sirva igual en cualquier instancia/cliente sin
+// hardcodear un dominio.
+function openMktSnippet(id){
+  const f=mktFormData.find(function(x){return x.id===id;});if(!f)return;
+  const url=location.origin+'/form.html?f='+encodeURIComponent(f.slug);
+  const snippet='<iframe src="'+url+'" style="width:100%;max-width:480px;height:520px;border:none" loading="lazy"></iframe>';
+  document.getElementById('mkt-snippet-code').value=snippet;
+  document.getElementById('mkt-snippet-url-note').textContent='URL pública: '+url;
+  openModal('modal-mkt-snippet');
+}
+function copyMktSnippet(){
+  const code=document.getElementById('mkt-snippet-code').value;
+  copyToClipboard(code,'Código copiado ✓');
+}
+// Único precedente en la app (index.html, dentro de openEvalAI): navigator.
+// clipboard.writeText + toast — no había un helper genérico, así que este
+// queda disponible para reusarse donde más se necesite copiar algo.
+function copyToClipboard(text,msg){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){toast(msg||'Copiado ✓');}).catch(function(){toast('No se pudo copiar. Selecciona y copia manualmente.','error');});
+  }else{
+    toast('Tu navegador no soporta copiar automáticamente. Selecciona y copia manualmente.','error');
+  }
 }
 
 // ── DOCUMENTOS CLIENTE ──────────────────────────
@@ -17517,6 +17857,7 @@ const ALL_MODULES = [
   {id:'clientes',label:'Clientes',icon:'ti-building-store',badge:'clientes-count'},
   {id:'proveedores',label:'Proveedores',icon:'ti-truck',badge:null},
   {id:'prospectos',label:'Prospectos',icon:'ti-user-search',badge:null},
+  {id:'marketing',label:'Marketing',icon:'ti-forms',badge:null},
   {id:'crm',label:'CRM Clientify',icon:'ti-users-group',badge:null},
   {id:'desarrollos',label:'Desarrollos',icon:'ti-code',badge:'dev-count'},
   {id:'configuracion',label:'Configuración',icon:'ti-settings',badge:null,always:true},
@@ -17533,7 +17874,7 @@ const ALL_MODULES = [
 function navConfigDefaults(){
   return [
     {id:'g1',label:'Principal',items:['dashboard','mis-pendientes','kanban','empleados']},
-    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','crm','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
+    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','marketing','crm','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
     {id:'g4',label:'Sistema',items:['configuracion','ai-chat']},
   ];
 }
