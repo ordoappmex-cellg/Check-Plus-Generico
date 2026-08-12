@@ -18,6 +18,9 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="/assets/icono.png">
 <link rel="apple-touch-icon" href="/assets/icono.png">
+<!-- Mismo mecanismo que cp_last_company_name arriba: pinta el favicon cacheado
+     de ESTE navegador antes de que Supabase responda (ver renderSidebarBranding). -->
+<script>try{var f=localStorage.getItem('cp_last_favicon');if(f){var il=document.querySelector('link[rel="icon"]');var al=document.querySelector('link[rel="apple-touch-icon"]');if(il)il.href=f;if(al)al.href=f;}}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -8321,6 +8324,7 @@ function renderCfgEmpresa() {
   const el = document.getElementById('cfg-empresa-section');
   if(!el) return;
   const logo = companyInfo.logoDataUrl;
+  const favicon = companyInfo.faviconDataUrl;
   el.innerHTML =
     '<div style="padding:8px 0"><h3 style="font-size:15px;font-weight:700;color:var(--cp-navy);margin-bottom:16px"><i class="ti ti-building" style="margin-right:8px"></i>Información de la empresa</h3>'+
     '<p style="font-size:12px;color:var(--cp-gray-500);margin-bottom:16px">Este nombre aparecerá en las respuestas del Asistente IA y en el organigrama por defecto.</p></div>'+
@@ -8338,6 +8342,19 @@ function renderCfgEmpresa() {
             '<div style="display:flex;flex-direction:column;gap:8px">'+
               '<input type="file" id="cfg-empresa-logo-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" onchange="handleCompanyLogoSelect(event)">'+
               '<button class="btn-sm btn-ghost" id="cfg-empresa-logo-remove-btn" style="color:var(--cp-red);display:'+(logo?'inline-flex':'none')+'" onclick="removeCompanyLogo()"><i class="ti ti-trash"></i> Quitar logo</button>'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="form-field full">'+
+          '<label class="form-label">Favicon (ícono de pestaña, máx. 100KB)</label>'+
+          '<div style="display:flex;align-items:center;gap:14px">'+
+            '<div id="cfg-empresa-favicon-preview" style="width:40px;height:40px;flex-shrink:0;border:1px dashed var(--cp-gray-300);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--cp-gray-50)">'+
+              (favicon ? '<img src="'+favicon+'" style="max-width:100%;max-height:100%;object-fit:contain">' : '<span style="font-size:9px;color:var(--cp-gray-400)">—</span>')+
+            '</div>'+
+            '<div style="display:flex;flex-direction:column;gap:8px">'+
+              '<input type="file" id="cfg-empresa-favicon-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" onchange="handleCompanyFaviconSelect(event)">'+
+              '<span style="font-size:11px;color:var(--cp-gray-400)">Cuadrado, ideal 32x32 o 64x64px</span>'+
+              '<button class="btn-sm btn-ghost" id="cfg-empresa-favicon-remove-btn" style="color:var(--cp-red);display:'+(favicon?'inline-flex':'none')+'" onclick="removeCompanyFavicon()"><i class="ti ti-trash"></i> Quitar favicon</button>'+
             '</div>'+
           '</div>'+
         '</div>'+
@@ -8417,6 +8434,40 @@ async function removeCompanyLogo(){
   if(!guardAdmin('removeCompanyLogo')) return;
   const ok=await persistCompanyInfo({logoDataUrl:null});
   if(ok){ renderCfgEmpresa(); toast('Logo eliminado.','info'); }
+}
+
+const COMPANY_FAVICON_MAX_BYTES = 102400; // 100KB
+const COMPANY_FAVICON_TYPES = ['image/png','image/jpeg','image/svg+xml','image/webp'];
+
+function handleCompanyFaviconSelect(evt){
+  if(!guardAdmin('handleCompanyFaviconSelect')){ evt.target.value=''; return; }
+  const file=evt.target.files?.[0];
+  evt.target.value='';
+  if(!file) return;
+  if(!COMPANY_FAVICON_TYPES.includes(file.type)){
+    toast('Formato no soportado. Usa PNG, JPG, SVG o WEBP.','error');
+    return;
+  }
+  if(file.size>COMPANY_FAVICON_MAX_BYTES){
+    toast('Favicon demasiado grande. Máx 100KB.','error');
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=async()=>{
+    const dataUrl=reader.result;
+    const prev=document.getElementById('cfg-empresa-favicon-preview');
+    if(prev) prev.innerHTML='<img src="'+dataUrl+'" style="max-width:100%;max-height:100%;object-fit:contain">';
+    const ok=await persistCompanyInfo({faviconDataUrl:dataUrl});
+    if(ok){ renderCfgEmpresa(); toast('Favicon actualizado ✓'); }
+  };
+  reader.onerror=()=>toast('No se pudo leer el archivo.','error');
+  reader.readAsDataURL(file);
+}
+
+async function removeCompanyFavicon(){
+  if(!guardAdmin('removeCompanyFavicon')) return;
+  const ok=await persistCompanyInfo({faviconDataUrl:null});
+  if(ok){ renderCfgEmpresa(); toast('Favicon eliminado.','info'); }
 }
 
 function renderCfgProductosList(){
@@ -8770,13 +8821,15 @@ let factEditId = null;
 let factDocData = null;
 let cliDocData = null;
 let ivaPct = 16; // % — loaded from app_config (id:'facturacion_config') in dbLoad(); default 16
-let companyInfo = {nombre:'Diamante', ciudad:'', descripcion:'plataforma de gestión operativa', logoDataUrl:null}; // loaded from app_config (id:'company_info') in dbLoad()
+let companyInfo = {nombre:'Diamante', ciudad:'', descripcion:'plataforma de gestión operativa', logoDataUrl:null, faviconDataUrl:null}; // loaded from app_config (id:'company_info') in dbLoad()
 let menuOrderConfig = null; // (v74) {groups:[...]} | null — loaded from app_config (id:'menu_order') in dbLoad(); null = no admin-defined order saved yet, loadNavConfig() falls back to navConfigDefaults()
 // Tracks whether renderSidebarBranding() has already swapped in a custom logo
 // this session (see that function, further below) — must be initialized here,
 // before the pre-auth renderSidebarBranding() call a few lines down, or that
 // call throws "Cannot access '_brandingHasCustomLogo' before initialization".
 let _brandingHasCustomLogo = false;
+// Same tracking as _brandingHasCustomLogo above, but for the favicon <link> tags.
+let _brandingHasCustomFavicon = false;
 // Pre-login branding: app_config requires an authenticated session (RLS), so the login
 // screen can't fetch companyInfo before sign-in. Cache the last known value in localStorage
 // (non-sensitive branding only) so returning users see their client's logo immediately.
@@ -18237,6 +18290,24 @@ function renderSidebarBranding(){
   }
   // else: no logo, and none was ever shown this session — leave the
   // HTML-authored static markup untouched (the fix for the flicker).
+
+  // Favicon: same per-client override as the logo above, but targeting the
+  // <head> <link> tags instead of an innerHTML container. Nota: el archivo
+  // real en /assets es "icono.png" (con "o") — usarlo como fallback, no
+  // "icon.png" (ese nombre no existe en el repo).
+  const iconLink = document.querySelector('link[rel="icon"]');
+  const appleLink = document.querySelector('link[rel="apple-touch-icon"]');
+  if(companyInfo?.faviconDataUrl){
+    if(iconLink) iconLink.href = companyInfo.faviconDataUrl;
+    if(appleLink) appleLink.href = companyInfo.faviconDataUrl;
+    try{ localStorage.setItem('cp_last_favicon', companyInfo.faviconDataUrl); }catch(e){}
+    _brandingHasCustomFavicon = true;
+  } else if(_brandingHasCustomFavicon){
+    if(iconLink) iconLink.href = '/assets/icono.png';
+    if(appleLink) appleLink.href = '/assets/icono.png';
+    try{ localStorage.removeItem('cp_last_favicon'); }catch(e){}
+    _brandingHasCustomFavicon = false;
+  }
 }
 
 // ── SIDEBAR COLLAPSE SYSTEM ───────────────────────
