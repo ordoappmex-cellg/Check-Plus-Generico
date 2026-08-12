@@ -10309,7 +10309,7 @@ function renderProspDetailHeader(p){
   const iconEl=document.getElementById('prosp-det-icon');
   if(p.fotoUrl){
     iconEl.style.background='transparent';
-    iconEl.innerHTML='<img src="'+p.fotoUrl+'" style="width:100%;height:100%;object-fit:cover">';
+    iconEl.innerHTML='<img src="'+escHtml(p.fotoUrl)+'" style="width:100%;height:100%;object-fit:cover">';
   }else{
     const initials=(p.nombre||'').split(' ').map(w=>w[0]||'').slice(0,2).join('').toUpperCase();
     iconEl.style.background=iconColor+'22';iconEl.style.color=iconColor;
@@ -10325,8 +10325,8 @@ function renderProspDetailHeader(p){
     (p.contactoTel?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-green)" onclick="openProspBridge(\'whatsapp\')"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>':'')+
     (p.contactoMail?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-blue)" onclick="openProspBridge(\'correo\')"><i class="ti ti-mail"></i> Correo</button>':'');
   document.getElementById('prosp-det-info-body').innerHTML=[
-    ['Teléfono',p.contactoTel||'—'],
-    ['Correo',p.contactoMail||'—'],
+    ['Teléfono',p.contactoTel?escHtml(p.contactoTel):'—'],
+    ['Correo',p.contactoMail?escHtml(p.contactoMail):'—'],
     ['Canal de entrada',canal?escHtml(canal.nombre):'—'],
     ['Giro / Industria',giro?escHtml(giro.nombre):'—'],
     ['Vendedor asignado',vend?escHtml(vend.display_name||vend.email):'—'],
@@ -10484,32 +10484,38 @@ async function saveProspSeg(){
 // cada uno trae su propio par subir/borrar apuntando a su propio bucket: no
 // hay un helper genérico "sube a cualquier bucket" que reutilizar tal cual.
 const CRM_DOC_STORAGE_BUCKET='crm-documentos';
-async function uploadProspDocFile(file,prospectoId){
+// Cotización: bucket privado — a diferencia de crm-documentos, aquí se guarda
+// el PATH del objeto en hb_crm_documentos.url (no una URL pública), y se abre
+// con signed URL al momento del clic (ver prospOpenCotizacionSigned).
+const CRM_COTIZ_STORAGE_BUCKET='crm-cotizaciones';
+async function uploadProspDocFile(file,prospectoId,bucket){
+  bucket=bucket||CRM_DOC_STORAGE_BUCKET;
   if(!checkFileSize(file)) throw new Error('Archivo demasiado grande.');
   const session=await sbGetSession();
   const token=session?.access_token||state.currentUser?.token;
   const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
   const path=prospectoId+'/'+Date.now()+'-'+safeName;
   const encodedPath=path.split('/').map(encodeURIComponent).join('/');
-  const res=await fetch(SUPABASE_URL+'/storage/v1/object/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath,{
+  const res=await fetch(SUPABASE_URL+'/storage/v1/object/'+bucket+'/'+encodedPath,{
     method:'POST',
     headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'},
     body:file
   });
-  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||e.error||'Error al subir archivo. Verifica que el bucket "crm-documentos" exista en Supabase Storage.');}
-  const url=SUPABASE_URL+'/storage/v1/object/public/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath;
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||e.error||'Error al subir archivo. Verifica que el bucket "'+bucket+'" exista en Supabase Storage.');}
+  const url=bucket===CRM_DOC_STORAGE_BUCKET
+    ?SUPABASE_URL+'/storage/v1/object/public/'+bucket+'/'+encodedPath
+    :path;
   return {url,tipo:file.type||'',size:file.size};
 }
-async function deleteProspDocFile(url){
+async function deleteProspDocFile(url,bucket){
+  bucket=bucket||CRM_DOC_STORAGE_BUCKET;
   try{
     const session=await sbGetSession();
     const token=session?.access_token||state.currentUser?.token;
-    const marker='/storage/v1/object/public/'+CRM_DOC_STORAGE_BUCKET+'/';
+    const marker='/storage/v1/object/public/'+bucket+'/';
     const idx=(url||'').indexOf(marker);
-    if(idx>=0){
-      const encodedPath=url.slice(idx+marker.length);
-      await fetch(SUPABASE_URL+'/storage/v1/object/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath,{method:'DELETE',headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token}});
-    }
+    const encodedPath=idx>=0?url.slice(idx+marker.length):(url||'').split('/').map(encodeURIComponent).join('/');
+    await fetch(SUPABASE_URL+'/storage/v1/object/'+bucket+'/'+encodedPath,{method:'DELETE',headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token}});
   }catch(e){console.warn('deleteProspDocFile storage error:',e);}
 }
 
@@ -10517,7 +10523,7 @@ let prospDocsData=[];
 async function prospDocsLoad(prospectoId){
   const {data,error}=await sb.from('hb_crm_documentos').select('*').eq('prospecto_id',prospectoId).order('created_at',{ascending:false});
   if(error){console.error('prospDocsLoad',error);return [];}
-  return (data||[]).map(r=>({id:r.id,prospectoId:r.prospecto_id,etapaId:r.etapa_id,nombre:r.nombre,url:r.url,tipo:r.tipo,size:r.size,usuarioId:r.usuario_id,createdAt:r.created_at}));
+  return (data||[]).map(r=>({id:r.id,prospectoId:r.prospecto_id,etapaId:r.etapa_id,nombre:r.nombre,url:r.url,bucket:r.bucket,tipo:r.tipo,size:r.size,usuarioId:r.usuario_id,createdAt:r.created_at}));
 }
 // Los documentos se muestran SIEMPRE completos, sin filtrar por la etapa
 // actual del lead — 'etapaId' es solo una etiqueta informativa de en qué
@@ -10540,7 +10546,9 @@ function renderProspDocsList(){
       '</div>'+
       '<span style="font-size:10px;color:var(--cp-gray-400);flex-shrink:0">'+fmtFileSize(d.size)+'</span>'+
       '<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px;color:var(--cp-green)" onclick="prospMarkCotizacion(\''+d.id+'\')" title="Marcar como cotización"><i class="ti ti-file-invoice"></i></button>'+
-      '<a href="'+d.url+'" target="_blank" class="btn-sm btn-ghost" style="padding:3px 7px"><i class="ti ti-download"></i></a>'+
+      (d.bucket===CRM_COTIZ_STORAGE_BUCKET
+        ?'<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px" onclick="prospOpenCotizacionSigned(\''+d.id+'\')"><i class="ti ti-download"></i></button>'
+        :'<a href="'+d.url+'" target="_blank" class="btn-sm btn-ghost" style="padding:3px 7px"><i class="ti ti-download"></i></a>')+
       '<button type="button" class="btn-sm btn-ghost" style="padding:3px 7px;color:var(--cp-red)" onclick="deleteProspDoc(\''+d.id+'\')"><i class="ti ti-trash"></i></button>'+
     '</div>';
   }).join('');
@@ -10562,7 +10570,7 @@ async function prospUploadDocs(fileList){
   for(const file of fileList){
     try{
       const uploaded=await uploadProspDocFile(file,prospectoId);
-      const row={id:uid9(),prospecto_id:prospectoId,etapa_id:etapaActual,nombre:file.name,url:uploaded.url,tipo:uploaded.tipo,size:uploaded.size,usuario_id:state.currentUser?.id||null};
+      const row={id:uid9(),prospecto_id:prospectoId,etapa_id:etapaActual,nombre:file.name,url:uploaded.url,bucket:CRM_DOC_STORAGE_BUCKET,tipo:uploaded.tipo,size:uploaded.size,usuario_id:state.currentUser?.id||null};
       const ok=await sbUpsert('hb_crm_documentos',row);
       if(ok)auditLog('crear','hb_crm_documentos',row.id,'Documento adjuntado: '+file.name);
     }catch(err){toast('Error subiendo '+file.name+': '+(err.message||''),'error');}
@@ -10579,7 +10587,7 @@ async function deleteProspDoc(id){
   if(!confirm('¿Eliminar este documento?'))return;
   const ok=await sbDelete('hb_crm_documentos',id);
   if(!ok){toast('Error al eliminar.','error');return;}
-  if(doc.url)deleteProspDocFile(doc.url);
+  if(doc.url)deleteProspDocFile(doc.url,doc.bucket);
   auditLog('eliminar','hb_crm_documentos',id,'Documento eliminado: '+doc.nombre);
   prospDocsData=prospDocsData.filter(x=>x.id!==id);
   renderProspDocsList();renderProspCotizacion();
@@ -10619,7 +10627,9 @@ function renderProspCotizacion(){
       '</div>'+
     '</div>'+
     '<div style="display:flex;gap:6px;margin-top:10px">'+
-      '<a href="'+doc.url+'" target="_blank" class="btn-sm btn-ghost" style="flex:1;justify-content:center"><i class="ti ti-download"></i> Descargar</a>'+
+      (doc.bucket===CRM_COTIZ_STORAGE_BUCKET
+        ?'<button type="button" class="btn-sm btn-ghost" style="flex:1;justify-content:center" onclick="prospOpenCotizacionSigned(\''+doc.id+'\')"><i class="ti ti-download"></i> Descargar</button>'
+        :'<a href="'+doc.url+'" target="_blank" class="btn-sm btn-ghost" style="flex:1;justify-content:center"><i class="ti ti-download"></i> Descargar</a>')+
       (canEditP?'<button type="button" class="btn-sm btn-ghost" style="flex:1;justify-content:center" onclick="document.getElementById(\'prosp-cotizacion-input\').click()"><i class="ti ti-replace"></i> Reemplazar</button>':'')+
       (canEditP?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-red);padding:6px 9px" onclick="deleteProspDoc(\''+doc.id+'\')" title="Eliminar"><i class="ti ti-trash"></i></button>':'')+
     '</div>';
@@ -10629,16 +10639,23 @@ function prospHandleCotizacionSelect(e){
   e.target.value='';
   if(file)prospUploadCotizacion(file);
 }
+async function prospOpenCotizacionSigned(docId){
+  const doc=prospDocsData.find(function(d){return d.id===docId;});if(!doc)return;
+  const bucket=doc.bucket||CRM_COTIZ_STORAGE_BUCKET;
+  const {data,error}=await sb.storage.from(bucket).createSignedUrl(doc.url,3600);
+  if(error||!data?.signedUrl){toast('No se pudo abrir la cotización.','error');return;}
+  window.open(data.signedUrl,'_blank');
+}
 async function prospUploadCotizacion(file){
   if(!canEdit('prospectos'))return;
   if(!prospCurrentId)return;
   const prospectoId=prospCurrentId;
   const etapaActual=(prospData.find(function(x){return x.id===prospectoId;})||{}).estado||null;
   try{
-    const uploaded=await uploadProspDocFile(file,prospectoId);
+    const uploaded=await uploadProspDocFile(file,prospectoId,CRM_COTIZ_STORAGE_BUCKET);
     const prevCotiz=_prospCotizacionDoc();
     if(prevCotiz)await sbUpsert('hb_crm_documentos',{id:prevCotiz.id,tipo:null});
-    const row={id:uid9(),prospecto_id:prospectoId,etapa_id:etapaActual,nombre:file.name,url:uploaded.url,tipo:'cotizacion',size:uploaded.size,usuario_id:state.currentUser?.id||null};
+    const row={id:uid9(),prospecto_id:prospectoId,etapa_id:etapaActual,nombre:file.name,url:uploaded.url,bucket:CRM_COTIZ_STORAGE_BUCKET,tipo:'cotizacion',size:uploaded.size,usuario_id:state.currentUser?.id||null};
     const ok=await sbUpsert('hb_crm_documentos',row);
     if(ok)auditLog('crear','hb_crm_documentos',row.id,'Cotización adjuntada: '+file.name);
   }catch(err){toast('Error subiendo '+file.name+': '+(err.message||''),'error');return;}
@@ -16433,6 +16450,20 @@ async function sbGetAll(table) {
     console.error('sbGetAll', table, error); return [];
   }
   return data || [];
+}
+async function sbGetAllPaged(table){
+  const pageSize=1000; let from=0; let out=[];
+  while(true){
+    const {data,error}=await sb.from(table).select('*').range(from,from+pageSize-1);
+    if(error){ console.error('sbGetAllPaged',table,error);
+      if(error.code==='PGRST301'||error.message?.includes('JWT')){ doLogout();
+        toast('Sesión expirada. Ingresa de nuevo.','error'); }
+      break; }
+    out=out.concat(data||[]);
+    if(!data||data.length<pageSize) break;
+    from+=pageSize;
+  }
+  return out;
 }
 async function sbUpsert(table, row) {
   try {
