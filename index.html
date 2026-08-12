@@ -2097,6 +2097,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <div id="prosp-toolbar-filters" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
             <input type="text" id="prosp-search" placeholder="Buscar lead…" oninput="renderProspectos()" class="form-input" style="width:170px;padding:7px 10px;font-size:13px">
             <select class="form-input" id="prosp-filter-etapa" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todas las etapas</option></select>
+            <button type="button" class="btn-sm btn-ghost" id="prosp-filter-estancados-btn" onclick="toggleProspEstancadosFilter(this)" title="Leads con más de 7 días sin actividad, excluye perdidos"><i class="ti ti-alert-triangle"></i> Estancados (+7d)</button>
             <select class="form-input" id="prosp-filter-vendedor" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los vendedores</option></select>
             <select class="form-input" id="prosp-filter-canal" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los canales</option></select>
             <button class="btn-sm btn-blue" id="btn-nuevo-prospecto" onclick="openAddProspecto()"><i class="ti ti-plus"></i> Nuevo lead</button>
@@ -2181,6 +2182,17 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                   <input type="color" id="prosp-cfg-giros-color" value="#7B2FF7" style="width:34px;height:32px;padding:2px;border:1px solid var(--cp-gray-200);border-radius:6px;cursor:pointer">
                   <input type="text" class="form-input" id="prosp-cfg-giros-nombre" placeholder="Nuevo giro…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();prospCfgCatalogAdd('giros');}">
                   <button type="button" class="btn-sm btn-ghost" onclick="prospCfgCatalogAdd('giros')"><i class="ti ti-plus"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="section-card" style="margin-bottom:0">
+              <div class="section-header"><div class="section-title">Motivos de pérdida</div></div>
+              <div class="section-body">
+                <div id="prosp-cfg-motivos_perdida-list" style="margin-bottom:10px"></div>
+                <div style="display:flex;gap:8px">
+                  <input type="color" id="prosp-cfg-motivos_perdida-color" value="#7B2FF7" style="width:34px;height:32px;padding:2px;border:1px solid var(--cp-gray-200);border-radius:6px;cursor:pointer">
+                  <input type="text" class="form-input" id="prosp-cfg-motivos_perdida-nombre" placeholder="Nuevo motivo…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();prospCfgCatalogAdd('motivos_perdida');}">
+                  <button type="button" class="btn-sm btn-ghost" onclick="prospCfgCatalogAdd('motivos_perdida')"><i class="ti ti-plus"></i></button>
                 </div>
               </div>
             </div>
@@ -4610,6 +4622,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <div class="form-field"><label class="form-label">Etapa</label><select class="form-input" id="prospf-etapa" onchange="prospOnEtapaSelectChange()"></select></div>
         <div class="form-field"><label class="form-label">Temperatura</label><select class="form-input" id="prospf-temperatura"><option value="">— Sin definir —</option></select></div>
         <div class="form-field full" id="prospf-etapa-obs-wrap" style="display:none"><label class="form-label">Observación del cambio (opcional)</label><input class="form-input" id="prospf-etapa-obs" placeholder="Ej. Cliente pidió una semana más para decidir"></div>
+        <div class="form-field full" id="prospf-motivo-wrap" style="display:none"><label class="form-label">Motivo de pérdida *</label><select class="form-input" id="prospf-motivo"><option value="">— Selecciona un motivo —</option></select></div>
         <div class="form-field"><label class="form-label">Valor estimado</label><input type="number" step="0.01" class="form-input" id="prospf-valor" placeholder="0.00"></div>
         <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-input" id="prospf-notas" rows="2" placeholder="Observaciones…"></textarea></div>
       </div>
@@ -8698,6 +8711,10 @@ let prospCanales = [];
 let prospTemperaturas = [];
 let prospGiros = [];
 let prospPlantillas = [];
+let prospMotivosPerdida = [];
+// {prospectoId: timestamp_ms} — última actividad (seguimiento) por lead, ver prospLoad()/saveProspSeg().
+let prospLastActivityMap = {};
+let prospFilterEstancados = false;
 let prospPlantillaEditId = null;
 // Variables insertables en el texto de una plantilla/mensaje — {vendedor} es
 // el usuario que ESCRIBE el mensaje (state.currentUser), no el vendedor
@@ -8722,6 +8739,7 @@ const PROSP_ALL_COLS=[
   {key:'etapa',label:'Etapa'},
   {key:'valor',label:'Valor est.'},
   {key:'creado',label:'Fecha de creación'},
+  {key:'actividad',label:'Actividad'},
 ];
 // created_at es timestamptz (con hora) — fmtDate()/fmtDateShort() (línea ~5567)
 // asumen fecha pura 'YYYY-MM-DD' y le agregan 'T12:00:00', lo que rompe un ISO
@@ -9735,15 +9753,18 @@ async function deleteProveedor(){
 // este es el pipeline comercial propio de Grupo Limen, lead → confirmado/perdido.
 
 async function prospLoad(){
-  const [prospRaw, cfgRows] = await Promise.all([
+  const [prospRaw, cfgRows, segRows] = await Promise.all([
     sbGetAll('hb_crm_prospectos'),
-    sbGetAll('hb_config')
+    sbGetAll('hb_config'),
+    sbGetAllPaged('hb_crm_seguimientos')
   ]);
   prospData = prospRaw.map(r=>({
     id:r.id, nombre:r.nombre, empresa:r.empresa, cargo:r.cargo, giro:r.giro, fotoUrl:r.foto_url, contactoTel:r.contacto_tel, contactoMail:r.contacto_mail,
     canalEntrada:r.canal_entrada, estado:r.estado, vendedorId:r.vendedor_id, temperatura:r.temperatura,
-    notas:r.notas, valorEstimado:r.valor_estimado, createdAt:r.created_at, updatedAt:r.updated_at
+    notas:r.notas, valorEstimado:r.valor_estimado, motivoPerdidaId:r.motivo_perdida_id, createdAt:r.created_at, updatedAt:r.updated_at
   }));
+  prospBuildActivityMap(segRows);
+  prospRecalcDiasActividad();
   // Causa raíz real de "canal no se guarda" / chip "undefined": crm_canales y
   // crm_tipos_contacto vivían en hb_config como arrays de STRINGS sueltos
   // (["WhatsApp","Redes sociales",...]), mientras crm_etapas/crm_temperatura
@@ -9759,7 +9780,39 @@ async function prospLoad(){
   prospTemperaturas=cfgGet('crm_temperatura');
   prospGiros=cfgGet('crm_giros');
   prospPlantillas=cfgGet('crm_plantillas');
+  prospMotivosPerdida=cfgGet('crm_motivos_perdida');
   if(!(_userProfilesCache||[]).length){try{await loadAllUserProfiles();}catch(e){}}
+}
+
+// ── SALUD DEL LEAD (semáforo de días sin actividad) — todo calculado en
+// cliente, sin columna nueva. prospLastActivityMap se arma UNA vez por carga
+// completa de hb_crm_seguimientos (prospLoad, vía sbGetAllPaged) o se
+// actualiza puntual para un solo lead al registrar un seguimiento nuevo
+// (saveProspSeg) — nunca se recalcula en cada render. ──
+// Mismo fallback fecha||created_at que ya usa renderProspSegTimeline(), porque
+// saveProspSeg() nunca setea 'fecha' explícitamente (columna casi siempre nula).
+function prospBuildActivityMap(segRows){
+  prospLastActivityMap={};
+  (segRows||[]).forEach(function(s){
+    const ts=s.fecha||s.created_at;if(!ts)return;
+    const t=new Date(ts).getTime();if(isNaN(t))return;
+    const pid=s.prospecto_id;
+    if(!prospLastActivityMap[pid]||t>prospLastActivityMap[pid])prospLastActivityMap[pid]=t;
+  });
+}
+function prospRecalcDiasActividad(){
+  const now=Date.now();
+  prospData.forEach(function(p){
+    if(p.estado==='perdido'){p.diasSinActividad=null;return;}
+    const last=prospLastActivityMap[p.id];
+    const base=last!=null?last:(p.createdAt?new Date(p.createdAt).getTime():null);
+    p.diasSinActividad=base!=null?Math.floor((now-base)/86400000):null;
+  });
+}
+function _prospActividadColor(dias){
+  if(dias<3)return 'var(--cp-green)';
+  if(dias<=7)return 'var(--cp-amber)';
+  return 'var(--cp-red)';
 }
 
 // ── VIEW TOGGLE ───────────────────────────────────
@@ -9803,7 +9856,17 @@ function _prospFilteredData(){
   if(q)items=items.filter(p=>(p.nombre||'').toLowerCase().includes(q));
   if(vendF)items=items.filter(p=>p.vendedorId===vendF);
   if(canalF)items=items.filter(p=>p.canalEntrada===canalF);
+  if(prospFilterEstancados)items=items.filter(p=>p.diasSinActividad!=null&&p.diasSinActividad>7&&p.estado!=='perdido');
   return items;
+}
+// Comparte _prospFilteredData con Lista y Pipeline (igual que búsqueda/
+// vendedor/canal) — filtra leads con más de 7 días sin actividad, excluyendo
+// 'perdido' (ahí diasSinActividad ya es null, ver prospRecalcDiasActividad).
+function toggleProspEstancadosFilter(btn){
+  prospFilterEstancados=!prospFilterEstancados;
+  btn.classList.toggle('btn-blue',prospFilterEstancados);
+  btn.classList.toggle('btn-ghost',!prospFilterEstancados);
+  renderProspectos();
 }
 // Atajos de contacto en la lista — no envían nada, solo abren WhatsApp Web /
 // el cliente de correo. stopPropagation porque la fila entera es clickable
@@ -9883,6 +9946,7 @@ function _prospSortValue(p,key){
     case'etapa':{const e=prospEtapas.find(x=>x.id===p.estado);return (e?e.nombre:(p.estado||'')).toLowerCase();}
     case'valor':return Number(p.valorEstimado)||0;
     case'creado':return p.createdAt?new Date(p.createdAt).getTime():0;
+    case'actividad':return p.diasSinActividad!=null?p.diasSinActividad:-1;
     default:return '';
   }
 }
@@ -9896,6 +9960,10 @@ function _prospCellHtml(p,key){
     case'etapa':{const etapa=prospEtapas.find(e=>e.id===p.estado);return '<td>'+(etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':escHtml(p.estado||'—'))+'</td>';}
     case'valor':return '<td>'+(p.valorEstimado!=null?'$'+Number(p.valorEstimado).toLocaleString('es-MX'):'—')+'</td>';
     case'creado':return '<td style="font-size:12px;color:var(--cp-gray-600)">'+prospFmtCreatedAt(p.createdAt)+'</td>';
+    case'actividad':{
+      if(p.diasSinActividad==null)return '<td>—</td>';
+      return '<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--cp-gray-600)"><span style="width:8px;height:8px;border-radius:50%;background:'+_prospActividadColor(p.diasSinActividad)+';flex-shrink:0"></span>'+p.diasSinActividad+'d</span></td>';
+    }
     default:return '<td></td>';
   }
 }
@@ -9981,10 +10049,11 @@ function buildProspPipeCard(p){
   const canal=prospCanales.find(c=>c.id===p.canalEntrada);
   const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
   const tempDotHtml=temp?'<span title="'+escHtml(temp.nombre)+'" style="position:absolute;top:7px;right:7px;width:9px;height:9px;border-radius:50%;background:'+temp.color+'"></span>':'';
+  const actDotHtml=p.diasSinActividad!=null?'<span title="'+p.diasSinActividad+' día(s) sin actividad" style="position:absolute;top:7px;left:7px;width:9px;height:9px;border-radius:50%;background:'+_prospActividadColor(p.diasSinActividad)+'"></span>':'';
   return '<div class="dev-pipe-card prosp-pipe-card" draggable="true" data-prosp-id="'+p.id+'" data-prosp-etapa="'+p.estado+'"'+
     ' onclick="openProspDetail(\''+p.id+'\')"'+
     ' style="position:relative;background:white;border-radius:var(--radius-lg);padding:9px;cursor:pointer">'+
-    tempDotHtml+
+    tempDotHtml+actDotHtml+
     '<div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">'+
       '<i class="ti ti-grip-vertical" style="font-size:12px;color:var(--cp-gray-300);flex-shrink:0;margin-top:2px"></i>'+
       '<div style="font-size:12px;font-weight:600;color:var(--cp-navy);line-height:1.4;flex:1">'+escHtml(p.nombre)+'</div>'+
@@ -10008,7 +10077,7 @@ function prospColDragLeave(e){
 // para que prospColDrop y saveProspecto nunca se desincronicen si se agrega
 // una columna nueva (como empresa/temperatura) en un solo lugar.
 function prospRowFromData(p){
-  return {id:p.id,nombre:p.nombre,empresa:p.empresa,contacto_tel:p.contactoTel,contacto_mail:p.contactoMail,canal_entrada:p.canalEntrada,estado:p.estado,vendedor_id:p.vendedorId,temperatura:p.temperatura,notas:p.notas,valor_estimado:p.valorEstimado};
+  return {id:p.id,nombre:p.nombre,empresa:p.empresa,contacto_tel:p.contactoTel,contacto_mail:p.contactoMail,canal_entrada:p.canalEntrada,estado:p.estado,vendedor_id:p.vendedorId,temperatura:p.temperatura,notas:p.notas,valor_estimado:p.valorEstimado,motivo_perdida_id:p.motivoPerdidaId||null};
 }
 async function prospColDrop(e,targetEtapa){
   e.preventDefault();
@@ -10019,11 +10088,26 @@ async function prospColDrop(e,targetEtapa){
   if(!canEdit('prospectos'))return;
   const p=prospData.find(x=>x.id===prospId);
   if(!p||p.estado===targetEtapa)return;
+  // 'perdido' exige motivo de catálogo (obligatorio) — no se puede aplicar
+  // optimista/instantáneo como el resto de los cambios por drag (sin diálogo).
+  // Se abre la ficha de edición ya posicionada en 'perdido', con el select de
+  // motivo visible, y el usuario confirma por el flujo normal de Guardar
+  // (saveProspecto ya bloquea el guardado si no elige uno). La tarjeta se
+  // queda en su columna original hasta que ese guardado se complete.
+  if(targetEtapa==='perdido'){
+    prospCurrentId=p.id;
+    openEditProspecto();
+    document.getElementById('prospf-etapa').value='perdido';
+    prospOnEtapaSelectChange();
+    return;
+  }
   const prevEstado=p.estado;
+  const prevMotivoId=p.motivoPerdidaId;
   p.estado=targetEtapa; // optimista: instantáneo en UI, sin modal intermedio
+  if(prevEstado==='perdido')p.motivoPerdidaId=null; // se recupera de 'perdido': ya no aplica un motivo de pérdida
   renderProspPipeline();
   const ok=await prospSaveSB(prospRowFromData(p));
-  if(!ok){p.estado=prevEstado;renderProspPipeline();return;}
+  if(!ok){p.estado=prevEstado;p.motivoPerdidaId=prevMotivoId;renderProspPipeline();return;}
   auditLog('editar','hb_crm_prospectos',p.id,'Etapa cambiada a '+targetEtapa);
   prospLogEtapaChange(p.id,prevEstado,targetEtapa); // fire-and-forget, no bloquea el drop
 }
@@ -10055,15 +10139,17 @@ function prospLogEtapaChange(prospId,fromEtapaId,toEtapaId,obs){
 // (index.html ~22319): un catálogo desactivado deja de ofrecerse para leads
 // NUEVOS, pero no le cambia el valor por sorpresa a uno que ya lo tenía.
 function populateProspFormSelects(current){
-  const keepCanal=current?.canalEntrada,keepTemp=current?.temperatura,keepGiro=current?.giro;
+  const keepCanal=current?.canalEntrada,keepTemp=current?.temperatura,keepGiro=current?.giro,keepMotivo=current?.motivoPerdidaId;
   const canales=prospCanales.filter(c=>c.activo!==false||c.id===keepCanal);
   const temps=prospTemperaturas.filter(t=>t.activo!==false||t.id===keepTemp);
   const giros=prospGiros.filter(g=>g.activo!==false||g.id===keepGiro);
+  const motivos=(prospMotivosPerdida||[]).filter(m=>m.activo!==false||m.id===keepMotivo);
   document.getElementById('prospf-canal').innerHTML=canales.map(c=>'<option value="'+c.id+'">'+escHtml(c.nombre)+'</option>').join('');
   document.getElementById('prospf-vendedor').innerHTML='<option value="">— Sin asignar —</option>'+(_userProfilesCache||[]).map(u=>'<option value="'+u.user_id+'">'+escHtml(u.display_name||u.email)+'</option>').join('');
   document.getElementById('prospf-etapa').innerHTML=prospEtapas.map(e=>'<option value="'+e.id+'">'+escHtml(e.nombre)+'</option>').join('');
   document.getElementById('prospf-temperatura').innerHTML='<option value="">— Sin definir —</option>'+temps.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
   document.getElementById('prospf-giro').innerHTML='<option value="">— Sin definir —</option>'+giros.map(g=>'<option value="'+g.id+'">'+escHtml(g.nombre)+'</option>').join('');
+  document.getElementById('prospf-motivo').innerHTML='<option value="">— Selecciona un motivo —</option>'+motivos.map(m=>'<option value="'+m.id+'">'+escHtml(m.nombre)+'</option>').join('');
 }
 // Barra de etapas conectadas — inspirada en el "stepper" de Desarrollos
 // (openDevDetail, ver línea ~10815) pero con semántica de recorrido: pasadas
@@ -10200,6 +10286,20 @@ function prospOnEtapaSelectChange(){
   const changed=!!prospCurrentId&&prospOpenEtapaValue!=null&&document.getElementById('prospf-etapa').value!==prospOpenEtapaValue;
   wrap.style.display=changed?'':'none';
   if(!changed)document.getElementById('prospf-etapa-obs').value='';
+  prospUpdateMotivoWrap();
+}
+// Motivo de pérdida: a diferencia de prospf-etapa-obs-wrap (opcional, solo
+// aparece si la etapa CAMBIÓ respecto a como se abrió la ficha), este campo es
+// OBLIGATORIO y se rige solo por el valor ACTUAL del select — así también se
+// ve/exige al editar un lead que ya estaba 'perdido' (openEditProspecto) o al
+// llegar aquí desde marcarProspectoPerdido()/prospColDrop(), no solo cuando el
+// usuario cambia el desplegable a mano. saveProspecto() es quien realmente
+// bloquea el guardado si falta; esto solo controla la visibilidad del campo.
+function prospUpdateMotivoWrap(){
+  const wrap=document.getElementById('prospf-motivo-wrap');if(!wrap)return;
+  const isPerdido=document.getElementById('prospf-etapa').value==='perdido';
+  wrap.style.display=isPerdido?'':'none';
+  if(!isPerdido)document.getElementById('prospf-motivo').value='';
 }
 // Foto del lead — mismo patrón que previewCliPhoto (Clientes): FileReader.
 // readAsDataURL(), base64 guardado directo en foto_url, sin Storage.
@@ -10238,6 +10338,8 @@ function openAddProspecto(){
   document.getElementById('prospf-notas').value='';
   document.getElementById('prospf-etapa-obs').value='';
   document.getElementById('prospf-etapa-obs-wrap').style.display='none';
+  document.getElementById('prospf-motivo').value='';
+  document.getElementById('prospf-motivo-wrap').style.display='none';
   const img=document.getElementById('prospf-photo-preview');img.src='';img.style.display='none';
   const zone=document.getElementById('prospf-photo-zone');zone.querySelector('i').style.display='';zone.querySelector('span').style.display='';
   openModal('modal-prospecto');
@@ -10271,6 +10373,8 @@ function openEditProspecto(){
   prospOpenEtapaValue=p.estado||'';
   document.getElementById('prospf-etapa-obs').value='';
   document.getElementById('prospf-etapa-obs-wrap').style.display='none';
+  document.getElementById('prospf-motivo').value=p.motivoPerdidaId||'';
+  prospUpdateMotivoWrap();
   const perdidoBtn=document.getElementById('prosp-perdido-btn');
   const perdidoEtapa=prospEtapas.find(e=>e.id==='perdido');
   perdidoBtn.style.display=(perdidoEtapa&&p.estado!=='perdido')?'flex':'none';
@@ -10365,6 +10469,14 @@ function renderProspDetailHeader(p){
 async function saveProspecto(){
   const nombre=sanitizeInput(document.getElementById('prospf-nombre')?.value,150);
   if(!nombre){toast('El nombre es obligatorio.','error');return;}
+  const etapaVal=document.getElementById('prospf-etapa').value;
+  let motivoId=null,motivoNombre=null;
+  if(etapaVal==='perdido'){
+    motivoId=document.getElementById('prospf-motivo')?.value||'';
+    if(!motivoId){toast('Selecciona un motivo de pérdida.','error');return;}
+    const motivoObj=prospMotivosPerdida.find(m=>m.id===motivoId);
+    motivoNombre=motivoObj?motivoObj.nombre:null;
+  }
   setBtn('save-prosp-btn',true);
   const prevEstado=prospCurrentId?(prospData.find(x=>x.id===prospCurrentId)?.estado||null):null;
   const etapaObs=sanitizeInput(document.getElementById('prospf-etapa-obs')?.value,500);
@@ -10378,16 +10490,17 @@ async function saveProspecto(){
     canal_entrada:document.getElementById('prospf-canal').value||null,
     giro:document.getElementById('prospf-giro').value||null,
     vendedor_id:document.getElementById('prospf-vendedor').value||null,
-    estado:document.getElementById('prospf-etapa').value,
+    estado:etapaVal,
     temperatura:document.getElementById('prospf-temperatura').value||null,
     valor_estimado:parseFloat(document.getElementById('prospf-valor').value)||null,
     notas:sanitizeInput(document.getElementById('prospf-notas').value,2000),
-    foto_url:prospPhotoData||null
+    foto_url:prospPhotoData||null,
+    motivo_perdida_id:etapaVal==='perdido'?motivoId:null
   };
   const ok=await prospSaveSB(row);
   setBtn('save-prosp-btn',false);
   if(!ok)return;
-  const mapped={id:row.id,nombre:row.nombre,cargo:row.cargo,fotoUrl:row.foto_url,empresa:row.empresa,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,giro:row.giro,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas};
+  const mapped={id:row.id,nombre:row.nombre,cargo:row.cargo,fotoUrl:row.foto_url,empresa:row.empresa,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,giro:row.giro,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas,motivoPerdidaId:row.motivo_perdida_id};
   const idx=prospData.findIndex(x=>x.id===row.id);
   if(idx!==-1)prospData[idx]={...prospData[idx],...mapped};else prospData.push(mapped);
   auditLog(prospCurrentId?'editar':'crear','hb_crm_prospectos',row.id,'Lead: '+nombre);
@@ -10395,8 +10508,13 @@ async function saveProspecto(){
   // el select en 'perdido' y llama esta misma función) también deja rastro —
   // no solo el drag-and-drop del pipeline. La observación opcional (input de
   // la ficha, NO prompt()) solo puede venir de aquí — el drag del pipeline
-  // nunca la manda, así que ahí el cambio se registra siempre sin ella.
-  if(prevEstado&&prevEstado!==row.estado)prospLogEtapaChange(row.id,prevEstado,row.estado,etapaObs);
+  // nunca la manda, así que ahí el cambio se registra siempre sin ella. El
+  // motivo de pérdida (obligatorio si la etapa nueva es 'perdido') se anexa a
+  // la misma nota, igual que la observación, para que quede visible en la
+  // bitácora sin tener que ir a buscarlo aparte.
+  let etapaObsFull=etapaObs;
+  if(etapaVal==='perdido'&&motivoNombre)etapaObsFull=(etapaObsFull?etapaObsFull+' | ':'')+'Motivo: '+motivoNombre;
+  if(prevEstado&&prevEstado!==row.estado)prospLogEtapaChange(row.id,prevEstado,row.estado,etapaObsFull);
   closeModal('modal-prospecto');
   renderProspectos();
   // Si el modal se abrió desde la vista de perfil de este mismo lead,
@@ -10418,6 +10536,11 @@ function marcarProspectoPerdido(){
   if(!perdidoEtapa){toast('No existe la etapa "perdido" en el catálogo crm_etapas.','error');return;}
   if(!confirm('¿Marcar este lead como perdido?'))return;
   document.getElementById('prospf-etapa').value='perdido';
+  // Revela el select de motivo (obligatorio, ver prospUpdateMotivoWrap) antes
+  // de intentar guardar. Si no había uno elegido, saveProspecto() aborta con
+  // toast y dispara el guardado real cuando el usuario elija uno y presione
+  // Guardar — este botón ya no guarda "directo" sin motivo.
+  prospOnEtapaSelectChange();
   saveProspecto();
 }
 
@@ -10497,6 +10620,14 @@ async function saveProspSeg(){
   closeModal('modal-prosp-seg');
   prospSegData=await prospSegLoad(prospCurrentId);
   renderProspSegTimeline();
+  // Actualiza solo el lead afectado en vez de re-fetch completo de
+  // hb_crm_seguimientos (prospLoad ya lo hace paginado al abrir el módulo) —
+  // este seguimiento recién guardado es, por definición, la actividad más
+  // reciente del lead.
+  prospLastActivityMap[prospCurrentId]=Date.now();
+  const segLead=prospData.find(x=>x.id===prospCurrentId);
+  if(segLead&&segLead.estado!=='perdido')segLead.diasSinActividad=0;
+  renderProspectos();
   toast('Seguimiento registrado ✓');
 }
 
@@ -10732,6 +10863,7 @@ function renderProspConfigView(){
   prospCfgCatalogRender('tipos_contacto');
   prospCfgCatalogRender('temperatura');
   prospCfgCatalogRender('giros');
+  prospCfgCatalogRender('motivos_perdida');
   renderProspColPanel();
   renderProspCfgPlantillas();
 }
@@ -10858,7 +10990,8 @@ const PROSP_CFG_CATALOGS={
   canales:{clave:'crm_canales',getArr:function(){return prospCanales;}},
   tipos_contacto:{clave:'crm_tipos_contacto',getArr:function(){return prospTiposContacto;}},
   temperatura:{clave:'crm_temperatura',getArr:function(){return prospTemperaturas;}},
-  giros:{clave:'crm_giros',getArr:function(){return prospGiros;}}
+  giros:{clave:'crm_giros',getArr:function(){return prospGiros;}},
+  motivos_perdida:{clave:'crm_motivos_perdida',getArr:function(){return prospMotivosPerdida;}}
 };
 // Los seguimientos (hb_crm_seguimientos) no se cargan completos en memoria —
 // solo el del lead abierto (prospSegData) — así que "¿está en uso este tipo
@@ -10868,6 +11001,7 @@ async function prospCfgCatalogUsageCount(kind,id){
   if(kind==='canales')return prospData.filter(function(p){return p.canalEntrada===id;}).length;
   if(kind==='temperatura')return prospData.filter(function(p){return p.temperatura===id;}).length;
   if(kind==='giros')return prospData.filter(function(p){return p.giro===id;}).length;
+  if(kind==='motivos_perdida')return prospData.filter(function(p){return p.motivoPerdidaId===id;}).length;
   if(kind==='tipos_contacto'){
     const {count,error}=await sb.from('hb_crm_seguimientos').select('id',{count:'exact',head:true}).eq('tipo',id);
     if(error){console.error('prospCfgCatalogUsageCount tipos_contacto',error);return 0;}
