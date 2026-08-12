@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formulario de contacto</title>
+<style>
+  :root{
+    --f-accent:#3B6BF5; --f-gray-50:#F9FAFB; --f-gray-100:#F0F2F5; --f-gray-200:#E1E6EE;
+    --f-gray-400:#94A0BB; --f-gray-700:#33415C; --f-red:#E4483F; --f-red-bg:#FDECEC;
+    --f-green:#0F7A47; --f-green-bg:#E7F7EF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--f-gray-700);background:#fff;font-size:14px;line-height:1.5;
+  }
+  .f-wrap{max-width:480px;margin:0 auto;padding:22px 20px;}
+  @media (max-width:360px){.f-wrap{padding:16px 14px;}}
+  .f-title{font-size:17px;font-weight:700;margin:0 0 16px;color:var(--f-gray-700);}
+  .f-field{margin-bottom:14px;}
+  .f-label{display:block;font-size:12px;font-weight:600;color:var(--f-gray-700);margin-bottom:5px;}
+  .f-label .req{color:var(--f-red);}
+  .f-input,.f-textarea,.f-select{
+    width:100%;padding:9px 11px;border:1px solid var(--f-gray-200);border-radius:8px;
+    font-size:14px;font-family:inherit;color:var(--f-gray-700);background:#fff;
+  }
+  .f-input:focus,.f-textarea:focus,.f-select:focus{
+    outline:none;border-color:var(--f-accent);box-shadow:0 0 0 3px rgba(59,107,245,.12);
+  }
+  .f-textarea{resize:vertical;min-height:80px;}
+  /* Honeypot: fuera de pantalla + aria-hidden + sin tabindex — invisible e
+     inalcanzable para una persona (con o sin lector de pantalla), pero un bot
+     que rellena todos los inputs del DOM sí lo llena. Si crm_captar_lead ve
+     este campo con contenido, descarta el envío como spam. */
+  .f-honeypot-wrap{position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;}
+  .f-btn{
+    width:100%;padding:11px 16px;border:none;border-radius:8px;background:var(--f-accent);
+    color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .f-btn:hover{background:#2f57d1;}
+  .f-btn:disabled{opacity:.6;cursor:not-allowed;}
+  .f-msg{padding:11px 13px;border-radius:8px;font-size:13px;margin-bottom:14px;}
+  .f-msg-error{background:var(--f-red-bg);color:#B3261E;}
+  .f-msg-success{background:var(--f-green-bg);color:var(--f-green);font-size:14px;text-align:center;padding:18px 14px;}
+  .f-center{text-align:center;padding:40px 20px;color:var(--f-gray-400);font-size:13px;}
+  .f-spinner{width:22px;height:22px;border:2.5px solid var(--f-gray-200);border-top-color:var(--f-accent);border-radius:50%;animation:f-spin .7s linear infinite;margin:0 auto 10px;}
+  @keyframes f-spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="f-wrap" id="f-root">
+  <div class="f-center"><div class="f-spinner"></div>Cargando…</div>
+</div>
+<script>
+(function(){
+  // Mismas constantes públicas que usa el resto del proyecto (index.html) —
+  // es la publishable/anon key, diseñada para ir expuesta en el cliente.
+  // NUNCA la service_role/secret key aquí.
+  var SUPABASE_URL='https://xciphoxsalbuficfkkcw.supabase.co';
+  var SUPABASE_KEY='sb_publishable__wCFseQLyXOoiA0emNtHoQ_jCFDPu0y';
+
+  var root=document.getElementById('f-root');
+  var slug=new URLSearchParams(window.location.search).get('f');
+
+  function esc(s){
+    var d=document.createElement('div');
+    d.textContent=(s===null||s===undefined)?'':String(s);
+    return d.innerHTML;
+  }
+  function showUnavailable(){
+    root.innerHTML='<div class="f-center">Formulario no disponible.</div>';
+  }
+  if(!slug){ showUnavailable(); return; }
+
+  // Único punto de contacto con Supabase: dos funciones RPC ya blindadas.
+  // Esta página nunca hace SELECT/INSERT directo a ninguna tabla — el anon
+  // key no tiene acceso de lectura a ninguna tabla, confirmado, así que ni
+  // podría aunque lo intentara.
+  function rpc(fn,body){
+    return fetch(SUPABASE_URL+'/rest/v1/rpc/'+fn,{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':'Bearer '+SUPABASE_KEY,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify(body)
+    }).then(function(res){
+      return res.json().catch(function(){return null;}).then(function(data){
+        if(!res.ok){
+          var err=new Error((data&&(data.message||data.msg))||'Error de red');
+          err.data=data;
+          throw err;
+        }
+        return data;
+      });
+    });
+  }
+
+  var config=null;
+
+  function fieldInputHtml(campo){
+    var key=campo.key, tipo=campo.tipo||'texto', req=!!campo.obligatorio;
+    var id='f-field-'+key;
+    var reqAttr=req?'required':'';
+    if(tipo==='textarea'){
+      return '<textarea class="f-textarea" id="'+id+'" name="'+esc(key)+'" '+reqAttr+'></textarea>';
+    }
+    if(tipo==='select'){
+      // El editor de formularios (dentro de la app) no define un catálogo de
+      // opciones por campo hoy — 'campos' solo trae {key,label,tipo,
+      // obligatorio}. Si algún día el RPC empieza a mandar campo.opciones,
+      // se usa aquí; mientras tanto cae a texto libre en vez de mostrar un
+      // <select> vacío e inútil.
+      if(Array.isArray(campo.opciones)&&campo.opciones.length){
+        var opts='<option value="">— Selecciona —</option>'+campo.opciones.map(function(o){
+          var val=(o&&o.value!=null)?o.value:o;
+          var lbl=(o&&o.label!=null)?o.label:o;
+          return '<option value="'+esc(val)+'">'+esc(lbl)+'</option>';
+        }).join('');
+        return '<select class="f-select" id="'+id+'" name="'+esc(key)+'" '+reqAttr+'>'+opts+'</select>';
+      }
+      return '<input class="f-input" type="text" id="'+id+'" name="'+esc(key)+'" '+reqAttr+'>';
+    }
+    var inputType=tipo==='email'?'email':(tipo==='tel'?'tel':'text');
+    return '<input class="f-input" type="'+inputType+'" id="'+id+'" name="'+esc(key)+'" '+reqAttr+'>';
+  }
+  function fieldHtml(campo){
+    var label=campo.label||campo.key;
+    var reqMark=campo.obligatorio?' <span class="req">*</span>':'';
+    return '<div class="f-field"><label class="f-label" for="f-field-'+campo.key+'">'+esc(label)+reqMark+'</label>'+fieldInputHtml(campo)+'</div>';
+  }
+
+  function render(cfg){
+    config=cfg;
+    if(cfg.nombre) document.title=cfg.nombre;
+    var camposHtml=(cfg.campos||[]).map(fieldHtml).join('');
+    root.innerHTML=
+      (cfg.nombre?'<div class="f-title">'+esc(cfg.nombre)+'</div>':'')+
+      '<form id="f-form" novalidate>'+
+        '<div id="f-alert"></div>'+
+        camposHtml+
+        '<div class="f-honeypot-wrap" aria-hidden="true">'+
+          '<label>Deja este campo vacío<input type="text" name="website" id="f-honeypot" tabindex="-1" autocomplete="off"></label>'+
+        '</div>'+
+        '<button type="submit" class="f-btn" id="f-submit-btn">Enviar</button>'+
+      '</form>';
+    document.getElementById('f-form').addEventListener('submit', onSubmit);
+  }
+
+  function onSubmit(e){
+    e.preventDefault();
+    var alertEl=document.getElementById('f-alert');
+    alertEl.innerHTML='';
+    var datos={};
+    var missing=[];
+    (config.campos||[]).forEach(function(campo){
+      var el=document.getElementById('f-field-'+campo.key);
+      var val=el?String(el.value||'').trim():'';
+      if(campo.obligatorio&&!val) missing.push(campo.label||campo.key);
+      if(val) datos[campo.key]=val;
+    });
+    if(missing.length){
+      alertEl.innerHTML='<div class="f-msg f-msg-error">Falta completar: '+esc(missing.join(', '))+'.</div>';
+      return;
+    }
+    var honeypotEl=document.getElementById('f-honeypot');
+    var honeypot=honeypotEl?honeypotEl.value:'';
+    var btn=document.getElementById('f-submit-btn');
+    btn.disabled=true; btn.textContent='Enviando…';
+    rpc('crm_captar_lead',{p_slug:slug,p_datos:datos,p_honeypot:honeypot}).then(function(resp){
+      if(resp&&resp.status==='ok'){
+        if(resp.redirect){
+          window.location.href=resp.redirect;
+        }else{
+          root.innerHTML='<div class="f-msg f-msg-success">¡Gracias! Te contactaremos pronto.</div>';
+        }
+      }else{
+        alertEl.innerHTML='<div class="f-msg f-msg-error">'+esc((resp&&resp.msg)||'No se pudo enviar. Intenta de nuevo.')+'</div>';
+        btn.disabled=false; btn.textContent='Enviar';
+      }
+    }).catch(function(){
+      alertEl.innerHTML='<div class="f-msg f-msg-error">No se pudo enviar. Intenta de nuevo en un momento.</div>';
+      btn.disabled=false; btn.textContent='Enviar';
+    });
+  }
+
+  rpc('crm_form_config',{p_slug:slug}).then(function(cfg){
+    if(!cfg){ showUnavailable(); return; }
+    render(cfg);
+  }).catch(function(){
+    showUnavailable();
+  });
+})();
+</script>
+</body>
+</html>
