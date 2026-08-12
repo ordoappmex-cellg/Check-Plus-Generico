@@ -595,29 +595,11 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .sp-chart-header{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;transition:background .12s;}
 .sp-chart-header:hover{background:var(--cp-gray-50);}
 
-/* ─── MARKETING ─────────────────────────────────── */
-.mkt-stage-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;}
-.mkt-stage-idea{background:#F3F4F6;color:#6B7280;}
-.mkt-stage-planificacion{background:#EDE9FE;color:#6D28D9;}
-.mkt-stage-produccion{background:#DBEAFE;color:#1D4ED8;}
-.mkt-stage-activa{background:#D1FAE5;color:#065F46;}
-.mkt-stage-pausada{background:#FEF3C7;color:#92400E;}
-.mkt-stage-completada{background:#E5E7EB;color:#374151;}
-.mkt-card{background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-lg);margin-bottom:10px;overflow:hidden;transition:box-shadow .15s;cursor:pointer;}
-.mkt-card:hover{box-shadow:var(--shadow-md);}
-.mkt-card-header{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;}
-.mkt-card-body{display:none;border-top:1px solid var(--cp-gray-100);background:var(--cp-gray-50);}
-.mkt-card-body.open{display:block;}
-.mkt-canal-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;margin-right:4px;}
-.mkt-kpi-box{background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-md);padding:12px;text-align:center;}
-.mkt-kpi-val{font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--cp-navy);}
-.mkt-kpi-lbl{font-size:10px;color:var(--cp-gray-400);margin-top:2px;}
-.mkt-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-.mkt-cal-day{background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-sm);padding:6px;min-height:70px;font-size:11px;}
-.mkt-cal-day.today{border-color:var(--cp-blue);background:var(--cp-blue-light);}
-.mkt-cal-event{font-size:9px;padding:2px 5px;border-radius:3px;margin-top:2px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mkt-prio-bar{width:4px;align-self:stretch;border-radius:2px;flex-shrink:0;}
-.mkt-agency-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:500;background:var(--cp-amber-light,#FEF3D7);color:#92400E;}
+/* .mkt-tab-btn / .mkt-tab-btn.active se conservan a propósito: es el estilo
+   compartido de pestañas de Diseño, Dirección y Gestión de Proyectos (ver
+   diseno-tab-*, direccion-tab-*, gp-tab-* en el HTML) — dejó de ser exclusivo
+   de Marketing hace tiempo. El resto de reglas .mkt-* sí eran exclusivas del
+   módulo Marketing viejo (eliminado) y se quitaron con él. */
 .mkt-tab-btn{padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;border:none;cursor:pointer;background:transparent;color:var(--cp-gray-600);font-family:var(--font-body);border-bottom:2px solid transparent;transition:all .15s;}
 .mkt-tab-btn.active{color:var(--cp-purple);border-bottom-color:var(--cp-purple);font-weight:600;}
 
@@ -2476,86 +2458,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
 
 
-      <!-- MARKETING VIEW -->
-      <div id="view-marketing" class="view">
-        <!-- KPI Strip -->
-        <div id="mkt-kpis" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px"></div>
-
-        <!-- Tabs -->
-        <div style="display:flex;gap:0;border-bottom:2px solid var(--cp-gray-100);margin-bottom:18px">
-          <button class="mkt-tab-btn active" id="mkt-tab-proyectos" onclick="switchMktTab('proyectos')"><i class="ti ti-briefcase"></i> Proyectos</button>
-          <button class="mkt-tab-btn" id="mkt-tab-agencias" onclick="switchMktTab('agencias')"><i class="ti ti-building"></i> Agencias</button>
-          <button class="mkt-tab-btn" id="mkt-tab-calendario" onclick="switchMktTab('calendario')"><i class="ti ti-calendar"></i> Calendario</button>
-          <button class="mkt-tab-btn" id="mkt-tab-repositorio" onclick="switchMktTab('repositorio')"><i class="ti ti-folder"></i> Repositorio</button>
-          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-            <button class="btn-sm btn-ghost" onclick="exportMktReport()"><i class="ti ti-file-spreadsheet"></i> Reporte</button>
-            <button class="btn-sm btn-blue" id="mkt-add-btn" onclick="openAddMktProyecto()"><i class="ti ti-plus"></i> Nuevo proyecto</button>
-          </div>
-        </div>
-
-        <!-- Proyectos panel -->
-        <div id="mkt-panel-proyectos">
-          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-            <div style="display:flex;gap:3px;background:var(--cp-gray-100);padding:3px;border-radius:var(--radius-md)">
-              <button class="org-view-btn active" id="proy-f-todos" onclick="setProyFilter('todos',this)">Todos</button>
-              <button class="org-view-btn" id="proy-f-proyecto" onclick="setProyFilter('proyecto',this)">📦 Proyectos</button>
-              <button class="org-view-btn" id="proy-f-pendiente" onclick="setProyFilter('pendiente',this)">📌 Pendientes</button>
-              <button class="org-view-btn" id="proy-f-completado" onclick="setProyFilter('completado',this)">✅ Completados</button>
-            </div>
-            <div style="margin-left:auto;display:flex;gap:8px">
-              <button class="btn-sm btn-ghost" onclick="exportProyReport()"><i class="ti ti-file-spreadsheet"></i> Reporte</button>
-              <button class="btn-sm btn-blue" id="mkt-proy-add-btn" onclick="openAddMktProyecto()"><i class="ti ti-plus"></i> Nuevo</button>
-            </div>
-          </div>
-          <div id="mkt-proyectos-list"></div>
-          <!-- Histórico de proyectos cerrados -->
-          <div style="margin-top:20px">
-            <button class="dev-filter-chip" onclick="toggleMktProyHistorico()" style="width:100%;justify-content:center;border-radius:var(--radius-md);padding:10px">
-              <i class="ti ti-history"></i> Histórico de proyectos cerrados <span id="mkt-proy-hist-badge" style="background:var(--cp-gray-200);color:var(--cp-gray-600);border-radius:99px;padding:0 7px;font-size:11px;margin-left:4px"></span>
-            </button>
-            <div id="mkt-proy-historico" style="display:none;margin-top:10px"></div>
-          </div>
-        </div>
-
-        <!-- Agencias panel -->
-        <div id="mkt-panel-agencias" style="display:none">
-          <div style="display:flex;gap:8px;margin-bottom:14px;justify-content:flex-end">
-            <button class="btn-sm btn-blue" id="mkt-ag-add-btn" onclick="openAddAgencia()"><i class="ti ti-plus"></i> Nueva agencia</button>
-          </div>
-          <div id="mkt-agencias-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px"></div>
-        </div>
-
-        <!-- Calendario panel -->
-        <div id="mkt-panel-calendario" style="display:none">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <button class="btn-sm btn-ghost" onclick="mktCalNav(-1)"><i class="ti ti-chevron-left"></i></button>
-              <div id="mkt-cal-title" style="font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--cp-navy)"></div>
-              <button class="btn-sm btn-ghost" onclick="mktCalNav(1)"><i class="ti ti-chevron-right"></i></button>
-            </div>
-            <button class="btn-sm btn-ghost" onclick="mktCalNav(0)">Hoy</button>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
-            <button class="dev-filter-chip active" id="mktcal-f-todos" onclick="setMktCalFilter('todos',this)">Todos</button>
-            <button class="dev-filter-chip" id="mktcal-f-proyecto" onclick="setMktCalFilter('proyecto',this)">📦 Proyectos</button>
-            <button class="dev-filter-chip" id="mktcal-f-pendiente" onclick="setMktCalFilter('pendiente',this)">📌 Pendientes</button>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">
-            <div style="text-align:center;font-size:10px;font-weight:600;color:var(--cp-gray-400);padding:3px">Lun</div><div style="text-align:center;font-size:10px;font-weight:600;color:var(--cp-gray-400);padding:3px">Mar</div><div style="text-align:center;font-size:10px;font-weight:600;color:var(--cp-gray-400);padding:3px">Mié</div><div style="text-align:center;font-size:10px;font-weight:600;color:var(--cp-gray-400);padding:3px">Jue</div><div style="text-align:center;font-size:10px;font-weight:600;color:var(--cp-gray-400);padding:3px">Vie</div><div style="text-align:center;font-size:10px;font-weight:600;color:var(--cp-gray-400);padding:3px">Sáb</div><div style="text-align:center;font-size:10px;font-weight:600;color:var(--cp-gray-400);padding:3px">Dom</div>
-          </div>
-          <div class="mkt-cal-grid" id="mkt-cal-grid"></div>
-        </div>
-
-        <!-- Repositorio panel -->
-        <div id="mkt-panel-repositorio" style="display:none">
-          <div style="display:flex;gap:8px;margin-bottom:14px;justify-content:flex-end">
-            <button class="btn-sm btn-blue" onclick="openAddMktDoc()"><i class="ti ti-cloud-upload"></i> Subir archivo</button>
-          </div>
-          <div id="mkt-docs-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px"></div>
-        </div>
-      </div>
-
-
       <!-- AI CHAT VIEW (v71 — unique -view IDs so it no longer collides with the topbar panel) -->
       <div id="view-ai-chat" class="view">
         <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;height:calc(100vh - 120px)">
@@ -3792,7 +3694,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Permisos y solicitudes</span><div style="text-align:center"><input type="radio" name="uf-mod-permisos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-permisos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-permisos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Documentos</span><div style="text-align:center"><input type="radio" name="uf-mod-documentos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-documentos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-documentos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Organigrama</span><div style="text-align:center"><input type="radio" name="uf-mod-organigrama" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-organigrama" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-organigrama" value="oculto"></div></div>
-            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Marketing</span><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Clientes</span><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Desarrollos</span><div style="text-align:center"><input type="radio" name="uf-mod-desarrollos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-desarrollos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-desarrollos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Repositorio</span><div style="text-align:center"><input type="radio" name="uf-mod-repositorio" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-repositorio" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-repositorio" value="oculto"></div></div>
@@ -4275,204 +4176,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <button class="btn-sm btn-ghost" id="notif-gemini-btn" onclick="getGeminiInsights()"><i class="ti ti-sparkles"></i> Insights IA</button>
         <button class="btn-sm btn-blue" onclick="closeModal('modal-notif-popup')">Entendido</button>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- MKT CAMPAÑA MODAL -->
-<div class="modal-overlay" id="modal-mkt-campana">
-  <div class="modal" style="width:660px;max-height:90vh;overflow-y:auto">
-    <div class="modal-header"><div class="modal-title" id="mkt-camp-title">Nueva campaña</div><button class="modal-close" onclick="closeModal('modal-mkt-campana')"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field full"><label class="form-label">Nombre de la campaña *</label><input class="form-input" id="mktf-nombre" placeholder="Ej. Lanzamiento Q3 Check Plus"></div>
-        <div class="form-field full"><label class="form-label">Objetivo / Brief</label><textarea class="form-input" id="mktf-objetivo" rows="2" placeholder="¿Qué se quiere lograr con esta campaña?"></textarea></div>
-        <div class="form-field"><label class="form-label">Estado</label>
-          <select class="form-input" id="mktf-stage">
-            <option value="idea">💡 Idea</option><option value="planificacion">📋 Planificación</option>
-            <option value="produccion">⚙️ Producción</option><option value="activa">🟢 Activa</option>
-            <option value="pausada">⏸ Pausada</option><option value="completada">✅ Completada</option>
-          </select>
-        </div>
-        <div class="form-field"><label class="form-label">Prioridad</label>
-          <select class="form-input" id="mktf-prio">
-            <option value="alta">🔴 Alta</option><option value="media" selected>🟡 Media</option><option value="baja">🟢 Baja</option>
-          </select>
-        </div>
-        <div class="form-field full"><label class="form-label">Canales</label>
-          <div id="mktf-canales-wrap" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
-          <div style="display:flex;gap:6px">
-            <select class="form-input" id="mktf-canal-sel" style="flex:1">
-              <option value="">— Agregar canal —</option>
-              <option>📱 Redes Sociales</option><option>📧 Email Marketing</option><option>🔍 SEO/SEM</option>
-              <option>📺 Video</option><option>📰 Contenido</option><option>🎯 Paid Ads</option>
-              <option>🤝 Influencers</option><option>📣 PR/Prensa</option><option>🎪 Eventos</option><option>Otro</option>
-            </select>
-            <button class="btn-sm btn-ghost" onclick="addMktCanal()"><i class="ti ti-plus"></i></button>
-          </div>
-        </div>
-        <div class="form-field"><label class="form-label">Agencia responsable</label>
-          <select class="form-input" id="mktf-agencia"><option value="">— Sin agencia —</option></select>
-        </div>
-        <div class="form-field"><label class="form-label">Responsable interno</label>
-          <select class="form-input" id="mktf-responsable"><option value="">— Sin asignar —</option></select>
-        </div>
-        <div class="form-field"><label class="form-label">Fecha inicio</label><input type="date" class="form-input" id="mktf-inicio"></div>
-        <div class="form-field"><label class="form-label">Fecha fin</label><input type="date" class="form-input" id="mktf-fin"></div>
-        <div class="form-field"><label class="form-label">Presupuesto (MXN)</label><input type="number" class="form-input" id="mktf-presupuesto" placeholder="0"></div>
-        <div class="form-field"><label class="form-label">Costo real</label><input type="number" class="form-input" id="mktf-costo-real" placeholder="0"></div>
-        <!-- KPIs / Métricas de resultado -->
-        <div class="form-field full"><label class="form-label">Métricas objetivo</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-            <div><label style="font-size:11px;color:var(--cp-gray-400)">Impresiones</label><input type="number" class="form-input" id="mktf-imp-obj" placeholder="0" style="margin-top:3px"></div>
-            <div><label style="font-size:11px;color:var(--cp-gray-400)">Leads</label><input type="number" class="form-input" id="mktf-leads-obj" placeholder="0" style="margin-top:3px"></div>
-            <div><label style="font-size:11px;color:var(--cp-gray-400)">Conversiones</label><input type="number" class="form-input" id="mktf-conv-obj" placeholder="0" style="margin-top:3px"></div>
-          </div>
-        </div>
-        <div class="form-field full"><label class="form-label">Métricas reales (al completar)</label>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-            <div><label style="font-size:11px;color:var(--cp-gray-400)">Impresiones reales</label><input type="number" class="form-input" id="mktf-imp-real" placeholder="0" style="margin-top:3px"></div>
-            <div><label style="font-size:11px;color:var(--cp-gray-400)">Leads reales</label><input type="number" class="form-input" id="mktf-leads-real" placeholder="0" style="margin-top:3px"></div>
-            <div><label style="font-size:11px;color:var(--cp-gray-400)">Conversiones reales</label><input type="number" class="form-input" id="mktf-conv-real" placeholder="0" style="margin-top:3px"></div>
-          </div>
-        </div>
-        <!-- Subtareas -->
-        <div class="form-field full"><label class="form-label">Subtareas</label>
-          <div id="mktf-subtasks-list"></div>
-          <div style="display:flex;gap:6px;margin-top:6px">
-            <input type="text" class="form-input" id="mktf-new-sub" placeholder="Agregar subtarea y Enter…" onkeydown="if(event.key==='Enter'){event.preventDefault();addMktSubtask()}" style="flex:1">
-            <select class="form-input" id="mktf-sub-asn" style="width:160px;padding:7px 10px;font-size:12px"><option value="">Sin asignar</option></select>
-            <button class="btn-sm btn-ghost" onclick="addMktSubtask()"><i class="ti ti-plus"></i></button>
-          </div>
-        </div>
-        <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-input" id="mktf-obs" rows="2" placeholder="Notas, restricciones, contexto…"></textarea></div>
-        <div class="form-field full"><label class="form-label">Archivos adjuntos</label>
-          <div class="doc-upload-zone" onclick="document.getElementById('mktf-file').click()" style="padding:12px">
-            <i class="ti ti-paperclip" style="font-size:18px;color:var(--cp-gray-400);margin-bottom:3px;display:block"></i>
-            <span id="mktf-file-label">Adjuntar brief, creativos, reportes…</span>
-            <input type="file" id="mktf-file" multiple style="display:none" onchange="handleMktFileSelect(event)">
-          </div>
-          <div id="mktf-file-list" style="margin-top:6px;display:flex;flex-direction:column;gap:4px"></div>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-sm btn-red" id="mkt-camp-del-btn" onclick="deleteMktCampana()" style="display:none;margin-right:auto"><i class="ti ti-trash"></i> Eliminar</button>
-      <button class="btn-sm btn-ghost" onclick="closeModal('modal-mkt-campana')">Cancelar</button>
-      <button class="btn-sm btn-blue" id="save-mkt-camp-btn" onclick="saveMktCampana()"><i class="ti ti-check"></i> Guardar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MKT AGENCIA MODAL -->
-<div class="modal-overlay" id="modal-mkt-agencia">
-  <div class="modal" style="width:480px">
-    <div class="modal-header"><div class="modal-title" id="mkt-agencia-title">Nueva agencia</div><button class="modal-close" onclick="closeModal('modal-mkt-agencia')"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field full"><label class="form-label">Nombre de la agencia *</label><input class="form-input" id="agf-nombre" placeholder="Ej. Agencia Creativa XYZ"></div>
-        <div class="form-field"><label class="form-label">Contacto principal</label><input class="form-input" id="agf-contacto" placeholder="Nombre del ejecutivo"></div>
-        <div class="form-field"><label class="form-label">Correo</label><input type="email" class="form-input" id="agf-email" placeholder="contacto@agencia.com"></div>
-        <div class="form-field"><label class="form-label">Teléfono</label><input class="form-input" id="agf-tel" placeholder="+52 999 000 0000"></div>
-        <div class="form-field full"><label class="form-label">Especialidad</label>
-          <select class="form-input" id="agf-tipo">
-            <option value="digital">🖥 Marketing Digital</option><option value="creativa">🎨 Creativa / Diseño</option>
-            <option value="pr">📣 PR / Relaciones Públicas</option><option value="media">📺 Compra de Medios</option>
-            <option value="contenido">📝 Contenido</option><option value="integral">🔄 Integral</option><option value="otro">Otra</option>
-          </select>
-        </div>
-        <div class="form-field"><label class="form-label">Tarifa mensual (MXN)</label><input type="number" class="form-input" id="agf-tarifa" placeholder="0"></div>
-        <div class="form-field"><label class="form-label">Estado</label>
-          <select class="form-input" id="agf-status"><option value="activa">✅ Activa</option><option value="pausada">⏸ Pausada</option><option value="ex">❌ Ex-agencia</option></select>
-        </div>
-        <div class="form-field full"><label class="form-label">Notas</label><textarea class="form-input" id="agf-notas" rows="2" placeholder="Observaciones, fortalezas, restricciones…"></textarea></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-sm btn-red" id="ag-del-btn" onclick="deleteMktAgencia()" style="display:none;margin-right:auto"><i class="ti ti-trash"></i> Eliminar</button>
-      <button class="btn-sm btn-ghost" onclick="closeModal('modal-mkt-agencia')">Cancelar</button>
-      <button class="btn-sm btn-blue" id="save-ag-btn" onclick="saveAgencia()"><i class="ti ti-check"></i> Guardar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MKT PROYECTO MODAL -->
-<div class="modal-overlay" id="modal-mkt-proyecto">
-  <div class="modal" style="width:560px;max-height:90vh;overflow-y:auto">
-    <div class="modal-header"><div class="modal-title" id="mkt-proy-title">Nuevo proyecto</div><button class="modal-close" onclick="closeModal('modal-mkt-proyecto')"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field full"><label class="form-label">Nombre del proyecto *</label><input class="form-input" id="mktpf-nombre" placeholder="Ej. Rediseño de marca Q4"></div>
-        <div class="form-field full"><label class="form-label">Descripción</label><textarea class="form-input" id="mktpf-desc" rows="2" placeholder="Alcance y objetivo del proyecto…"></textarea></div>
-        <div class="form-field"><label class="form-label">Tipo</label>
-          <select class="form-input" id="mktpf-tipo">
-            <option value="proyecto">📦 Proyecto</option>
-            <option value="pendiente">📌 Pendiente</option>
-          </select>
-        </div>
-        <div class="form-field"><label class="form-label">Estado</label>
-          <select class="form-input" id="mktpf-stage">
-            <option value="planificacion">📋 Planificación</option><option value="activo">⚙️ Activo</option>
-            <option value="revision">🔍 En revisión</option><option value="completado">✅ Completado</option><option value="pausado">⏸ Pausado</option>
-          </select>
-        </div>
-        <div class="form-field"><label class="form-label">Agencia</label><select class="form-input" id="mktpf-agencia"><option value="">— Sin agencia —</option></select></div>
-        <div class="form-field"><label class="form-label">Responsable</label><select class="form-input" id="mktpf-resp"><option value="">— Sin asignar —</option></select></div>
-        <div class="form-field"><label class="form-label">Presupuesto (MXN)</label><input type="number" class="form-input" id="mktpf-presupuesto" placeholder="0"></div>
-        <div class="form-field"><label class="form-label">Fecha inicio</label><input type="date" class="form-input" id="mktpf-inicio"></div>
-        <div class="form-field"><label class="form-label">Fecha entrega</label><input type="date" class="form-input" id="mktpf-fin"></div>
-        <div class="form-field full"><label class="form-label">Subtareas</label>
-          <div id="mktpf-subtasks-list"></div>
-          <div style="display:flex;gap:6px;margin-top:6px">
-            <input type="text" class="form-input" id="mktpf-new-sub" placeholder="Agregar subtarea y Enter…" onkeydown="if(event.key==='Enter'){event.preventDefault();addMktProySub()}" style="flex:2;min-width:160px">
-            <input type="text" class="form-input" id="mktpf-sub-free" placeholder="Asignar a… (libre o colab)" style="flex:1;min-width:120px;padding:7px 10px;font-size:12px">
-            <button class="btn-sm btn-ghost" onclick="addMktProySub()"><i class="ti ti-plus"></i></button>
-          </div>
-        </div>
-        <div class="form-field full"><label class="form-label">Archivos</label>
-          <div class="doc-upload-zone" onclick="document.getElementById('mktpf-file').click()" style="padding:12px">
-            <i class="ti ti-paperclip" style="font-size:18px;color:var(--cp-gray-400);margin-bottom:3px;display:block"></i>
-            <span id="mktpf-file-label">Adjuntar archivos del proyecto…</span>
-            <input type="file" id="mktpf-file" multiple style="display:none" onchange="handleMktProyFileSelect(event)">
-          </div>
-          <div id="mktpf-file-list" style="margin-top:6px"></div>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-sm btn-red" id="mktproy-del-btn" onclick="deleteMktProyecto()" style="display:none;margin-right:auto"><i class="ti ti-trash"></i> Eliminar</button>
-      <button class="btn-sm btn-ghost" onclick="closeModal('modal-mkt-proyecto')">Cancelar</button>
-      <button class="btn-sm btn-blue" id="save-mktproy-btn" onclick="saveMktProyecto()"><i class="ti ti-check"></i> Guardar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MKT DOC MODAL -->
-<div class="modal-overlay" id="modal-mkt-doc">
-  <div class="modal" style="width:420px">
-    <div class="modal-header"><div class="modal-title">Subir al repositorio</div><button class="modal-close" onclick="closeModal('modal-mkt-doc')"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field full"><label class="form-label">Nombre / Descripción</label><input class="form-input" id="mktdocf-nombre" placeholder="Ej. Brandbook 2025"></div>
-        <div class="form-field"><label class="form-label">Categoría</label>
-          <select class="form-input" id="mktdocf-cat">
-            <option>Brandbook</option><option>Creativos</option><option>Brief</option><option>Reporte</option>
-            <option>Propuesta</option><option>Contrato</option><option>Factura</option><option>Otro</option>
-          </select>
-        </div>
-        <div class="form-field"><label class="form-label">Versión</label><input class="form-input" id="mktdocf-ver" placeholder="v1.0"></div>
-        <div class="form-field full">
-          <div class="doc-upload-zone" onclick="document.getElementById('mktdocf-file').click()" style="padding:14px">
-            <i class="ti ti-cloud-upload" style="font-size:22px;color:var(--cp-gray-400);margin-bottom:4px;display:block"></i>
-            <span id="mktdocf-label">Arrastra o haz clic para subir</span>
-            <input type="file" id="mktdocf-file" style="display:none" onchange="handleMktDocSelect(event)">
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-sm btn-ghost" onclick="closeModal('modal-mkt-doc')">Cancelar</button>
-      <button class="btn-sm btn-blue" id="save-mktdoc-btn" onclick="saveMktDoc()"><i class="ti ti-paperclip"></i> Subir</button>
     </div>
   </div>
 </div>
@@ -5543,17 +5246,6 @@ async function _loadModuleDataInner(moduleId) {
         devData = devsRaw.map(r=>({id:r.id,titulo:r.titulo,desc:r.descripcion,obs:r.observaciones,stage:r.stage,prio:r.prio,aspect:r.aspect,app:r.app,cpComplexity:r.cp_complexity,nlDifficulty:r.nl_difficulty,fechaSolicitud:r.fecha_solicitud,fechaInicio:r.fecha_inicio,fechaTesting:r.fecha_testing,fechaProductivo:r.fecha_productivo,horasEst:r.horas_est,horasReal:r.horas_real,tarifa:r.tarifa,costo:r.costo,clienteId:r.cliente_id,respNelumbo:r.resp_nelumbo||[],respCP:r.resp_cp||[],subtasks:r.subtasks||[],files:r.files||[],versions:r.versions||[],createdAt:r.created_at}));
         break;
       }
-      case 'marketing': {
-        const [mktCampRaw, mktAgRaw, mktProyRaw, mktDocRaw] = await Promise.all([
-          sbGetAll('mkt_campanas'), sbGetAll('mkt_agencias'),
-          sbGetAll('mkt_proyectos'), sbGetAll('mkt_docs')
-        ]);
-        mktData = mktCampRaw.map(r=>({id:r.id,nombre:r.nombre,objetivo:r.objetivo,obs:r.observaciones,stage:r.stage,prio:r.prio,canales:r.canales||[],agenciaId:r.agencia_id,responsableId:r.responsable_id,fechaInicio:r.fecha_inicio,fechaFin:r.fecha_fin,presupuesto:r.presupuesto,costoReal:r.costo_real,impObj:r.imp_obj,leadsObj:r.leads_obj,convObj:r.conv_obj,impReal:r.imp_real,leadsReal:r.leads_real,convReal:r.conv_real,subtasks:r.subtasks||[],files:r.files||[],createdAt:r.created_at}));
-        agData = mktAgRaw.map(r=>({id:r.id,nombre:r.nombre,contacto:r.contacto,email:r.email,tel:r.tel,notas:r.notas,tarifa:r.tarifa,tipo:r.tipo,status:r.status}));
-        mktProyData = mktProyRaw.map(r=>({id:r.id,tipo:r.tipo,nombre:r.nombre,desc:r.descripcion,stage:r.stage,agenciaId:r.agencia_id,respId:r.resp_id,fechaInicio:r.fecha_inicio,fechaFin:r.fecha_fin,presupuesto:r.presupuesto,subtasks:r.subtasks||[],files:r.files||[]}));
-        mktDocData = mktDocRaw.map(r=>({id:r.id,nombre:r.nombre,categoria:r.categoria,version:r.version,docBase64:r.doc_base64,docNombre:r.doc_nombre,fecha:r.fecha}));
-        break;
-      }
       case 'repositorio': {
         const [repoRaw, carpRaw] = await Promise.all([sbGetAll('repositorio'), sbGetAll('repo_carpetas')]);
         repoData = repoRaw.map(r=>({id:r.id,nombre:r.nombre,tipo:r.tipo,url:r.url,desc:r.descripcion,clienteId:r.cliente_id,tags:r.tags||[],fecha:r.fecha,subidoPor:r.subido_por,size:r.size,carpetaId:r.carpeta_id||null}));
@@ -5868,12 +5560,6 @@ async function nav(view){
     await loadModuleData('soporte');
     renderSoporte();
   }
-  if(view==='marketing'){
-    document.getElementById('page-title').textContent='Marketing';
-    if(!_moduleLoaded['marketing'])mktShowSkeletons();
-    await loadModuleData('marketing');
-    renderMarketing();
-  }
   if(view==='diseno'){if(!_moduleLoaded['diseno'])disenoShowSkeletons(); await loadModuleData('diseno'); switchDisenoTab(disenoActiveTab); document.getElementById('page-title').textContent='Diseño';}
   if(view==='direccion'){await loadModuleData('direccion'); switchDireccionTab(direccionActiveTab); document.getElementById('page-title').textContent='Dirección';}
   if(view==='gestion-proyectos'){
@@ -6177,7 +5863,6 @@ function renderDashSectionCalendario(el){
         '<button class="dev-filter-chip" onclick="ucalFilter(\'vacaciones\',this)"><i class="ti ti-beach" style="font-size:10px"></i> Vacaciones</button>'+
         '<button class="dev-filter-chip" onclick="ucalFilter(\'desarrollos\',this)"><i class="ti ti-code" style="font-size:10px"></i> Desarrollos</button>'+
         '<button class="dev-filter-chip" onclick="ucalFilter(\'facturas\',this)"><i class="ti ti-file-invoice" style="font-size:10px"></i> Facturas</button>'+
-        '<button class="dev-filter-chip" onclick="ucalFilter(\'marketing\',this)"><i class="ti ti-speakerphone" style="font-size:10px"></i> Marketing</button>'+
         '<button class="dev-filter-chip" onclick="ucalFilter(\'gp\',this)"><i class="ti ti-checklist" style="font-size:10px"></i> Gestión de Proyectos (mis tareas)</button>'+
       '</div>'+
       '<div id="ucal-weekdays" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px">'+
@@ -6185,7 +5870,7 @@ function renderDashSectionCalendario(el){
       '</div>'+
       '<div id="ucal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px"></div>'+
       '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:10px;color:var(--cp-gray-500)">'+
-        [['#7B2FF7','Kanban'],['#3B6BF5','Seguimientos'],['#10C080','Vacaciones'],['#F59E0B','Desarrollos'],['#EF4444','Facturas venc.'],['#EC4899','Marketing'],['#06B6D4','Gestión de Proyectos (mis tareas)']].map(([c,l])=>
+        [['#7B2FF7','Kanban'],['#3B6BF5','Seguimientos'],['#10C080','Vacaciones'],['#F59E0B','Desarrollos'],['#EF4444','Facturas venc.'],['#06B6D4','Gestión de Proyectos (mis tareas)']].map(([c,l])=>
           '<span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:'+c+';flex-shrink:0"></span>'+l+'</span>'
         ).join('')+
       '</div>'+
@@ -6196,12 +5881,12 @@ function renderDashSectionCalendario(el){
     '</div>';
   renderBdayCal();
   renderUnifiedCalendar();
-  // Kanban/Desarrollos/Marketing/Gestión de Proyectos events are lazily loaded —
+  // Kanban/Desarrollos/Gestión de Proyectos events are lazily loaded —
   // hydrate the calendar with those event dots once they arrive (progressive
   // enhancement, doesn't block the initial paint of seguimientos/vacaciones/facturas).
   // GP needs gpTareas loaded before getMisPendientesSync() can read it.
-  if(!_moduleLoaded['kanban']||!_moduleLoaded['desarrollos']||!_moduleLoaded['marketing']||!_moduleLoaded['gestion-proyectos']){
-    Promise.all([loadModuleData('kanban'),loadModuleData('desarrollos'),loadModuleData('marketing'),loadModuleData('gestion-proyectos')])
+  if(!_moduleLoaded['kanban']||!_moduleLoaded['desarrollos']||!_moduleLoaded['gestion-proyectos']){
+    Promise.all([loadModuleData('kanban'),loadModuleData('desarrollos'),loadModuleData('gestion-proyectos')])
       .then(()=>{ if(document.getElementById('ucal-grid')) renderUnifiedCalendar(); });
   }
 }
@@ -7414,12 +7099,12 @@ async function removeVacDoc(vacId, empId) {
 // ═══════════════════════════════
 
 // ── Supabase Auth ─────────────────────────────────
-const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','marketing','clientes','proveedores','prospectos','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
+const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
 const ROLE_DEFAULTS={
   admin:MODULES_ALL,
   // Legacy roles — kept only so old profiles that haven't been re-saved yet still
   // normalize to something sensible. New profiles use 'usuario' (see Step 6/7).
-  editor:['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','marketing','clientes','crm','desarrollos','repositorio','soporte','ai-chat','okrs','gestion-proyectos'],
+  editor:['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','crm','desarrollos','repositorio','soporte','ai-chat','okrs','gestion-proyectos'],
   viewer:['dashboard','empleados','vacaciones','permisos','documentos','organigrama'],
   usuario:['diseno','gestion-proyectos'], // new users start with every module oculto except Diseño y Gestión de Proyectos (editor by default)
 };
@@ -12607,88 +12292,6 @@ function exportDesarrollosExcel(){
 
 
 
-// ── PROYECTO FILTER ──────────────────────────────
-let proyFilter = 'todos';
-function setProyFilter(f, btn){
-  proyFilter = f;
-  document.querySelectorAll('[id^="proy-f-"]').forEach(b=>b.classList.remove('active'));
-  if(btn) btn.classList.add('active');
-  renderMarketing(); // single render point — keeps the KPI strip in sync with the list
-}
-
-// ── EXPORT PROYECTOS REPORT ───────────────────────
-async function cerrarProyecto(id){
-  const p=mktProyData.find(x=>x.id===id);if(!p)return;
-  if(!confirm('¿Cerrar este proyecto? Se moverá al histórico.'))return;
-  p.stage='cerrado';
-  p.fechaCierre=new Date().toISOString().slice(0,10);
-  await proySaveSB(p);
-  renderMarketing();renderMktProyHistorico();
-  toast('Proyecto cerrado y movido al histórico.','info');
-}
-function renderMktProyHistorico(){
-  const el=document.getElementById('mkt-proy-historico');if(!el)return;
-  const cerrados=mktProyData.filter(p=>p.stage==='cerrado');
-  const badge=document.getElementById('mkt-proy-hist-badge');
-  if(badge)badge.textContent=cerrados.length;
-  if(!cerrados.length){el.innerHTML='<div class="empty-state"><i class="ti ti-history"></i><p>Sin proyectos cerrados.</p></div>';return;}
-  const stColors={planificacion:'#6D28D9',activo:'#1D4ED8',revision:'#92400E',completado:'#065F46',cerrado:'#6B7280',pausado:'#374151'};
-  el.innerHTML=cerrados.sort((a,b)=>((b.fechaCierre||b.fechaFin||'')).localeCompare((a.fechaCierre||a.fechaFin||''))).map(p=>{
-    return '<div class="mkt-card" style="opacity:.85">'+
-      '<div class="mkt-card-header" onclick="toggleMktCard(\'mktph-body-'+p.id+'\',\'mktph-chev-'+p.id+'\')">'+
-        '<div style="flex:1">'+
-          '<div style="font-weight:700;font-size:14px;color:var(--cp-navy)">'+escHtml(p.nombre)+'</div>'+
-          '<div style="font-size:11px;color:var(--cp-gray-400);margin-top:2px">'+(p.fechaCierre?'Cerrado: '+fmtDateShort(p.fechaCierre):'')+(p.fechaFin?' · Entrega original: '+fmtDate(p.fechaFin):'')+'</div>'+
-        '</div>'+
-        '<i class="ti ti-chevron-down" id="mktph-chev-'+p.id+'" style="font-size:16px;color:var(--cp-gray-300);transition:transform .2s;align-self:center"></i>'+
-      '</div>'+
-      '<div class="mkt-card-body" id="mktph-body-'+p.id+'">'+renderMktProyDetail(p)+'</div>'+
-    '</div>';
-  }).join('');
-}
-function toggleMktProyHistorico(){
-  const el=document.getElementById('mkt-proy-historico');if(!el)return;
-  const isOpen=el.style.display!=='none';
-  el.style.display=isOpen?'none':'block';
-  if(!isOpen)renderMktProyHistorico();
-}
-
-function completarProyecto(id){
-  const p=mktProyData.find(x=>x.id===id);if(!p)return;
-  p.stage='completado';proySaveSB(p);
-  // Show in completados
-  proyFilter='completado';
-  document.querySelectorAll('[id^="proy-f-"]').forEach(b=>b.classList.remove('active'));
-  const btn=document.getElementById('proy-f-completado');if(btn)btn.classList.add('active');
-  renderMarketing(); // single render point — keeps the KPI strip in sync with the list
-  toast('Proyecto completado ✅');
-}
-
-function exportProyReport(){
-  const items = proyFilter==='completado'
-    ? mktProyData.filter(p=>p.stage==='completado')
-    : proyFilter==='pendiente'
-    ? mktProyData.filter(p=>p.tipo==='pendiente')
-    : proyFilter==='proyecto'
-    ? mktProyData.filter(p=>p.tipo!=='pendiente')
-    : mktProyData;
-  if(!items.length){toast('Sin datos para exportar.','info');return;}
-  const headers=['Tipo','Nombre','Estado','Agencia','Responsable','Inicio','Entrega','Presupuesto','Subtareas Total','Subtareas Done'];
-  const rows=items.map(p=>{
-    const ag=agData.find(a=>a.id===p.agenciaId);
-    const emp=state.employees.find(e=>e.id===p.respId);
-    return [p.tipo||'proyecto',p.nombre,p.stage,ag?ag.nombre:'',emp?emp.nombre+' '+emp.apellidos:'',
-      p.fechaInicio||'',p.fechaFin||'',p.presupuesto||0,
-      (p.subtasks||[]).length,(p.subtasks||[]).filter(s=>s.done).length];
-  });
-  const csv=[headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;
-  a.download='Proyectos_Marketing_'+new Date().toISOString().split('T')[0]+'.csv';
-  a.click();URL.revokeObjectURL(url);toast('Reporte exportado ✓');
-}
-
 // ═══════════════════════════════════════════════
 // UNIFIED CALENDAR
 // ═══════════════════════════════════════════════
@@ -12700,7 +12303,7 @@ const UCAL_LIST_WINDOW_DAYS = 60; // Lista view shows today .. +60 days
 
 const UCAL_COLORS = {
   kanban: '#7B2FF7', seguimientos: '#3B6BF5', vacaciones: '#10C080',
-  desarrollos: '#F59E0B', facturas: '#EF4444', marketing: '#EC4899', gp: '#06B6D4'
+  desarrollos: '#F59E0B', facturas: '#EF4444', gp: '#06B6D4'
 };
 
 function ucalNav(dir) {
@@ -12782,18 +12385,6 @@ function getAllCalendarEvents() {
         const prod = prodData.find(p=>p.id===fac.productoId);
         addEvent(fac.vencimiento, '💵 '+c.nombre.slice(0,15)+(prod?' · '+prod.nombre:''), 'facturas', UCAL_COLORS.facturas, ()=>{nav('clientes');setTimeout(()=>openClienteDetail(c.id),300);});
       });
-    });
-  }
-
-  // MARKETING campañas + proyectos
-  if(f==='all'||f==='marketing') {
-    mktData.filter(c=>!['completada'].includes(c.stage)).forEach(c=>{
-      const goToMkt=()=>nav('marketing');
-      if(c.fechaInicio) addEvent(c.fechaInicio, '▶ '+c.nombre.slice(0,18), 'marketing', UCAL_COLORS.marketing, goToMkt);
-      if(c.fechaFin) addEvent(c.fechaFin, '🏁 '+c.nombre.slice(0,18), 'marketing', UCAL_COLORS.marketing, goToMkt);
-    });
-    mktProyData.filter(p=>!['completado'].includes(p.stage)).forEach(p=>{
-      if(p.fechaFin) addEvent(p.fechaFin, '📦 '+p.nombre.slice(0,18), 'marketing', UCAL_COLORS.marketing, ()=>{nav('marketing');setTimeout(()=>switchMktTab('proyectos'),300);});
     });
   }
 
@@ -12967,20 +12558,6 @@ function openDayDetail(dateStr) {
     });
   });
 
-  // Marketing campañas
-  mktData.filter(c=>!['completada'].includes(c.stage)).forEach(c=>{
-    if(c.fechaInicio===dateStr) events.push({icon:'ti-speakerphone',color:'#EC4899',tipo:'Campaña',title:'▶ Inicio: '+c.nombre,sub:'',action:()=>{closeModal('modal-day-detail');nav('marketing');}});
-    if(c.fechaFin===dateStr) events.push({icon:'ti-speakerphone',color:'#EC4899',tipo:'Campaña',title:'🏁 Fin: '+c.nombre,sub:'',action:()=>{closeModal('modal-day-detail');nav('marketing');}});
-  });
-
-  // Marketing proyectos
-  mktProyData.filter(p=>!['completado'].includes(p.stage)).forEach(p=>{
-    if(p.fechaFin===dateStr){
-      const tipo=p.tipo==='pendiente'?'📌 Pendiente':'📦 Proyecto';
-      events.push({icon:'ti-briefcase',color:'#EC4899',tipo:tipo,title:p.nombre,sub:'Entrega',action:()=>{closeModal('modal-day-detail');nav('marketing');setTimeout(()=>switchMktTab('proyectos'),300);}});
-    }
-  });
-
   // Gestión de Proyectos — solo MIS tareas (mismo helper privacy-filtrado que
   // getAllCalendarEvents usa arriba, nunca gp_tareas completo).
   getMisPendientesSync().filter(i=>i.origen==='gp').forEach(item=>{
@@ -13026,7 +12603,6 @@ const AI_MODULES_DEFAULT = [
   {id:'kanban',    label:'Kanban',          icon:'ti-layout-kanban',  on:true,  detail:'detallado'},
   {id:'desarrollos',label:'Desarrollos',   icon:'ti-code',           on:true,  detail:'resumen'},
   {id:'clientes',  label:'Clientes',        icon:'ti-building-store', on:true,  detail:'detallado'},
-  {id:'marketing', label:'Marketing',       icon:'ti-speakerphone',   on:true,  detail:'resumen'},
   {id:'soporte',   label:'Soporte Técnico', icon:'ti-headset',        on:true,  detail:'detallado'},
   {id:'rrhh',      label:'Vacaciones/1:1',  icon:'ti-calendar',       on:true,  detail:'resumen'},
   {id:'organigrama',label:'Organigrama',    icon:'ti-sitemap',        on:false, detail:'resumen'},
@@ -13260,13 +12836,6 @@ function buildAppContextConfigured(){
     }
   }
 
-  // MARKETING
-  if(isOn('marketing')){
-    const camps=mktData.filter(c=>c.stage==='activa');
-    ctx += `=== MARKETING — ${camps.length} campañas activas ===\n`;
-    ctx += camps.slice(0,5).map(c=>`• ${c.nombre}${c.fechaFin?' · fin '+c.fechaFin:''}`).join('\n')+'\n\n';
-  }
-
   // RRHH
   if(isOn('rrhh')){
     const vacs=state.employees.flatMap(e=>(e.vacaciones||[]).filter(v=>v.estado==='programado').map(v=>`${e.nombre}: ${v.start} a ${v.end}`));
@@ -13420,7 +12989,6 @@ function buildAppContextNonAdmin(){
   const activosEmp=state.employees.filter(e=>e.estado==='activo').length;
   const kbActivos=kbData.cards.filter(c=>!c.done).length;
   const devActivos=devData.filter(d=>!['cerrado'].includes(d.stage)).length;
-  const campActivas=mktData.filter(c=>c.stage==='activa').length;
   const spActivos=spData.filter(s=>!s.cerrado).length;
   const spCriticos=spData.filter(s=>!s.cerrado&&s.prio==='critica').length;
   const okrActivos=okrData.filter(o=>o.estado==='activo').length;
@@ -13430,7 +12998,6 @@ function buildAppContextNonAdmin(){
 Equipo activo: ${activosEmp}
 Kanban: ${kbActivos} tareas activas
 Desarrollos: ${devActivos} activos
-Marketing: ${campActivas} campañas activas
 Soporte técnico: ${spActivos} tickets activos (${spCriticos} críticos)
 OKRs: ${okrActivos} activos
 
@@ -13461,7 +13028,6 @@ async function buildAppContext(){
   });
   const activeDevs = devData.filter(d=>!['cerrado'].includes(d.stage)).map(d=>`${d.titulo} [${d.stage}]${d.fechaProductivo?` · entrega ${d.fechaProductivo}`:''}`);
   const overdueDevs = devData.filter(d=>d.fechaProductivo&&!['productivo','cerrado'].includes(d.stage)&&new Date(d.fechaProductivo+'T12:00:00')<hoy).map(d=>d.titulo);
-  const activeCamps = mktData.filter(c=>c.stage==='activa').map(c=>`${c.nombre}${c.fechaFin?` · fin ${c.fechaFin}`:''}`);
   const disenoActivos = disenoProyectos.filter(p=>p.estado!=='entregado'&&p.estado!=='cancelado');
   const disenoWeek = new Date(hoy); disenoWeek.setDate(disenoWeek.getDate()+7);
   const disenoPendSemana = disenoTareas.filter(t=>t.estado!=='completada'&&t.fechaEntrega&&new Date(t.fechaEntrega+'T12:00:00')<=disenoWeek);
@@ -13550,10 +13116,6 @@ VENCIDOS: ${overdueDevs.length>0?overdueDevs.join(', '):'Ninguno'}
 === CLIENTES — ${cliData.filter(c=>c.status==='activo').length} activos ===
 FACTURAS PENDIENTES (${pendFact.length}):
 ${pendFact.slice(0,8).join('\n')}
-
-=== MARKETING ===
-CAMPAÑAS ACTIVAS (${activeCamps.length}): ${activeCamps.join(' | ')}
-PROYECTOS: ${mktProyData.filter(p=>p.stage==='activo').length} activos, ${mktProyData.filter(p=>p.stage==='completado').length} completados
 
 === PRÓXIMOS EVENTOS ===
 VACACIONES PROGRAMADAS: ${vacs.slice(0,5).join(' | ')||'Ninguna'}
@@ -14569,16 +14131,6 @@ function getAllNotifications() {
     });
   }
 
-  // MARKETING proyectos próximos a vencer
-  if(canSee('marketing')){
-    mktProyData.filter(p=>p.fechaFin&&!['completado','cerrado'].includes(p.stage)).forEach(p=>{
-      const date=new Date(p.fechaFin+'T12:00:00');
-      if(date<hoy) addN('overdue','ti-briefcase','Proyecto: '+p.nombre.slice(0,25),'Marketing · '+fmtDate(p.fechaFin),'marketing');
-      else if(date.getTime()===hoy.getTime()) addN('today','ti-briefcase','Proyecto: '+p.nombre.slice(0,25),'Marketing · HOY','marketing');
-      else if(date<=week) addN('week','ti-briefcase','Proyecto: '+p.nombre.slice(0,25),'Marketing · '+fmtDate(p.fechaFin),'marketing');
-    });
-  }
-
   // CUMPLEAÑOS — visible a todo el que pueda ver Colaboradores
   if(canSee('empleados') && prefOn('cumpleanos')){
     state.employees.filter(e=>e.estado==='activo'&&e.bday).forEach(emp=>{
@@ -14758,7 +14310,6 @@ KANBAN: ${kbData.cards.filter(c=>!c.done).length} tareas activas, ${overdueKb.le
 TAREAS VENCIDAS POR PERSONA: ${JSON.stringify(byPerson)}
 DESARROLLOS EN CURSO: ${devData.filter(d=>d.stage==='desarrollo').length}, ${overdueDevs.length} con fecha vencida.
 FACTURAS PENDIENTES: ${pendFact} facturas sin cobrar.
-CAMPAÑAS MARKETING ACTIVAS: ${mktLoad().filter(c=>c.stage==='activa').length}.
 
 Responde con 3-4 bullets cortos y accionables. No más de 100 palabras total.`;
 
@@ -16669,7 +16220,6 @@ async function exportBackup() {
     'empleados','vacaciones','solicitudes','documentos','seguimientos','seg_tareas',
     'kb_boards','kb_cards','clientes','productos','desarrollos',
     'org_nodes','org_depts','cargos',
-    'mkt_campanas','mkt_agencias','mkt_proyectos','mkt_docs',
     'repositorio','sp_tickets','sp_config','user_profiles'
   ];
   const backup = { generado: new Date().toISOString(), version: 'checkplus-v1', tablas: {} };
@@ -17838,89 +17388,6 @@ async function cargoSaveSB(cargo) {
 }
 async function cargoDeleteSB(id) { return sbDelete('cargos', id); }
 
-// ── MARKETING ─────────────────────────────────────
-async function mktLoadFromSB() {
-  const rows = await sbGetAll('mkt_campanas');
-  return rows.map(r => ({
-    id: r.id, nombre: r.nombre, objetivo: r.objetivo, obs: r.obs,
-    stage: r.stage, prio: r.prio, canales: r.canales || [],
-    agenciaId: r.agencia_id, responsableId: r.responsable_id,
-    fechaInicio: r.fecha_inicio, fechaFin: r.fecha_fin,
-    presupuesto: r.presupuesto, costoReal: r.costo_real,
-    impObj: r.imp_obj, leadsObj: r.leads_obj, convObj: r.conv_obj,
-    impReal: r.imp_real, leadsReal: r.leads_real, convReal: r.conv_real,
-    subtasks: r.subtasks || [], files: r.files || [],
-    createdAt: r.created_at
-  }));
-}
-async function mktSaveSB(camp) {
-  return sbUpsert('mkt_campanas', {
-    id: camp.id, nombre: camp.nombre, objetivo: camp.objetivo || null,
-    observaciones: camp.obs || null, stage: camp.stage, prio: camp.prio,
-    canales: camp.canales || [], agencia_id: camp.agenciaId || null,
-    responsable_id: camp.responsableId || null,
-    fecha_inicio: camp.fechaInicio || null, fecha_fin: camp.fechaFin || null,
-    presupuesto: camp.presupuesto || null, costo_real: camp.costoReal || null,
-    imp_obj: camp.impObj || null, leads_obj: camp.leadsObj || null,
-    conv_obj: camp.convObj || null, imp_real: camp.impReal || null,
-    leads_real: camp.leadsReal || null, conv_real: camp.convReal || null,
-    subtasks: camp.subtasks || [], files: camp.files || []
-  });
-}
-async function mktDeleteSB(id) { return sbDelete('mkt_campanas', id); }
-
-async function agLoadFromSB() {
-  const rows = await sbGetAll('mkt_agencias');
-  return rows.map(r => ({
-    id: r.id, nombre: r.nombre, contacto: r.contacto, email: r.email,
-    tel: r.tel, notas: r.notas, tarifa: r.tarifa, tipo: r.tipo, status: r.status
-  }));
-}
-async function agSaveSB(ag) {
-  return sbUpsert('mkt_agencias', {
-    id: ag.id, nombre: ag.nombre, contacto: ag.contacto || null,
-    email: ag.email || null, tel: ag.tel || null, notas: ag.notas || null,
-    tarifa: ag.tarifa || null, tipo: ag.tipo, status: ag.status
-  });
-}
-async function agDeleteSB(id) { return sbDelete('mkt_agencias', id); }
-
-async function proyLoadFromSB() {
-  const rows = await sbGetAll('mkt_proyectos');
-  return rows.map(r => ({
-    id: r.id, tipo: r.tipo, nombre: r.nombre, desc: r.desc,
-    stage: r.stage, agenciaId: r.agencia_id, respId: r.resp_id,
-    fechaInicio: r.fecha_inicio, fechaFin: r.fecha_fin,
-    presupuesto: r.presupuesto, subtasks: r.subtasks || [], files: r.files || []
-  }));
-}
-async function proySaveSB(p) {
-  return sbUpsert('mkt_proyectos', {
-    id: p.id, tipo: p.tipo || 'proyecto', nombre: p.nombre, descripcion: p.desc || null,
-    stage: p.stage, agencia_id: p.agenciaId || null, resp_id: p.respId || null,
-    fecha_inicio: p.fechaInicio || null, fecha_fin: p.fechaFin || null,
-    presupuesto: p.presupuesto || null, subtasks: p.subtasks || [], files: p.files || []
-  });
-}
-async function proyDeleteSB(id) { return sbDelete('mkt_proyectos', id); }
-
-async function mktDocLoadFromSB() {
-  const rows = await sbGetAll('mkt_docs');
-  return rows.map(r => ({
-    id: r.id, nombre: r.nombre, categoria: r.categoria,
-    version: r.version, docBase64: r.doc_base64,
-    docNombre: r.doc_nombre, fecha: r.fecha
-  }));
-}
-async function mktDocSaveSB(doc) {
-  return sbUpsert('mkt_docs', {
-    id: doc.id, nombre: doc.nombre, categoria: doc.categoria,
-    version: doc.version, doc_base64: doc.docBase64 || null,
-    doc_nombre: doc.docNombre || null, fecha: doc.fecha || null
-  });
-}
-async function mktDocDeleteSB(id) { return sbDelete('mkt_docs', id); }
-
 // ═══════════════════════════════════════════════
 // MIGRATION: localStorage → Supabase (one-time)
 // ═══════════════════════════════════════════════
@@ -17999,37 +17466,6 @@ async function migrateLocalToSupabase() {
     } catch(e){ console.error('Cargos migration failed:', e); }
   }
 
-  // Marketing
-  const mktRaw = localStorage.getItem('cp_mkt_v1');
-  if(mktRaw) {
-    try {
-      const camps = JSON.parse(mktRaw);
-      for(const c of camps) await mktSaveSB(c);
-      migrated++;
-    } catch(e){ console.error('MKT migration failed:', e); }
-  }
-  const agRaw = localStorage.getItem('cp_mkt_agencias_v1');
-  if(agRaw) {
-    try {
-      const ags = JSON.parse(agRaw);
-      for(const a of ags) await agSaveSB(a);
-    } catch(e){ console.error('Agencias migration failed:', e); }
-  }
-  const proyRaw = localStorage.getItem('cp_mkt_proyectos_v1');
-  if(proyRaw) {
-    try {
-      const proyects = JSON.parse(proyRaw);
-      for(const p of proyects) await proySaveSB(p);
-    } catch(e){ console.error('Proyectos migration failed:', e); }
-  }
-  const docRaw = localStorage.getItem('cp_mkt_docs_v1');
-  if(docRaw) {
-    try {
-      const docs = JSON.parse(docRaw);
-      for(const d of docs) await mktDocSaveSB(d);
-    } catch(e){ console.error('Docs migration failed:', e); }
-  }
-
   // Repositorio
   const repoRawMig = localStorage.getItem('cp_repo_v1');
   if(repoRawMig){
@@ -18078,7 +17514,6 @@ const ALL_MODULES = [
   {id:'permisos',label:'Permisos y solicitudes',icon:'ti-clipboard-list',badge:null},
   {id:'documentos',label:'Documentos',icon:'ti-files',badge:null},
   {id:'organigrama',label:'Organigrama',icon:'ti-hierarchy',badge:null},
-  {id:'marketing',label:'Marketing',icon:'ti-speakerphone',badge:'mkt-badge'},
   {id:'clientes',label:'Clientes',icon:'ti-building-store',badge:'clientes-count'},
   {id:'proveedores',label:'Proveedores',icon:'ti-truck',badge:null},
   {id:'prospectos',label:'Prospectos',icon:'ti-user-search',badge:null},
@@ -18098,7 +17533,7 @@ const ALL_MODULES = [
 function navConfigDefaults(){
   return [
     {id:'g1',label:'Principal',items:['dashboard','mis-pendientes','kanban','empleados']},
-    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','marketing','clientes','proveedores','prospectos','crm','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
+    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','crm','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
     {id:'g4',label:'Sistema',items:['configuracion','ai-chat']},
   ];
 }
@@ -18370,8 +17805,6 @@ function updateAllBadges(){
   setBadgeCount('emp-count',state.employees.filter(e=>e.estado==='activo').length);
   // clientes
   setBadgeCount('clientes-count',cliData.filter(c=>c.status==='activo').length);
-  // marketing
-  setBadgeCount('mkt-badge',mktLoad().filter(c=>c.stage==='activa').length);
   // desarrollos
   setBadgeCount('dev-count',devLoad().filter(d=>!['cerrado'].includes(d.stage)).length);
   // diseno — tareas pendientes asignadas al usuario actual
@@ -18516,641 +17949,8 @@ function removeNavGroup(groupId){
   renderNavConfigEditor();
 }
 
-// ═══════════════════════════════════════════════
-// MARKETING SYSTEM
-// ═══════════════════════════════════════════════
-const MKT_STORAGE='cp_mkt_v1';
-const MKT_AG_STORAGE='cp_mkt_agencias_v1';
-const MKT_PROY_STORAGE='cp_mkt_proyectos_v1';
-const MKT_DOC_STORAGE='cp_mkt_docs_v1';
-
-function mktLoad(){return mktData;}
-function mktSave(d){mktData=d;}
-function agLoad(){return agData;}
-function agSave(d){agData=d;}
-function proyLoad(){return mktProyData;}
-function proySave(d){mktProyData=d;}
-function mktDocLoad(){return mktDocData;}
-function mktDocSave(d){mktDocData=d;}
-
-let mktData=[], agData=[], mktProyData=[], mktDocData=[];
 let evalPlantillas=[], evalPilares=[], evalCriterios=[], evalEvaluaciones=[], evalRespuestas=[];
 let disenoProyectos = [], disenoTareas = [], disenoPublicaciones = [], disenoCalNotas = [];
-let mktCurrentId=null, mktAgCurrentId=null, mktProyCurrentId=null;
-let mktCanales=[], mktSubtasks=[], mktFiles=[];
-let mktProySubs=[], mktProyFiles=[];
-let mktDocFile=null;
-let mktCalYear=new Date().getFullYear(), mktCalMonth=new Date().getMonth(), mktCalFilter='todos';
-function setMktCalFilter(f, btn){
-  mktCalFilter=f;
-  document.querySelectorAll('[id^="mktcal-f-"]').forEach(b=>b.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  renderMktCalendario();
-}
-function mktCalNav(dir){
-  if(dir===0){mktCalYear=new Date().getFullYear();mktCalMonth=new Date().getMonth();}
-  else{mktCalMonth+=dir;if(mktCalMonth>11){mktCalMonth=0;mktCalYear++;}else if(mktCalMonth<0){mktCalMonth=11;mktCalYear--;}}
-  renderMktCalendario();
-}
-function renderMktCalendario(){
-  const el=document.getElementById('mkt-cal-grid');
-  const title=document.getElementById('mkt-cal-title');
-  if(!el)return;
-  const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  if(title)title.textContent=meses[mktCalMonth]+' '+mktCalYear;
-  const firstDay=new Date(mktCalYear,mktCalMonth,1);
-  const lastDay=new Date(mktCalYear,mktCalMonth+1,0);
-  const startDow=(firstDay.getDay()+6)%7; // 0=Mon
-  const today=new Date();today.setHours(0,0,0,0);
-  // Collect items based on filter
-  const items=[];
-  if(mktCalFilter==='todos'||mktCalFilter==='proyecto'){
-    mktProyData.filter(p=>p.tipo!=='pendiente'&&p.stage!=='cerrado').forEach(p=>{
-      if(p.fechaInicio||p.fechaFin)items.push({id:p.id,nombre:p.nombre,tipo:'proyecto',fechaInicio:p.fechaInicio||null,fechaFin:p.fechaFin||null});
-    });
-  }
-  if(mktCalFilter==='pendiente'){
-    mktProyData.filter(p=>p.tipo==='pendiente').forEach(p=>{
-      if(p.fechaInicio||p.fechaFin)items.push({id:p.id,nombre:p.nombre,tipo:'pendiente',fechaInicio:p.fechaInicio||null,fechaFin:p.fechaFin||null});
-    });
-  }
-  const totalCells=Math.ceil((startDow+lastDay.getDate())/7)*7;
-  let html='';
-  for(let cell=0;cell<totalCells;cell++){
-    const dayNum=cell-startDow+1;
-    const isValid=dayNum>=1&&dayNum<=lastDay.getDate();
-    const dayDate=isValid?new Date(mktCalYear,mktCalMonth,dayNum):null;
-    const isToday=dayDate&&dayDate.getTime()===today.getTime();
-    const ds=dayDate?dayDate.toISOString().slice(0,10):null;
-    const dayItems=ds?items.filter(it=>{
-      if(it.fechaInicio===ds||it.fechaFin===ds)return true;
-      if(it.fechaInicio&&it.fechaFin&&ds>=it.fechaInicio&&ds<=it.fechaFin)return true;
-      return false;
-    }):[];
-    const bg=!isValid?'var(--cp-gray-50)':isToday?'var(--cp-blue-light)':'white';
-    html+='<div style="min-height:72px;border:1px solid var(--cp-gray-100);border-radius:var(--radius-sm);padding:4px 5px;background:'+bg+'">'+
-      (isValid?'<div style="font-size:11px;font-weight:'+(isToday?800:600)+';color:'+(isToday?'var(--cp-blue)':'var(--cp-gray-400)')+';margin-bottom:2px">'+dayNum+'</div>':'')+
-      dayItems.slice(0,3).map(it=>{
-        const clr=it.tipo==='pendiente'?'var(--cp-amber)':'var(--cp-blue)';
-        const bgc=it.tipo==='pendiente'?'#FEF3C7':'var(--cp-blue-light)';
-        const fn='openEditMktProyecto(\''+it.id+'\')';
-        return '<div onclick="'+fn+'" title="'+it.nombre+'" style="cursor:pointer;background:'+bgc+';color:'+clr+';font-size:10px;font-weight:600;padding:2px 5px;border-radius:3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+it.nombre.slice(0,18)+(it.nombre.length>18?'…':'')+'</div>';
-      }).join('')+
-      (dayItems.length>3?'<div style="font-size:9px;color:var(--cp-gray-400);text-align:center">+'+(dayItems.length-3)+' más</div>':'')+
-    '</div>';
-  }
-  el.innerHTML=html;
-}
-
-let mktCurrentTab='proyectos';
-
-const MKT_STAGES={
-  idea:{label:'💡 Idea',cls:'mkt-stage-idea'},
-  planificacion:{label:'📋 Planificación',cls:'mkt-stage-planificacion'},
-  produccion:{label:'⚙️ Producción',cls:'mkt-stage-produccion'},
-  activa:{label:'🟢 Activa',cls:'mkt-stage-activa'},
-  pausada:{label:'⏸ Pausada',cls:'mkt-stage-pausada'},
-  completada:{label:'✅ Completada',cls:'mkt-stage-completada'},
-};
-const MKT_PRIO={alta:'#EF4444',media:'#F59E0B',baja:'#10C080'};
-
-// ── INIT ─────────────────────────────────────────
-// Shown while loadModuleData('marketing') is in flight, so the first visit
-// after a reload doesn't flash the "Sin proyectos" empty state / zeroed KPIs.
-function mktSkeletonCardsHtml(n){
-  const one='<div class="mkt-card"><div class="mkt-card-header"><div style="flex:1;min-width:0">'+
-    '<div class="cp-skeleton" style="width:55%;height:14px;margin-bottom:8px"></div>'+
-    '<div class="cp-skeleton" style="width:35%;height:11px"></div>'+
-  '</div></div></div>';
-  return new Array(n).fill(one).join('');
-}
-function mktSkeletonKpisHtml(){
-  const one='<div class="stat-card"><div class="cp-skeleton" style="width:32px;height:32px;border-radius:8px;margin-bottom:8px"></div>'+
-    '<div class="cp-skeleton" style="width:50%;height:16px;margin-bottom:6px"></div>'+
-    '<div class="cp-skeleton" style="width:70%;height:10px"></div></div>';
-  return new Array(4).fill(one).join('');
-}
-function mktShowSkeletons(){
-  const kpisEl=document.getElementById('mkt-kpis');
-  if(kpisEl)kpisEl.innerHTML=mktSkeletonKpisHtml();
-  const proyEl=document.getElementById('mkt-proyectos-list');
-  if(proyEl)proyEl.innerHTML=mktSkeletonCardsHtml(3);
-}
-
-function renderMarketing(){
-  mktData=mktLoad();agData=agLoad();mktProyData=proyLoad();mktDocData=mktDocLoad();
-  const addBtn0=document.getElementById('mkt-add-btn');if(addBtn0&&!canEdit('marketing'))addBtn0.style.display='none';
-  ['mkt-proy-add-btn','mkt-ag-add-btn'].forEach(id=>{const b=document.getElementById(id);if(b&&!canEdit('marketing'))b.style.display='none';});
-  renderMktKPIs();
-  if(mktCurrentTab==='proyectos')renderMktProyectos();
-  else if(mktCurrentTab==='agencias')renderMktAgencias();
-  else if(mktCurrentTab==='calendario')renderMktCalendario();
-  else if(mktCurrentTab==='repositorio')renderMktRepositorio();
-  const badge=document.getElementById('mkt-badge');
-  if(badge)badge.textContent=mktProyData.filter(p=>p.stage!=='completado'&&p.stage!=='cerrado').length;
-}
-
-function switchMktTab(tab){
-  mktCurrentTab=tab;
-  ['proyectos','agencias','calendario','repositorio'].forEach(t=>{
-    const panel=document.getElementById('mkt-panel-'+t);
-    const btn=document.getElementById('mkt-tab-'+t);
-    if(panel)panel.style.display=t===tab?'block':'none';
-    if(btn)btn.classList.toggle('active',t===tab);
-  });
-  const addBtn=document.getElementById('mkt-add-btn');
-  if(addBtn){
-    const labels={proyectos:'Nuevo proyecto',agencias:'Nueva agencia',repositorio:'Subir archivo'};
-    if(labels[tab]&&canEdit('marketing')){addBtn.style.display='';addBtn.innerHTML='<i class="ti ti-plus"></i> '+labels[tab];
-      addBtn.onclick=tab==='proyectos'?openAddMktProyecto:tab==='agencias'?openAddAgencia:openAddMktDoc;
-    }else{addBtn.style.display='none';}
-  }
-  renderMarketing();
-}
-
-// ── KPIs ─────────────────────────────────────────
-function renderMktKPIs(){
-  const el=document.getElementById('mkt-kpis');if(!el)return;
-  const proyActivos=mktProyData.filter(p=>!['completado','cerrado'].includes(p.stage)).length;
-  const proyCompletados=mktProyData.filter(p=>p.stage==='completado').length;
-  const presupTotal=mktProyData.reduce((s,p)=>s+(p.presupuesto||0),0);
-  const agenciasActivas=agData.length;
-  el.innerHTML=
-    '<div class="stat-card"><div class="stat-icon" style="background:var(--cp-blue-light);color:var(--cp-blue)"><i class="ti ti-briefcase"></i></div><div class="stat-value">'+proyActivos+'</div><div class="stat-label">Proyectos activos</div></div>'+
-    '<div class="stat-card"><div class="stat-icon" style="background:var(--cp-green-light);color:var(--cp-green)"><i class="ti ti-flag"></i></div><div class="stat-value">'+proyCompletados+'</div><div class="stat-label">Completados</div></div>'+
-    '<div class="stat-card"><div class="stat-icon" style="background:var(--cp-purple-light);color:var(--cp-purple)"><i class="ti ti-currency-dollar"></i></div><div class="stat-value" style="font-size:18px">$'+presupTotal.toLocaleString('es-MX')+'</div><div class="stat-label">Presupuesto proyectos</div></div>'+
-    '<div class="stat-card"><div class="stat-icon" style="background:var(--cp-amber-light);color:var(--cp-amber)"><i class="ti ti-building"></i></div><div class="stat-value">'+agenciasActivas+'</div><div class="stat-label">Agencias</div></div>';
-}
-
-// ── CAMPAÑAS LIST ─────────────────────────────────
-function renderMktCampanas(){
-  const q=(document.getElementById('mkt-search')?.value||'').toLowerCase();
-  const stF=document.getElementById('mkt-filter-stage')?.value||'';
-  const cF=document.getElementById('mkt-filter-canal')?.value||'';
-  // Populate canal filter
-  const allCanales=[...new Set(mktData.flatMap(c=>c.canales||[]))];
-  const cSel=document.getElementById('mkt-filter-canal');
-  if(cSel){const curr=cSel.value;cSel.innerHTML='<option value="">Todos los canales</option>'+allCanales.map(c=>'<option value="'+c+'" '+(c===curr?'selected':'')+'>'+c+'</option>').join('');}
-  let items=[...mktData];
-  if(q)items=items.filter(c=>c.nombre.toLowerCase().includes(q));
-  if(stF)items=items.filter(c=>c.stage===stF);
-  if(cF)items=items.filter(c=>(c.canales||[]).includes(cF));
-  items.sort((a,b)=>{const po={alta:0,media:1,baja:2};return (po[a.prio]||1)-(po[b.prio]||1);});
-  const el=document.getElementById('mkt-campanas-list');if(!el)return;
-  if(!items.length){el.innerHTML='<div class="empty-state"><i class="ti ti-speakerphone"></i><p>Sin campañas. Crea la primera.</p></div>';return;}
-  const hoy=new Date();hoy.setHours(0,0,0,0);
-  el.innerHTML=items.map(c=>{
-    const stage=MKT_STAGES[c.stage]||MKT_STAGES.idea;
-    const ag=agData.find(a=>a.id===c.agenciaId);
-    const emp=state.employees.find(e=>e.id===c.responsableId);
-    const subs=c.subtasks||[];const subDone=subs.filter(s=>s.done).length;
-    const pct=subs.length?Math.round(subDone/subs.length*100):0;
-    let dueLabel='',dueColor='var(--cp-gray-400)';
-    if(c.fechaFin&&!['completada'].includes(c.stage)){
-      const diff=Math.round((new Date(c.fechaFin+'T12:00:00')-hoy)/(1000*60*60*24));
-      if(diff<0){dueLabel='⚠ Vencida '+Math.abs(diff)+'d';dueColor='var(--cp-red)';}
-      else if(diff<=7){dueLabel='⏰ '+diff+'d restantes';dueColor='var(--cp-amber)';}
-      else{dueLabel='📅 '+fmtDateShort(c.fechaFin);}
-    }else if(c.fechaFin){dueLabel=fmtDateShort(c.fechaFin);}
-    const presupFmt=c.presupuesto?'$'+(c.presupuesto||0).toLocaleString('es-MX'):'';
-    return '<div class="mkt-card" id="mkt-c-'+c.id+'">'+
-      '<div class="mkt-card-header" onclick="toggleMktCard(\'mkt-body-'+c.id+'\',\'mkt-chev-'+c.id+'\')">'+
-        '<div class="mkt-prio-bar" style="background:'+MKT_PRIO[c.prio]||'#94A0BB'+'"></div>'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">'+
-            '<div style="font-weight:700;font-size:14px;color:var(--cp-navy)">'+escHtml(c.nombre)+'</div>'+
-            '<span class="mkt-stage-badge '+stage.cls+'">'+stage.label+'</span>'+
-            (dueLabel?'<span style="font-size:11px;font-weight:500;color:'+dueColor+'">'+dueLabel+'</span>':'')+
-          '</div>'+
-          '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">'+
-            (c.canales||[]).map(ch=>'<span class="mkt-canal-tag" style="background:var(--cp-blue-light);color:var(--cp-blue)">'+ch+'</span>').join('')+
-            (ag?'<span class="mkt-agency-chip">'+escHtml(ag.nombre)+'</span>':'')+
-            (emp?'<span style="font-size:11px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 8px;border-radius:99px">'+escHtml(emp.nombre)+'</span>':'')+
-            (presupFmt?'<span style="font-size:11px;color:var(--cp-gray-400)">'+presupFmt+'</span>':'')+
-            (subs.length?'<span id="mkt-subcount-'+c.id+'" style="font-size:11px;color:var(--cp-gray-400)">'+subDone+'/'+subs.length+' tareas</span>':'')+
-          '</div>'+
-          (subs.length?'<div style="height:3px;background:var(--cp-gray-100);border-radius:2px;margin-top:6px;width:200px"><div id="mkt-progressbar-'+c.id+'" style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#7B2FF7,#C83CB4);border-radius:2px"></div></div>':'')+
-        '</div>'+
-        '<div style="display:flex;gap:6px;flex-shrink:0">'+
-          '<button class="btn-sm btn-ghost" style="padding:4px 8px" onclick="event.stopPropagation();openEditMktItem(\''+c.id+'\')"><i class="ti ti-edit"></i></button>'+
-          '<i class="ti ti-chevron-down" id="mkt-chev-'+c.id+'" style="font-size:16px;color:var(--cp-gray-300);transition:transform .2s;align-self:center"></i>'+
-        '</div>'+
-      '</div>'+
-      '<div class="mkt-card-body" id="mkt-body-'+c.id+'">'+
-        renderMktCampanaDetail(c)+
-      '</div>'+
-    '</div>';
-  }).join('');
-}
-
-function renderMktCampanaDetail(c){
-  const ag=agData.find(a=>a.id===c.agenciaId);
-  const emp=state.employees.find(e=>e.id===c.responsableId);
-  const subs=c.subtasks||[];
-  const files=c.files||[];
-  const subDone=subs.filter(s=>s.done).length;
-  // ROI calc
-  const roi=c.costoReal&&c.conv_real?(((c.conv_real-c.costoReal)/c.costoReal)*100).toFixed(1):null;
-  return '<div style="padding:20px 24px">'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:16px">'+
-      '<div>'+
-        '<div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:8px">Detalles</div>'+
-        (c.objetivo?'<div style="font-size:13px;color:var(--cp-gray-700);line-height:1.6;margin-bottom:10px">'+escHtml(c.objetivo)+'</div>':'')+
-        '<div style="display:flex;flex-direction:column;gap:5px">'+
-          (c.fechaInicio?'<div style="display:flex;gap:8px"><span style="font-size:11px;color:var(--cp-gray-400);min-width:70px">Inicio</span><span style="font-size:12px;font-weight:500">'+fmtDate(c.fechaInicio)+'</span></div>':'')+
-          (c.fechaFin?'<div style="display:flex;gap:8px"><span style="font-size:11px;color:var(--cp-gray-400);min-width:70px">Fin</span><span style="font-size:12px;font-weight:500">'+fmtDate(c.fechaFin)+'</span></div>':'')+
-          (ag?'<div style="display:flex;gap:8px"><span style="font-size:11px;color:var(--cp-gray-400);min-width:70px">Agencia</span><span style="font-size:12px;font-weight:500;color:var(--cp-amber)">'+escHtml(ag.nombre)+'</span></div>':'')+
-          (emp?'<div style="display:flex;gap:8px"><span style="font-size:11px;color:var(--cp-gray-400);min-width:70px">Responsable</span><span style="font-size:12px;font-weight:500;color:var(--cp-purple)">'+escHtml(emp.nombre)+'</span></div>':'')+
-        '</div>'+
-      '</div>'+
-      '<div>'+
-        '<div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:8px">Presupuesto</div>'+
-        '<div style="display:flex;flex-direction:column;gap:5px">'+
-          (c.presupuesto?'<div style="display:flex;gap:8px"><span style="font-size:11px;color:var(--cp-gray-400);min-width:80px">Presupuesto</span><span style="font-size:13px;font-weight:700;color:var(--cp-blue)">$'+(c.presupuesto||0).toLocaleString('es-MX')+'</span></div>':'')+
-          (c.costoReal?'<div style="display:flex;gap:8px"><span style="font-size:11px;color:var(--cp-gray-400);min-width:80px">Costo real</span><span style="font-size:13px;font-weight:700;color:var(--cp-green)">$'+(c.costoReal||0).toLocaleString('es-MX')+'</span></div>':'')+
-          (roi?'<div style="display:flex;gap:8px"><span style="font-size:11px;color:var(--cp-gray-400);min-width:80px">ROI est.</span><span style="font-size:13px;font-weight:700;color:'+(parseFloat(roi)>=0?'var(--cp-green)':'var(--cp-red)')+'">'+roi+'%</span></div>':'')+
-        '</div>'+
-      '</div>'+
-      '<div>'+
-        '<div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:8px">Métricas</div>'+
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">'+
-          (c.impObj||c.impReal?'<div class="mkt-kpi-box"><div class="mkt-kpi-val">'+(c.impReal||0).toLocaleString('es-MX')+'</div><div style="font-size:9px;color:var(--cp-gray-400)">imp. reales / obj '+(c.impObj||0).toLocaleString('es-MX')+'</div></div>':'')+
-          (c.leadsObj||c.leadsReal?'<div class="mkt-kpi-box"><div class="mkt-kpi-val" style="color:var(--cp-purple)">'+(c.leadsReal||0)+'</div><div style="font-size:9px;color:var(--cp-gray-400)">leads / obj '+(c.leadsObj||0)+'</div></div>':'')+
-          (c.convObj||c.convReal?'<div class="mkt-kpi-box"><div class="mkt-kpi-val" style="color:var(--cp-green)">'+(c.convReal||0)+'</div><div style="font-size:9px;color:var(--cp-gray-400)">conv. / obj '+(c.convObj||0)+'</div></div>':'')+
-        '</div>'+
-      '</div>'+
-    '</div>'+
-    // Subtasks
-    (subs.length?'<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:6px">Subtareas ('+subDone+'/'+subs.length+')</div>'+
-    '<div style="background:var(--cp-gray-100);height:4px;border-radius:2px;margin-bottom:8px"><div style="height:100%;width:'+Math.round(subDone/subs.length*100)+'%;background:linear-gradient(90deg,#7B2FF7,#C83CB4);border-radius:2px"></div></div>'+
-    subs.map((s,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--cp-gray-100)">'+
-      '<div class="kanban-check-box '+(s.done?'done':'')+'" onclick="toggleMktSub(\''+c.id+'\','+i+')"></div>'+
-      '<span style="flex:1;font-size:12px;color:'+(s.done?'var(--cp-gray-400)':'var(--cp-gray-700)')+(s.done?';text-decoration:line-through':'')+'">'+escHtml(s.text||'')+'</span>'+
-      (s.asignado?'<span style="font-size:10px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 8px;border-radius:99px">'+escHtml(s.asignado.split(' ')[0])+'</span>':'')+
-    '</div>').join('')+'</div>':'')+
-    // Files
-    (files.length?'<div><div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:6px">Archivos</div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:8px">'+files.map(f=>'<a href="'+f.base64+'" download="'+escHtml(f.nombre)+'" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--cp-blue-light);color:var(--cp-blue);border-radius:var(--radius-sm);font-size:12px;text-decoration:none"><i class="ti ti-download"></i>'+escHtml(f.nombre)+'</a>').join('')+'</div></div>':'')+
-    // Obs
-    (c.obs?'<div style="margin-top:12px;font-size:12px;color:var(--cp-gray-600);background:white;padding:10px 12px;border-radius:var(--radius-sm);border-left:3px solid var(--cp-gray-200)">'+escHtml(c.obs)+'</div>':'')+
-    // Actions
-    '<div style="display:flex;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--cp-gray-100)">'+
-      '<button class="btn-sm btn-blue" onclick="openEditMktItem(\''+c.id+'\')"><i class="ti ti-edit"></i> Editar</button>'+
-      Object.entries(MKT_STAGES).filter(([k])=>k!==c.stage).slice(0,3).map(([k,v])=>'<button class="btn-sm btn-ghost" style="font-size:11px" onclick="quickMktStage(\''+c.id+'\',\''+k+'\')">→ '+v.label+'</button>').join('')+
-    '</div>'+
-  '</div>';
-}
-
-function toggleMktCard(bodyId,chevId){
-  const body=document.getElementById(bodyId);const chev=document.getElementById(chevId);
-  if(!body)return;const open=body.classList.contains('open');
-  body.classList.toggle('open',!open);
-  if(chev)chev.style.transform=open?'':'rotate(180deg)';
-}
-
-function quickMktStage(id,stage){
-  const c=mktData.find(x=>x.id===id);if(!c)return;
-  c.stage=stage;mktSaveSB(c);renderMktCampanas();renderMktKPIs();
-  toast('→ '+MKT_STAGES[stage].label);
-}
-
-function toggleMktSub(campId,idx){
-  const c=mktData.find(x=>x.id===campId);if(!c||!c.subtasks)return;
-  c.subtasks[idx].done=!c.subtasks[idx].done;mktSaveSB(c);
-  updateMktSubCount(c);
-  const bodyEl=document.getElementById('mkt-body-'+campId);
-  if(bodyEl&&bodyEl.classList.contains('open')){
-    bodyEl.innerHTML=renderMktCampanaDetail(c);
-  }
-}
-
-function updateMktSubCount(c){
-  const subs=c.subtasks||[];
-  const subDone=subs.filter(s=>s.done).length;
-  const countEl=document.getElementById('mkt-subcount-'+c.id);
-  if(countEl)countEl.textContent=subDone+'/'+subs.length+' tareas';
-  const barEl=document.getElementById('mkt-progressbar-'+c.id);
-  if(barEl)barEl.style.width=(subs.length?Math.round(subDone/subs.length*100):0)+'%';
-}
-
-// ── CAMPAÑA CRUD ──────────────────────────────────
-function openAddMktItem(){
-  mktCurrentId=null;mktCanales=[];mktSubtasks=[];mktFiles=[];
-  document.getElementById('mkt-camp-title').textContent='Nueva campaña';
-  document.getElementById('mkt-camp-del-btn').style.display='none';
-  ['mktf-nombre','mktf-objetivo','mktf-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['mktf-presupuesto','mktf-costo-real','mktf-imp-obj','mktf-leads-obj','mktf-conv-obj','mktf-imp-real','mktf-leads-real','mktf-conv-real'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('mktf-stage').value='idea';
-  document.getElementById('mktf-prio').value='media';
-  document.getElementById('mktf-inicio').value='';
-  document.getElementById('mktf-fin').value='';
-  document.getElementById('mktf-file-label').textContent='Adjuntar brief, creativos, reportes…';
-  populateMktSelects(null,null);
-  renderMktCanalesChips();renderMktSubtasksList();renderMktFileList();
-  openModal('modal-mkt-campana');
-}
-
-function openEditMktItem(id){
-  const c=mktData.find(x=>x.id===id);if(!c)return;
-  mktCurrentId=id;mktCanales=[...(c.canales||[])];mktSubtasks=[...(c.subtasks||[])];mktFiles=[...(c.files||[])];
-  document.getElementById('mkt-camp-title').textContent='Editar campaña';
-  document.getElementById('mkt-camp-del-btn').style.display='flex';
-  document.getElementById('mktf-nombre').value=c.nombre||'';
-  document.getElementById('mktf-objetivo').value=c.objetivo||'';
-  document.getElementById('mktf-obs').value=c.obs||'';
-  document.getElementById('mktf-stage').value=c.stage||'idea';
-  document.getElementById('mktf-prio').value=c.prio||'media';
-  document.getElementById('mktf-inicio').value=c.fechaInicio||'';
-  document.getElementById('mktf-fin').value=c.fechaFin||'';
-  document.getElementById('mktf-presupuesto').value=c.presupuesto||'';
-  document.getElementById('mktf-costo-real').value=c.costoReal||'';
-  document.getElementById('mktf-imp-obj').value=c.impObj||'';
-  document.getElementById('mktf-leads-obj').value=c.leadsObj||'';
-  document.getElementById('mktf-conv-obj').value=c.convObj||'';
-  document.getElementById('mktf-imp-real').value=c.impReal||'';
-  document.getElementById('mktf-leads-real').value=c.leadsReal||'';
-  document.getElementById('mktf-conv-real').value=c.convReal||'';
-  populateMktSelects(c.agenciaId,c.responsableId);
-  renderMktCanalesChips();renderMktSubtasksList();renderMktFileList();
-  openModal('modal-mkt-campana');
-}
-
-function populateMktSelects(agId,empId){
-  const agSel=document.getElementById('mktf-agencia');
-  if(agSel)agSel.innerHTML='<option value="">— Sin agencia —</option>'+agData.map(a=>'<option value="'+a.id+'" '+(a.id===agId?'selected':'')+'>'+escHtml(a.nombre)+'</option>').join('');
-  const empSel=document.getElementById('mktf-responsable');
-  if(empSel)empSel.innerHTML='<option value="">— Sin asignar —</option>'+state.employees.filter(e=>e.estado==='activo').map(e=>'<option value="'+e.id+'" '+(e.id===empId?'selected':'')+'>'+escHtml(e.nombre+' '+e.apellidos)+'</option>').join('');
-  const subAsnSel=document.getElementById('mktf-sub-asn');
-  if(subAsnSel)subAsnSel.innerHTML='<option value="">Sin asignar</option>'+state.employees.filter(e=>e.estado==='activo').map(e=>'<option value="'+e.nombre+' '+e.apellidos+'">'+escHtml(e.nombre)+'</option>').join('');
-}
-
-function addMktCanal(){
-  const sel=document.getElementById('mktf-canal-sel');const val=sel?.value;if(!val)return;
-  if(!mktCanales.includes(val))mktCanales.push(val);sel.value='';renderMktCanalesChips();
-}
-function renderMktCanalesChips(){
-  const el=document.getElementById('mktf-canales-wrap');if(!el)return;
-  el.innerHTML=mktCanales.map((c,i)=>'<span style="display:inline-flex;align-items:center;gap:5px;background:var(--cp-blue-light);color:var(--cp-blue);padding:3px 10px;border-radius:99px;font-size:12px">'+c+'<button onclick="mktCanales.splice('+i+',1);renderMktCanalesChips()" style="background:none;border:none;color:var(--cp-blue);cursor:pointer">×</button></span>').join('');
-}
-function addMktSubtask(){
-  const inp=document.getElementById('mktf-new-sub');const val=inp?.value.trim();if(!val)return;
-  const asn=document.getElementById('mktf-sub-asn')?.value||null;
-  mktSubtasks.push({text:val,done:false,asignado:asn||null});inp.value='';renderMktSubtasksList();
-}
-function renderMktSubtasksList(){
-  const el=document.getElementById('mktf-subtasks-list');if(!el)return;
-  el.innerHTML=mktSubtasks.map((s,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--cp-gray-100)">'+
-    '<div class="kanban-check-box '+(s.done?'done':'')+'" onclick="mktSubtasks['+i+'].done=!mktSubtasks['+i+'].done;renderMktSubtasksList()"></div>'+
-    '<input style="flex:1;border:none;outline:none;font-size:12px;font-family:var(--font-body);color:var(--cp-gray-800);background:transparent" value="'+s.text.replace(/"/g,'&quot;')+'" onchange="mktSubtasks['+i+'].text=this.value">'+
-    (s.asignado?'<span style="font-size:10px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 7px;border-radius:99px">'+s.asignado.split(' ')[0]+'</span>':'')+
-    '<button onclick="mktSubtasks.splice('+i+',1);renderMktSubtasksList()" style="background:none;border:none;color:var(--cp-red);cursor:pointer"><i class="ti ti-x"></i></button>'+
-  '</div>').join('')||'<div style="font-size:12px;color:var(--cp-gray-400);padding:6px 0">Sin subtareas</div>';
-}
-function handleMktFileSelect(e){const files=Array.from(e.target.files);files.forEach(f=>{if(!checkFileSize(f))return;const r=new FileReader();r.onload=(ev)=>{mktFiles.push({nombre:f.name,base64:ev.target.result});renderMktFileList();};r.readAsDataURL(f);});e.target.value='';}
-function renderMktFileList(){const el=document.getElementById('mktf-file-list');if(!el)return;el.innerHTML=mktFiles.map((f,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--cp-blue-light);border-radius:var(--radius-sm)"><i class="ti ti-file" style="color:var(--cp-blue)"></i><span style="font-size:12px;flex:1">'+f.nombre+'</span><button onclick="mktFiles.splice('+i+',1);renderMktFileList()" style="background:none;border:none;color:var(--cp-red);cursor:pointer"><i class="ti ti-x"></i></button></div>').join('');}
-
-function saveMktCampana(){
-  const nombre=document.getElementById('mktf-nombre').value.trim();if(!nombre){toast('Nombre obligatorio.','error');return;}
-  setBtn('save-mkt-camp-btn',true);
-  const camp={id:mktCurrentId||uid9(),nombre,
-    objetivo:document.getElementById('mktf-objetivo').value.trim(),
-    obs:document.getElementById('mktf-obs').value.trim(),
-    stage:document.getElementById('mktf-stage').value,
-    prio:document.getElementById('mktf-prio').value,
-    canales:[...mktCanales],
-    agenciaId:document.getElementById('mktf-agencia').value||null,
-    responsableId:document.getElementById('mktf-responsable').value||null,
-    fechaInicio:document.getElementById('mktf-inicio').value||null,
-    fechaFin:document.getElementById('mktf-fin').value||null,
-    presupuesto:parseFloat(document.getElementById('mktf-presupuesto').value)||null,
-    costoReal:parseFloat(document.getElementById('mktf-costo-real').value)||null,
-    impObj:parseFloat(document.getElementById('mktf-imp-obj').value)||null,
-    leadsObj:parseFloat(document.getElementById('mktf-leads-obj').value)||null,
-    convObj:parseFloat(document.getElementById('mktf-conv-obj').value)||null,
-    impReal:parseFloat(document.getElementById('mktf-imp-real').value)||null,
-    leadsReal:parseFloat(document.getElementById('mktf-leads-real').value)||null,
-    convReal:parseFloat(document.getElementById('mktf-conv-real').value)||null,
-    subtasks:[...mktSubtasks],files:[...mktFiles],
-    createdAt:mktCurrentId?(mktData.find(x=>x.id===mktCurrentId)?.createdAt||new Date().toISOString()):new Date().toISOString(),
-  };
-  if(mktCurrentId){const idx=mktData.findIndex(x=>x.id===mktCurrentId);if(idx!==-1)mktData[idx]=camp;}
-  else mktData.push(camp);
-  mktSaveSB(camp);closeModal('modal-mkt-campana');renderMarketing();
-  toast(mktCurrentId?'Campaña actualizada.':'Campaña creada.');setBtn('save-mkt-camp-btn',false);
-}
-async function deleteMktCampana(){if(!mktCurrentId)return;mktData=mktData.filter(x=>x.id!==mktCurrentId);await sbDelete('mkt_campanas',mktCurrentId);closeModal('modal-mkt-campana');renderMarketing();toast('Eliminada.','info');}
-
-// ── AGENCIAS ──────────────────────────────────────
-function renderMktAgencias(){
-  const el=document.getElementById('mkt-agencias-list');if(!el)return;
-  if(!agData.length){el.innerHTML='<div class="empty-state" style="grid-column:1/-1"><i class="ti ti-building"></i><p>Sin agencias registradas.</p></div>';return;}
-  const tipoIcons={digital:'🖥',creativa:'🎨',pr:'📣',media:'📺',contenido:'📝',integral:'🔄',otro:'⚡'};
-  const stColors={activa:'var(--cp-green)',pausada:'var(--cp-amber)',ex:'var(--cp-red)'};
-  el.innerHTML=agData.map(a=>{
-    const camps=mktData.filter(c=>c.agenciaId===a.id).length;
-    return '<div class="section-card" style="cursor:pointer" onclick="openEditAgencia(\''+a.id+'\')">'+
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">'+
-        '<div style="display:flex;align-items:center;gap:10px">'+
-          '<div style="font-size:24px">'+(tipoIcons[a.tipo]||'⚡')+'</div>'+
-          '<div><div style="font-weight:700;font-size:14px;color:var(--cp-navy)">'+escHtml(a.nombre)+'</div>'+
-          '<div style="font-size:11px;color:var(--cp-gray-400)">'+escHtml(a.contacto)+'</div></div>'+
-        '</div>'+
-        '<span class="badge" style="background:'+(stColors[a.status]||'#94A0BB')+'22;color:'+(stColors[a.status]||'#94A0BB')+'">'+a.status+'</span>'+
-      '</div>'+
-      '<div style="display:flex;flex-direction:column;gap:4px">'+
-        (a.email?'<div style="font-size:11px;color:var(--cp-gray-600)"><i class="ti ti-mail" style="font-size:10px"></i> '+escHtml(a.email)+'</div>':'')+
-        (a.tel?'<div style="font-size:11px;color:var(--cp-gray-600)"><i class="ti ti-phone" style="font-size:10px"></i> '+escHtml(a.tel)+'</div>':'')+
-        (a.tarifa?'<div style="font-size:11px;color:var(--cp-gray-600)"><i class="ti ti-currency-dollar" style="font-size:10px"></i> $'+a.tarifa.toLocaleString('es-MX')+'/mes</div>':'')+
-      '</div>'+
-      '<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--cp-gray-100);font-size:11px;color:var(--cp-gray-400)">'+camps+' campaña(s) asignada(s)</div>'+
-    '</div>';
-  }).join('');
-}
-
-function openAddAgencia(){mktAgCurrentId=null;['agf-nombre','agf-contacto','agf-email','agf-tel','agf-notas'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('agf-tarifa').value='';document.getElementById('agf-tipo').value='digital';document.getElementById('agf-status').value='activa';document.getElementById('mkt-agencia-title').textContent='Nueva agencia';document.getElementById('ag-del-btn').style.display='none';openModal('modal-mkt-agencia');}
-function openEditAgencia(id){const a=agData.find(x=>x.id===id);if(!a)return;mktAgCurrentId=id;document.getElementById('mkt-agencia-title').textContent='Editar agencia';document.getElementById('ag-del-btn').style.display='flex';document.getElementById('agf-nombre').value=a.nombre||'';document.getElementById('agf-contacto').value=a.contacto||'';document.getElementById('agf-email').value=a.email||'';document.getElementById('agf-tel').value=a.tel||'';document.getElementById('agf-notas').value=a.notas||'';document.getElementById('agf-tarifa').value=a.tarifa||'';document.getElementById('agf-tipo').value=a.tipo||'digital';document.getElementById('agf-status').value=a.status||'activa';openModal('modal-mkt-agencia');}
-async function saveAgencia(){const nombre=document.getElementById('agf-nombre').value.trim();if(!nombre){toast('Nombre obligatorio.','error');return;}setBtn('save-ag-btn',true);const ag={id:mktAgCurrentId||uid9(),nombre,contacto:document.getElementById('agf-contacto').value.trim(),email:document.getElementById('agf-email').value.trim(),tel:document.getElementById('agf-tel').value.trim(),notas:document.getElementById('agf-notas').value.trim(),tarifa:parseFloat(document.getElementById('agf-tarifa').value)||null,tipo:document.getElementById('agf-tipo').value,status:document.getElementById('agf-status').value};if(mktAgCurrentId){const idx=agData.findIndex(x=>x.id===mktAgCurrentId);if(idx!==-1)agData[idx]=ag;}else agData.push(ag);await agSaveSB(ag);closeModal('modal-mkt-agencia');renderMarketing();toast(mktAgCurrentId?'Agencia actualizada.':'Agencia creada.');setBtn('save-ag-btn',false);}
-async function deleteMktAgencia(){if(!mktAgCurrentId)return;agData=agData.filter(x=>x.id!==mktAgCurrentId);await agDeleteSB(mktAgCurrentId);closeModal('modal-mkt-agencia');renderMarketing();toast('Eliminada.','info');}
-
-// ── PROYECTOS ─────────────────────────────────────
-function renderMktProyectos(){
-  const el=document.getElementById('mkt-proyectos-list');if(!el)return;
-  let items=[...mktProyData];
-  if(proyFilter==='completado') items=items.filter(p=>p.stage==='completado');
-  else if(proyFilter==='pendiente') items=items.filter(p=>p.tipo==='pendiente');
-  else if(proyFilter==='proyecto') items=items.filter(p=>p.tipo!=='pendiente'&&p.stage!=='cerrado');
-  else items=items.filter(p=>p.stage!=='completado'&&p.stage!=='cerrado'); // 'todos' hides completed+cerrado
-  if(!items.length){el.innerHTML='<div class="empty-state"><i class="ti ti-briefcase"></i><p>Sin '+((proyFilter==='completado'?'proyectos completados':(proyFilter==='pendiente'?'pendientes':'proyectos activos')))+'. Prueba otro filtro.</p></div>';return;}
-  const mktProyDataFiltered=items;
-  const stColors={planificacion:'#6D28D9',activo:'#1D4ED8',revision:'#92400E',completado:'#065F46',pausado:'#374151'};
-  const hoy=new Date();hoy.setHours(0,0,0,0);
-  el.innerHTML=mktProyDataFiltered.map(p=>{
-    const ag=agData.find(a=>a.id===p.agenciaId);
-    const emp=state.employees.find(e=>e.id===p.respId);
-    const subs=p.subtasks||[];const subDone=subs.filter(s=>s.done).length;
-    const retrasado=p.fechaFin&&new Date(p.fechaFin+'T12:00:00')<hoy&&!['completado'].includes(p.stage);
-    return '<div class="mkt-card" id="mktproy-'+p.id+'">'+
-      '<div class="mkt-card-header" onclick="toggleMktCard(\'mktpbody-'+p.id+'\',\'mktpchev-'+p.id+'\')">'+
-        '<div style="flex:1">'+
-          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+
-            '<div style="font-weight:700;font-size:14px;color:var(--cp-navy)">'+escHtml(p.nombre)+'</div>'+
-            '<span style="font-size:10px;background:'+(stColors[p.stage]||'#94A0BB')+'22;color:'+(stColors[p.stage]||'#94A0BB')+';padding:2px 8px;border-radius:99px;font-weight:600">'+p.stage+'</span>'+
-            (retrasado?'<span style="font-size:10px;background:#FEE2E2;color:#DC2626;padding:2px 8px;border-radius:99px;font-weight:700">⚠ Retrasado</span>':'')+
-          '</div>'+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-            (ag?'<span class="mkt-agency-chip">'+escHtml(ag.nombre)+'</span>':'')+
-            (emp?'<span style="font-size:11px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 8px;border-radius:99px">'+escHtml(emp.nombre)+'</span>':'')+
-            (p.fechaFin?'<span style="font-size:11px;color:var(--cp-gray-400)">'+fmtDate(p.fechaFin)+'</span>':'')+
-            (p.presupuesto?'<span style="font-size:11px;color:var(--cp-gray-400)">$'+p.presupuesto.toLocaleString('es-MX')+'</span>':'')+
-            (subs.length?'<span id="mktproy-subcount-'+p.id+'" style="font-size:11px;color:var(--cp-gray-400)">'+subDone+'/'+subs.length+' tareas</span>':'')+
-          '</div>'+
-        '</div>'+
-        '<div style="display:flex;gap:6px">'+
-          '<button class="btn-sm btn-ghost" style="padding:4px 8px" onclick="event.stopPropagation();openEditMktProyecto(\''+p.id+'\')"><i class="ti ti-edit"></i></button>'+
-          '<i class="ti ti-chevron-down" id="mktpchev-'+p.id+'" style="font-size:16px;color:var(--cp-gray-300);transition:transform .2s;align-self:center"></i>'+
-        '</div>'+
-      '</div>'+
-      '<div class="mkt-card-body" id="mktpbody-'+p.id+'">'+renderMktProyDetail(p)+'</div>'+
-    '</div>';
-  }).join('');
-  renderMktProyHistorico();
-}
-
-function renderMktProyDetail(p){
-  const subs=p.subtasks||[];const subDone=subs.filter(s=>s.done).length;
-  const files=p.files||[];
-  return '<div style="padding:16px 20px">'+
-    (p.desc?'<div style="font-size:13px;color:var(--cp-gray-700);line-height:1.6;margin-bottom:14px">'+escHtml(p.desc)+'</div>':'')+
-    (subs.length?'<div style="margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:6px">Subtareas ('+subDone+'/'+subs.length+')</div>'+
-    subs.map((s,i)=>'<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--cp-gray-100)"><div class="kanban-check-box '+(s.done?'done':'')+'" onclick="toggleMktProySub(\''+p.id+'\','+i+')" style="margin-top:2px;flex-shrink:0"></div><span style="flex:1;font-size:12px;word-break:break-word;white-space:normal;min-width:0;'+(s.done?'text-decoration:line-through;color:var(--cp-gray-400)':'')+'">'+escHtml(s.text||'')+'</span>'+(s.asignado?'<span style="flex-shrink:0;font-size:10px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 7px;border-radius:99px">'+escHtml(s.asignado.split(' ')[0])+'</span>':'')+'</div>').join('')+'</div>':'')+
-    (files.length?'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">'+files.map(f=>'<a href="'+f.base64+'" download="'+escHtml(f.nombre)+'" style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:var(--cp-blue-light);color:var(--cp-blue);border-radius:var(--radius-sm);font-size:11px;text-decoration:none"><i class="ti ti-download"></i>'+escHtml(f.nombre)+'</a>').join('')+'</div>':'')+
-    '<div style="display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--cp-gray-100);flex-wrap:wrap"><button class="btn-sm btn-blue" onclick="openEditMktProyecto(\''+p.id+'\')"><i class="ti ti-edit"></i> Editar</button>'+
-    (p.stage!=='completado'&&p.stage!=='cerrado'?'<button class="btn-sm btn-green" onclick="completarProyecto(\''+p.id+'\')"><i class="ti ti-circle-check"></i> Marcar completado</button>':'')+
-    (p.stage!=='cerrado'?'<button class="btn-sm btn-ghost" style="color:var(--cp-gray-500)" onclick="cerrarProyecto(\''+p.id+'\')"><i class="ti ti-flag"></i> Cerrar</button>':'<span style="font-size:11px;background:var(--cp-gray-100);color:var(--cp-gray-500);padding:4px 10px;border-radius:99px;font-weight:600">✅ Cerrado</span>')+
-  '</div>'+
-  '</div>';
-}
-
-function toggleMktProySub(pId,idx){
-  const p=mktProyData.find(x=>x.id===pId);if(!p||!p.subtasks)return;
-  p.subtasks[idx].done=!p.subtasks[idx].done;proySaveSB(p);
-  const subs=p.subtasks||[];
-  const countEl=document.getElementById('mktproy-subcount-'+pId);
-  if(countEl)countEl.textContent=subs.filter(s=>s.done).length+'/'+subs.length+' tareas';
-  // Re-render only the body div without collapsing
-  const bodyEl=document.getElementById('mktpbody-'+pId);
-  if(bodyEl&&bodyEl.classList.contains('open')){
-    bodyEl.innerHTML=renderMktProyDetail(p);
-  }
-  updateMktKPIs();
-}
-
-function updateMktKPIs(){
-  // Lightweight badge update
-  const badge=document.getElementById('mkt-badge');
-  if(badge)badge.textContent=mktLoad().filter(c=>c.stage==='activa').length;
-}
-
-function openAddMktProyecto(){mktProyCurrentId=null;mktProySubs=[];mktProyFiles=[];document.getElementById('mkt-proy-title').textContent='Nuevo proyecto';document.getElementById('mktproy-del-btn').style.display='none';['mktpf-nombre','mktpf-desc','mktpf-inicio','mktpf-fin','mktpf-presupuesto'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('mktpf-tipo').value='proyecto';
-  document.getElementById('mktpf-stage').value='planificacion';const agSel=document.getElementById('mktpf-agencia');if(agSel)agSel.innerHTML='<option value="">— Sin agencia —</option>'+agData.map(a=>'<option value="'+a.id+'">'+escHtml(a.nombre)+'</option>').join('');const empSel=document.getElementById('mktpf-resp');if(empSel)empSel.innerHTML='<option value="">— Sin asignar —</option>'+state.employees.filter(e=>e.estado==='activo').map(e=>'<option value="'+e.id+'">'+escHtml(e.nombre+' '+e.apellidos)+'</option>').join('');const subAsnSel=document.getElementById('mktpf-sub-asn');if(subAsnSel)subAsnSel.innerHTML='<option value="">Sin asignar</option>'+state.employees.filter(e=>e.estado==='activo').map(e=>'<option value="'+e.nombre+' '+e.apellidos+'">'+escHtml(e.nombre)+'</option>').join('');renderMktProySubsList();document.getElementById('mktpf-file-label').textContent='Adjuntar archivos del proyecto…';openModal('modal-mkt-proyecto');}
-function openEditMktProyecto(id){const p=mktProyData.find(x=>x.id===id);if(!p)return;mktProyCurrentId=id;mktProySubs=[...(p.subtasks||[])];mktProyFiles=[...(p.files||[])];document.getElementById('mkt-proy-title').textContent='Editar proyecto';document.getElementById('mktproy-del-btn').style.display='flex';document.getElementById('mktpf-nombre').value=p.nombre||'';document.getElementById('mktpf-desc').value=p.desc||'';document.getElementById('mktpf-tipo').value=p.tipo||'proyecto';
-  document.getElementById('mktpf-stage').value=p.stage||'planificacion';document.getElementById('mktpf-inicio').value=p.fechaInicio||'';document.getElementById('mktpf-fin').value=p.fechaFin||'';document.getElementById('mktpf-presupuesto').value=p.presupuesto||'';const agSel=document.getElementById('mktpf-agencia');if(agSel)agSel.innerHTML='<option value="">— Sin agencia —</option>'+agData.map(a=>'<option value="'+a.id+'" '+(a.id===p.agenciaId?'selected':'')+'>'+escHtml(a.nombre)+'</option>').join('');const empSel=document.getElementById('mktpf-resp');if(empSel)empSel.innerHTML='<option value="">— Sin asignar —</option>'+state.employees.filter(e=>e.estado==='activo').map(e=>'<option value="'+e.id+'" '+(e.id===p.respId?'selected':'')+'>'+escHtml(e.nombre+' '+e.apellidos)+'</option>').join('');renderMktProySubsList();openModal('modal-mkt-proyecto');}
-function addMktProySub(){const inp=document.getElementById('mktpf-new-sub');const val=inp?.value.trim();if(!val)return;const freeInp=document.getElementById('mktpf-sub-free');const asn=freeInp?freeInp.value.trim():null;mktProySubs.push({text:val,done:false,asignado:asn||null});inp.value='';if(freeInp)freeInp.value='';renderMktProySubsList();}
-function renderMktProySubsList(){
-  const el=document.getElementById('mktpf-subtasks-list');if(!el)return;
-  el.innerHTML=mktProySubs.map((s,i)=>
-    '<div draggable="true" ondragstart="mktPSubDrag='+i+'" ondragover="event.preventDefault()" ondrop="mktPSubDrop('+i+')" style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--cp-gray-100)">'+
-    '<i class="ti ti-grip-vertical" style="color:var(--cp-gray-300);font-size:12px;flex-shrink:0;cursor:grab;margin-top:3px"></i>'+
-    '<div class="kanban-check-box '+(s.done?'done':'')+'" onclick="mktProySubs['+i+'].done=!mktProySubs['+i+'].done;renderMktProySubsList()" style="margin-top:2px;flex-shrink:0"></div>'+
-    '<input style="flex:1;min-width:0;border:none;outline:none;font-size:12px;font-family:var(--font-body);background:transparent;word-break:break-word;white-space:normal" value="'+s.text.replace(/"/g,'&quot;')+'" onchange="mktProySubs['+i+'].text=this.value">'+
-    (s.asignado?'<span style="flex-shrink:0;font-size:10px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 7px;border-radius:99px;white-space:nowrap">'+escHtml(s.asignado.split(' ')[0])+'</span>':'')+
-    '<button onclick="mktProySubs.splice('+i+',1);renderMktProySubsList()" style="background:none;border:none;color:var(--cp-red);cursor:pointer;flex-shrink:0"><i class="ti ti-x"></i></button>'+
-    '</div>'
-  ).join('')||'<div style="font-size:12px;color:var(--cp-gray-400);padding:6px 0">Sin subtareas</div>';
-}
-let mktPSubDrag=null;
-function mktPSubDrop(toIdx){
-  if(mktPSubDrag===null||mktPSubDrag===toIdx)return;
-  const moved=mktProySubs.splice(mktPSubDrag,1)[0];
-  mktProySubs.splice(toIdx,0,moved);mktPSubDrag=null;renderMktProySubsList();
-}
-function handleMktProyFileSelect(e){
-  const files=e.target.files;if(!files||!files.length)return;
-  Array.from(files).forEach(f=>{
-    if(!checkFileSize(f))return;
-    const r=new FileReader();
-    r.onload=(ev)=>{mktProyFiles.push({base64:ev.target.result,nombre:f.name});renderMktProyFileList();};
-    r.readAsDataURL(f);
-  });
-}
-function renderMktProyFileList(){
-  const el=document.getElementById('mktpf-file-list');if(!el)return;
-  el.innerHTML=mktProyFiles.map((f,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--cp-blue-light);border-radius:var(--radius-sm)"><i class="ti ti-file" style="color:var(--cp-blue)"></i><span style="font-size:12px;flex:1">'+escHtml(f.nombre)+'</span><button onclick="mktProyFiles.splice('+i+',1);renderMktProyFileList()" style="background:none;border:none;color:var(--cp-red);cursor:pointer"><i class="ti ti-x"></i></button></div>').join('');
-  const lbl=document.getElementById('mktpf-file-label');if(lbl)lbl.textContent=mktProyFiles.length?'✓ '+mktProyFiles.length+' archivo(s)':'Adjuntar archivos del proyecto…';
-}
-async function saveMktProyecto(){
-  const nombre=document.getElementById('mktpf-nombre').value.trim();
-  if(!nombre){toast('Nombre obligatorio.','error');return;}
-  setBtn('save-mktproy-btn',true);
-  const proy={
-    id:mktProyCurrentId||uid9(),nombre,
-    desc:document.getElementById('mktpf-desc').value.trim(),
-    tipo:document.getElementById('mktpf-tipo').value,
-    stage:document.getElementById('mktpf-stage').value,
-    agenciaId:document.getElementById('mktpf-agencia').value||null,
-    respId:document.getElementById('mktpf-resp').value||null,
-    presupuesto:parseFloat(document.getElementById('mktpf-presupuesto').value)||null,
-    fechaInicio:document.getElementById('mktpf-inicio').value||null,
-    fechaFin:document.getElementById('mktpf-fin').value||null,
-    subtasks:[...mktProySubs],files:[...mktProyFiles],
-  };
-  if(mktProyCurrentId){const idx=mktProyData.findIndex(x=>x.id===mktProyCurrentId);if(idx!==-1)mktProyData[idx]=proy;}
-  else mktProyData.push(proy);
-  await proySaveSB(proy);
-  closeModal('modal-mkt-proyecto');renderMarketing();
-  toast(mktProyCurrentId?'Proyecto actualizado.':'Proyecto creado.');setBtn('save-mktproy-btn',false);
-}
-async function deleteMktProyecto(){
-  if(!mktProyCurrentId)return;
-  if(!confirm('¿Eliminar este proyecto?'))return;
-  mktProyData=mktProyData.filter(x=>x.id!==mktProyCurrentId);
-  await proyDeleteSB(mktProyCurrentId);
-  closeModal('modal-mkt-proyecto');renderMarketing();toast('Proyecto eliminado.','info');
-}
-
-// ── REPOSITORIO ───────────────────────────────────
-function renderMktRepositorio(){
-  const el=document.getElementById('mkt-docs-list');if(!el)return;
-  if(!mktDocData.length){el.innerHTML='<div class="empty-state" style="grid-column:1/-1"><i class="ti ti-folder"></i><p>Repositorio vacío.</p></div>';return;}
-  const catColors={Brandbook:'#7B2FF7',Creativos:'#EC4899',Brief:'#3B6BF5',Reporte:'#10C080',Propuesta:'#F59E0B',Contrato:'#EF4444',Factura:'#94A0BB',Otro:'#374151'};
-  el.innerHTML=mktDocData.map(d=>'<div class="doc-card">'+
-    '<i class="ti ti-file-description doc-icon" style="color:'+(catColors[d.categoria]||'#7B2FF7')+'"></i>'+
-    '<div class="doc-name">'+escHtml(d.nombre)+'</div>'+
-    '<div class="doc-meta">'+d.categoria+' · v'+(d.version||'1.0')+'</div>'+
-    '<div class="doc-meta">'+fmtDate(d.fecha)+'</div>'+
-    (d.docBase64?'<a href="'+d.docBase64+'" download="'+escHtml(d.docNombre)+'" class="btn-sm btn-ghost" style="width:100%;justify-content:center;margin-top:6px;text-decoration:none"><i class="ti ti-download"></i> Descargar</a>':'')+
-    '<button class="btn-sm btn-ghost" style="width:100%;padding:4px;font-size:11px;margin-top:4px" onclick="deleteMktDoc(\''+d.id+'\')"><i class="ti ti-trash"></i> Eliminar</button>'+
-  '</div>').join('');
-}
-
-function openAddMktDoc(){mktDocFile=null;['mktdocf-nombre'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});document.getElementById('mktdocf-label').textContent='Arrastra o haz clic para subir';document.getElementById('mktdocf-ver').value='v1.0';openModal('modal-mkt-doc');}
-function handleMktDocSelect(e){const f=e.target.files[0];if(!f)return;if(!checkFileSize(f))return;const r=new FileReader();r.onload=(ev)=>{mktDocFile={base64:ev.target.result,nombre:f.name};document.getElementById('mktdocf-label').textContent='✓ '+f.name;if(!document.getElementById('mktdocf-nombre').value)document.getElementById('mktdocf-nombre').value=f.name;};r.readAsDataURL(f);}
-function saveMktDoc(){const nombre=document.getElementById('mktdocf-nombre').value.trim()||'Documento';setBtn('save-mktdoc-btn',true);mktDocData.push({id:uid9(),nombre,categoria:document.getElementById('mktdocf-cat').value,version:document.getElementById('mktdocf-ver').value||'v1.0',docBase64:mktDocFile?.base64||null,docNombre:mktDocFile?.nombre||null,fecha:new Date().toISOString().split('T')[0]});mktDocSave(mktDocData);closeModal('modal-mkt-doc');renderMktRepositorio();toast('Archivo subido ✓');setBtn('save-mktdoc-btn',false);}
-function deleteMktDoc(id){mktDocData=mktDocData.filter(x=>x.id!==id);mktDocSave(mktDocData);renderMktRepositorio();toast('Eliminado.','info');}
-
-// ── REPORTE ───────────────────────────────────────
-function exportMktReport(){
-  const headers=['Tipo','Nombre','Estado','Canales','Agencia','Responsable','Inicio','Fin','Presupuesto','Costo Real','Impresiones Obj','Leads Obj','Conv Obj','Impresiones Real','Leads Real','Conv Real','Subtareas Total','Subtareas Done'];
-  const rows=[];
-  mktData.forEach(c=>{const ag=agData.find(a=>a.id===c.agenciaId);const emp=state.employees.find(e=>e.id===c.responsableId);rows.push(['Campaña',c.nombre,c.stage,(c.canales||[]).join(';'),ag?ag.nombre:'',emp?emp.nombre+' '+emp.apellidos:'',c.fechaInicio||'',c.fechaFin||'',c.presupuesto||0,c.costoReal||0,c.impObj||0,c.leadsObj||0,c.convObj||0,c.impReal||0,c.leadsReal||0,c.convReal||0,(c.subtasks||[]).length,(c.subtasks||[]).filter(s=>s.done).length]);});
-  mktProyData.forEach(p=>{const ag=agData.find(a=>a.id===p.agenciaId);const emp=state.employees.find(e=>e.id===p.respId);rows.push(['Proyecto',p.nombre,p.stage,'',ag?ag.nombre:'',emp?emp.nombre+' '+emp.apellidos:'',p.fechaInicio||'',p.fechaFin||'',p.presupuesto||0,0,0,0,0,0,0,0,(p.subtasks||[]).length,(p.subtasks||[]).filter(s=>s.done).length]);});
-  if(!rows.length){toast('Sin datos para exportar.','info');return;}
-  const csv=[headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Marketing_Reporte_'+new Date().toISOString().split('T')[0]+'.csv';a.click();URL.revokeObjectURL(url);
-  toast('Reporte descargado ✓');
-}
-
 // ═══════════════════════════════════════════════
 // CARGOS / ROLES SYSTEM
 // ═══════════════════════════════════════════════
