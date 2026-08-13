@@ -11047,11 +11047,11 @@ function renderProspDashboard(){
       prospDashValorPipelineCard()+
       prospDashCanalCard()+
     '</div>'+
-    '<div style="margin-bottom:16px">'+prospDashTendenciaCard(model)+'</div>'+
-    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">'+
+    '<div style="display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:16px;align-items:start">'+
+      prospDashTendenciaCard(model)+
       prospDashMotivosCard()+
-      prospDashRankingCard(model)+
-    '</div>';
+    '</div>'+
+    '<div>'+prospDashRankingCard(model)+'</div>';
 }
 function prospDashFunnelCard(model){
   const etapas=model.etapasFunnel;
@@ -11156,10 +11156,13 @@ function prospDashTendenciaCard(model){
   // alto y su radio no toquen el borde superior del SVG. PAD_RIGHT (además
   // del text-anchor de la última etiqueta, ver 'labels' más abajo) evita que
   // el mes más reciente se corte contra el borde del viewBox.
-  // H bajó de 190 a 130 (PAD_TOP/PAD_BOTTOM escalados en la misma proporción,
-  // ~0.68×) para que la tarjeta rinda ~220-260px de alto real en vez de ~300+
-  // — el ancho (W, PAD_LEFT/RIGHT) y la escala (_prospNiceAxis) no cambian.
-  const W=900,H=130,PAD_TOP=18,PAD_BOTTOM=15,PAD_LEFT=34,PAD_RIGHT=18;
+  // H bajó otra vez, de 130 a 110 (PAD_TOP/PAD_BOTTOM escalados ~0.85×): al
+  // vivir ahora en una columna de ~60% junto a Motivos de pérdida (fila de
+  // grid, no ancho completo), el alto absoluto ya se reduce solo (mismo %
+  // padding-top sobre un contenedor más angosto) — este recorte extra es
+  // solo para que la franja no quede desproporcionadamente alta junto a una
+  // tarjeta corta de 2 barras. W/PAD_LEFT/RIGHT y la escala no cambian.
+  const W=900,H=110,PAD_TOP=15,PAD_BOTTOM=13,PAD_LEFT=34,PAD_RIGHT=18;
   const chartW=W-PAD_LEFT-PAD_RIGHT,chartH=H-PAD_TOP-PAD_BOTTOM;
   const n=keys.length;
   const xStep=n>1?chartW/(n-1):0;
