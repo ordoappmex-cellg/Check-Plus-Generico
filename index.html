@@ -148,6 +148,10 @@ body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-80
 .nav-item.active{background:linear-gradient(90deg,rgba(123,47,247,.2),rgba(200,60,180,.1));color:#C07EFF;font-weight:500;border-left:2px solid #9B5FF8;}
 .nav-badge{margin-left:auto;background:rgba(255,255,255,.1);color:rgba(255,255,255,.55);font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;flex-shrink:0;transition:opacity .15s;}
 .nav-item.active .nav-badge{background:rgba(123,47,247,.3);color:#C07EFF;}
+/* Variante roja discreta — mismo tamaño/padding que .nav-badge, solo recolor.
+   Para conteos "urgentes" (ej. tareas vencidas), no un globo grande. */
+.nav-badge.urgent{background:rgba(239,68,68,.25);color:#FF9B9B;}
+.nav-item.active .nav-badge.urgent{background:rgba(239,68,68,.35);color:#FFB3B3;}
 .nav-disabled{opacity:.35;cursor:default!important;pointer-events:none;}
 .sidebar-footer{padding:14px 12px;border-top:1px solid rgba(255,255,255,.06);flex-shrink:0;}
 .logout-btn{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:var(--radius-sm);color:rgba(255,255,255,.35);cursor:pointer;transition:all .15s;font-size:13px;width:100%;background:none;border:none;font-family:var(--font-body);}
@@ -2305,6 +2309,15 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                   <input type="file" id="prosp-doc-input" multiple style="display:none" onchange="prospHandleDocSelect(event)">
                 </div>
                 <div id="prosp-docs-list"></div>
+              </div>
+            </div>
+            <div class="section-card">
+              <div class="section-header">
+                <div class="section-title"><i class="ti ti-checklist" style="margin-right:6px;color:var(--cp-purple)"></i>Tareas y recordatorios</div>
+                <button class="btn-sm btn-purple" onclick="openAddProspTarea()"><i class="ti ti-plus"></i> Tarea</button>
+              </div>
+              <div class="section-body">
+                <div id="prosp-tareas-list"></div>
               </div>
             </div>
           </div>
@@ -4670,6 +4683,26 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
     <div class="modal-footer">
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-prosp-seg')">Cancelar</button>
       <button class="btn-sm btn-blue" id="save-prosp-seg-btn" onclick="saveProspSeg()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAREA DEL LEAD MODAL (crear/editar — hb_crm_tareas, tarjeta "Tareas y
+     recordatorios" del perfil) — mismo patrón crear/editar que modal-prosp-plantilla -->
+<div class="modal-overlay" id="modal-prosp-tarea">
+  <div class="modal" style="width:440px">
+    <div class="modal-header"><div class="modal-title" id="prosp-tarea-modal-title">Nueva tarea</div><button class="modal-close" onclick="closeModal('modal-prosp-tarea')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Título *</label><input class="form-input" id="prosptareaf-titulo" placeholder="Ej. Llamar para confirmar cotización"></div>
+        <div class="form-field full"><label class="form-label">Descripción</label><textarea class="form-input" id="prosptareaf-desc" rows="3" placeholder="Opcional"></textarea></div>
+        <div class="form-field"><label class="form-label">Fecha de vencimiento</label><input type="date" class="form-input" id="prosptareaf-fecha"></div>
+        <div class="form-field"><label class="form-label">Tipo</label><select class="form-input" id="prosptareaf-tipo"></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-prosp-tarea')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-prosp-tarea-btn" onclick="saveProspTarea()"><i class="ti ti-check"></i> Guardar</button>
     </div>
   </div>
 </div>
@@ -7745,7 +7778,8 @@ const MIS_PEND_ORIGEN_META={
   gp:{label:'Gestión',color:'#3B82F6',icon:'ti-checklist',modulo:'gestion-proyectos'},
   diseno:{label:'Diseño',color:'#7B2FF7',icon:'ti-brush',modulo:'diseno'},
   kanban:{label:'Kanban',color:'#10C080',icon:'ti-layout-kanban',modulo:'kanban'},
-  soporte:{label:'Soporte',color:'#F5A623',icon:'ti-headset',modulo:'soporte'}
+  soporte:{label:'Soporte',color:'#F5A623',icon:'ti-headset',modulo:'soporte'},
+  crm:{label:'Prospectos',color:'#EC4899',icon:'ti-user-search',modulo:'prospectos'}
 };
 function misPendMyEmpId(){
   const myEmail=(state.currentUser?.email||'').toLowerCase();
@@ -7816,6 +7850,20 @@ function getMisPendientesSync(userId){
     });
   }
 
+  // CRM (hb_crm_tareas) — ligado al auth uid (usuario_id), no al empleado,
+  // así que no depende de myEmpId. _crmTareasPendientesCache ya viene
+  // filtrada por servidor a uid+completada=false (ver loadCrmTareasPendientes).
+  _crmTareasPendientesCache.forEach(t=>{
+    const p=prospData.find(x=>x.id===t.prospecto_id);
+    items.push({
+      origen:'crm',id:t.id,titulo:t.titulo,padre:p?p.nombre:'—',
+      asignadoA:null,creadoPor:null,
+      fecha:t.fecha_vence||null,estado:'pendiente',
+      urlNav:{prospectoId:t.prospecto_id},
+      _isAsignado:true
+    });
+  });
+
   return items;
 }
 // Versión "segura" — garantiza que las 4 tablas fuente estén cargadas
@@ -7824,7 +7872,8 @@ function getMisPendientesSync(userId){
 async function getMisPendientes(userId){
   await Promise.all([
     loadModuleData('kanban'), loadModuleData('diseno'),
-    loadModuleData('gestion-proyectos'), loadModuleData('soporte')
+    loadModuleData('gestion-proyectos'), loadModuleData('soporte'),
+    loadCrmTareasPendientes()
   ]);
   return getMisPendientesSync(userId);
 }
@@ -7850,6 +7899,7 @@ function _misPendEstadoLabel(it){
   if(it.origen==='gp')return GP_TAREA_ESTADO_LABELS[it.estado]||it.estado||'—';
   if(it.origen==='diseno')return DISENO_TAREA_ESTADO_LABELS[it.estado]||it.estado||'—';
   if(it.origen==='kanban')return 'Pendiente';
+  if(it.origen==='crm')return 'Pendiente';
   if(it.origen==='soporte')return (spGetCfg().estados.find(e=>e.id===it.estado)||{}).nombre||it.estado||'—';
   return it.estado||'—';
 }
@@ -7913,7 +7963,9 @@ function _misPendRowHtml(it){
   const meta=MIS_PEND_ORIGEN_META[it.origen];
   const hasAccess=canView(meta.modulo);
   const canCheck=(it.origen==='gp'&&canEdit('gestion-proyectos'))||(it.origen==='diseno'&&canEdit('diseno'))||(it.origen==='kanban'&&canEdit('kanban'));
-  const checkboxHtml=it.origen==='soporte'?'':
+  // 'crm' se completa desde el perfil del lead (Paso 2, punto 2), no desde
+  // este hub — mismo criterio de exclusión que 'soporte'.
+  const checkboxHtml=(it.origen==='soporte'||it.origen==='crm')?'':
     '<input type="checkbox" '+(canCheck?'onclick="event.stopPropagation();misPendQuickComplete(\''+it.origen+'\',\''+it.id+'\')"':'disabled')+' style="width:15px;height:15px;cursor:'+(canCheck?'pointer':'default')+'">';
   const vencida=misPendIsVencida(it);
   // "Asignado a mí" → quién lo solicitó (creadoPor); "Solicitado por mí" →
@@ -8009,6 +8061,8 @@ function misPendGoTo(origen,id){
       openEditCard(id);
     } else if(origen==='soporte'){
       openEditSp(id);
+    } else if(origen==='crm'){
+      openProspDetail(item.urlNav.prospectoId);
     }
   });
 }
@@ -8798,6 +8852,16 @@ const PROSP_MSG_VARS=[
   {key:'vendedor',label:'Vendedor'}
 ];
 let prospSegData = [];
+// Tareas y recordatorios del lead abierto (hb_crm_tareas) — mismo patrón que
+// prospSegData/prospDocsData: se recarga por lead en openProspDetail().
+let prospTareasData = [];
+let prospTareaEditId = null; // null = crear, id = editar (mismo patrón que prospPlantillaEditId)
+// Tareas SIN completar del USUARIO ACTUAL, de TODOS los leads — usado por el
+// badge del sidebar (ALL_MODULES 'prospectos') y por el 5º origen 'crm' del
+// agregador Mis Pendientes (getMisPendientesSync). Se llena con una consulta
+// ligera y acotada por servidor (usuario_id + completada=false), NUNCA con
+// sbGetAll de la tabla completa — ver loadCrmTareasPendientes().
+let _crmTareasPendientesCache = [];
 let prospCurrentId = null;
 let prospOpenEtapaValue = null; // etapa con la que se abrió la ficha actual — ver prospOnEtapaSelectChange()
 let prospViewMode = 'lista';
@@ -9857,6 +9921,26 @@ async function prospLoad(){
   prospPlantillas=cfgGet('crm_plantillas');
   prospMotivosPerdida=cfgGet('crm_motivos_perdida');
   if(!(_userProfilesCache||[]).length){try{await loadAllUserProfiles();}catch(e){}}
+  await loadCrmTareasPendientes();
+  updateAllBadges();
+}
+// Tareas de hb_crm_tareas del usuario actual sin completar, de todos los
+// leads — consulta acotada por servidor (usuario_id+completada), nunca la
+// tabla completa. Alimenta el badge de Prospectos y el origen 'crm' de
+// getMisPendientesSync(). Se llama desde prospLoad() (al visitar Prospectos)
+// y desde getMisPendientes() (hub Mis Pendientes / contexto del asistente IA).
+async function loadCrmTareasPendientes(){
+  const uid=state.currentUser?.id;
+  if(!uid){_crmTareasPendientesCache=[];return _crmTareasPendientesCache;}
+  const {data,error}=await sb.from('hb_crm_tareas').select('*').eq('usuario_id',uid).eq('completada',false);
+  if(error){console.error('loadCrmTareasPendientes',error);return _crmTareasPendientesCache;}
+  _crmTareasPendientesCache=data||[];
+  return _crmTareasPendientesCache;
+}
+function _crmTareaIsVencida(t){
+  if(!t.fecha_vence)return false;
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  return new Date(t.fecha_vence+'T12:00:00')<hoy;
 }
 
 // ── SALUD DEL LEAD (semáforo de días sin actividad) — todo calculado en
@@ -10500,9 +10584,11 @@ async function openProspDetail(id){
   document.getElementById('prosp-seg-filter').innerHTML='';
   document.getElementById('prosp-seg-timeline').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
   document.getElementById('prosp-docs-list').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
-  const [segData,docsData]=await Promise.all([prospSegLoad(id),prospDocsLoad(id)]);
+  document.getElementById('prosp-tareas-list').innerHTML='<div style="text-align:center;padding:16px;color:var(--cp-gray-400);font-size:12px">Cargando…</div>';
+  const [segData,docsData,tareasData]=await Promise.all([prospSegLoad(id),prospDocsLoad(id),prospTareasLoad(id)]);
   prospSegData=segData;renderProspSegTimeline();
   prospDocsData=docsData;renderProspDocsList();renderProspCotizacion();
+  prospTareasData=tareasData;renderProspTareas();
 }
 function renderProspDetailHeader(p){
   if(!p)return;
@@ -10707,6 +10793,109 @@ async function saveProspSeg(){
   if(segLead&&segLead.estado!=='perdido')segLead.diasSinActividad=0;
   renderProspectos();
   toast('Seguimiento registrado ✓');
+}
+
+// ── TAREAS Y RECORDATORIOS DEL LEAD (hb_crm_tareas) — tarjeta hermana de
+// Documentos en #prosp-det-side-blocks. Mismo patrón de carga/guardado que
+// la bitácora (prospSegLoad/saveProspSeg) y de edición que las plantillas
+// (prospPlantillaEditId): null=crear, id=editar. ──
+async function prospTareasLoad(prospectoId){
+  const {data,error}=await sb.from('hb_crm_tareas').select('*').eq('prospecto_id',prospectoId).order('fecha_vence',{ascending:true,nullsFirst:false});
+  if(error){console.error('prospTareasLoad',error);return [];}
+  return (data||[]).map(r=>({id:r.id,prospectoId:r.prospecto_id,titulo:r.titulo,descripcion:r.descripcion,fechaVence:r.fecha_vence,tipo:r.tipo,completada:r.completada,completadaEn:r.completada_en,usuarioId:r.usuario_id,createdAt:r.created_at}));
+}
+function renderProspTareas(){
+  const el=document.getElementById('prosp-tareas-list');if(!el)return;
+  if(!prospTareasData.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400)">Sin tareas registradas.</div>';return;}
+  const hoy=new Date();hoy.setHours(0,0,0,0);
+  el.innerHTML=prospTareasData.map(function(t){
+    const vencida=!t.completada&&!!t.fechaVence&&new Date(t.fechaVence+'T12:00:00')<hoy;
+    const tipoCat=prospTiposContacto.find(function(x){return x.id===t.tipo;});
+    const tipoLabel=tipoCat?tipoCat.nombre:null;
+    const tipoColor=tipoCat?(tipoCat.color||'#94A0BB'):'#94A0BB';
+    const tituloColor=t.completada?'var(--cp-gray-400)':(vencida?'var(--cp-red)':'var(--cp-navy)');
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--cp-gray-100)">'+
+      '<input type="checkbox" '+(t.completada?'checked':'')+' onclick="event.stopPropagation();prospTareaToggle(\''+t.id+'\')" style="margin-top:2px;width:15px;height:15px;cursor:pointer;flex-shrink:0">'+
+      '<div style="flex:1;min-width:0;cursor:pointer" onclick="openEditProspTarea(\''+t.id+'\')">'+
+        '<div style="font-size:12px;color:'+tituloColor+';text-decoration:'+(t.completada?'line-through':'none')+'">'+escHtml(t.titulo||'')+'</div>'+
+        (t.descripcion?'<div style="font-size:11px;color:var(--cp-gray-500);margin-top:2px;white-space:pre-wrap">'+escHtml(t.descripcion)+'</div>':'')+
+        '<div style="display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap">'+
+          (tipoLabel?'<span class="prosp-seg-chip" style="background:'+tipoColor+'22;color:'+tipoColor+'">'+escHtml(tipoLabel)+'</span>':'')+
+          (t.fechaVence?'<span style="font-size:10px;color:'+(vencida?'var(--cp-red)':'var(--cp-gray-400)')+';font-weight:'+(vencida?'700':'400')+'">'+(vencida?'⚠ ':'')+fmtDateShort(t.fechaVence)+'</span>':'<span style="font-size:10px;color:var(--cp-gray-300)">Sin fecha</span>')+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function openAddProspTarea(){
+  if(!prospCurrentId)return;
+  prospTareaEditId=null;
+  document.getElementById('prosp-tarea-modal-title').textContent='Nueva tarea';
+  document.getElementById('prosptareaf-titulo').value='';
+  document.getElementById('prosptareaf-desc').value='';
+  document.getElementById('prosptareaf-fecha').value='';
+  document.getElementById('prosptareaf-tipo').innerHTML='<option value="">— Sin tipo —</option>'+prospTiposContacto.filter(function(t){return t.activo!==false;}).map(function(t){return '<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>';}).join('');
+  openModal('modal-prosp-tarea');
+}
+function openEditProspTarea(id){
+  const t=prospTareasData.find(function(x){return x.id===id;});if(!t)return;
+  prospTareaEditId=id;
+  document.getElementById('prosp-tarea-modal-title').textContent='Editar tarea';
+  document.getElementById('prosptareaf-titulo').value=t.titulo||'';
+  document.getElementById('prosptareaf-desc').value=t.descripcion||'';
+  document.getElementById('prosptareaf-fecha').value=t.fechaVence||'';
+  document.getElementById('prosptareaf-tipo').innerHTML='<option value="">— Sin tipo —</option>'+prospTiposContacto.filter(function(x){return x.activo!==false||x.id===t.tipo;}).map(function(x){return '<option value="'+x.id+'"'+(x.id===t.tipo?' selected':'')+'>'+escHtml(x.nombre)+'</option>';}).join('');
+  openModal('modal-prosp-tarea');
+}
+async function saveProspTarea(){
+  if(!prospCurrentId)return;
+  const titulo=sanitizeInput(document.getElementById('prosptareaf-titulo').value,150);
+  if(!titulo){toast('El título es obligatorio.','error');return;}
+  setBtn('save-prosp-tarea-btn',true);
+  const row={
+    id:prospTareaEditId||uid9(),
+    prospecto_id:prospCurrentId,
+    titulo,
+    descripcion:sanitizeInput(document.getElementById('prosptareaf-desc').value,1000),
+    fecha_vence:document.getElementById('prosptareaf-fecha').value||null,
+    tipo:document.getElementById('prosptareaf-tipo').value||null,
+    usuario_id:state.currentUser?.id||null
+  };
+  const ok=await sbUpsert('hb_crm_tareas',row);
+  setBtn('save-prosp-tarea-btn',false);
+  if(!ok)return;
+  auditLog(prospTareaEditId?'editar':'crear','hb_crm_tareas',row.id,'Tarea: '+titulo);
+  closeModal('modal-prosp-tarea');
+  prospTareasData=await prospTareasLoad(prospCurrentId);
+  renderProspTareas();
+  loadCrmTareasPendientes().then(updateAllBadges);
+  toast(prospTareaEditId?'Tarea actualizada ✓':'Tarea creada ✓');
+}
+// Completar/descompletar es un toggle simple — descompletar NO deja rastro
+// en bitácora (a propósito, ver punto 4 del Paso 2). Solo completar dispara
+// prospLogTareaCompletada(). Optimista con revert si falla el guardado,
+// mismo criterio que prospColDrop()/marcarProspectoPerdido().
+async function prospTareaToggle(id){
+  const t=prospTareasData.find(function(x){return x.id===id;});if(!t)return;
+  const prevCompletada=t.completada,prevCompletadaEn=t.completadaEn;
+  const nowCompleting=!t.completada;
+  t.completada=nowCompleting;t.completadaEn=nowCompleting?new Date().toISOString():null;
+  renderProspTareas();
+  const ok=await sbUpsert('hb_crm_tareas',{id:t.id,completada:t.completada,completada_en:t.completadaEn});
+  if(!ok){
+    t.completada=prevCompletada;t.completadaEn=prevCompletadaEn;
+    renderProspTareas();
+    toast('Error al actualizar la tarea.','error');
+    return;
+  }
+  loadCrmTareasPendientes().then(updateAllBadges);
+  if(nowCompleting)prospLogTareaCompletada(prospCurrentId,t.titulo);
+}
+// Entrada automática en bitácora al completar una tarea — mismo mecanismo
+// fire-and-forget que prospLogEtapaChange() (sbSaveAsync + auditLog interno).
+function prospLogTareaCompletada(prospId,titulo){
+  const row={id:uid9(),prospecto_id:prospId,tipo:'Tarea completada',nota:'✓ Tarea completada: '+titulo,proximo_paso:null,proximo_paso_fecha:null,usuario_id:state.currentUser?.id||null};
+  sbSaveAsync(sbUpsert('hb_crm_seguimientos',row).then(function(ok){if(ok)auditLog('crear','hb_crm_seguimientos',row.id,row.nota);return ok;}),'Registro de tarea completada');
 }
 
 // ── DOCUMENTOS DEL LEAD (Storage: bucket 'crm-documentos') ──
@@ -11156,13 +11345,15 @@ function prospDashTendenciaCard(model){
   // alto y su radio no toquen el borde superior del SVG. PAD_RIGHT (además
   // del text-anchor de la última etiqueta, ver 'labels' más abajo) evita que
   // el mes más reciente se corte contra el borde del viewBox.
-  // H bajó otra vez, de 130 a 110 (PAD_TOP/PAD_BOTTOM escalados ~0.85×): al
-  // vivir ahora en una columna de ~60% junto a Motivos de pérdida (fila de
-  // grid, no ancho completo), el alto absoluto ya se reduce solo (mismo %
-  // padding-top sobre un contenedor más angosto) — este recorte extra es
-  // solo para que la franja no quede desproporcionadamente alta junto a una
-  // tarjeta corta de 2 barras. W/PAD_LEFT/RIGHT y la escala no cambian.
-  const W=900,H=110,PAD_TOP=15,PAD_BOTTOM=13,PAD_LEFT=34,PAD_RIGHT=18;
+  // PAD_BOTTOM +7 (13→20) y H +7 en la misma medida (110→117, mantiene
+  // chartH/el área de datos igual, solo estira la banda inferior): el hueco
+  // entre la línea base y la etiqueta de mes es fijo en unidades de viewBox
+  // (H-6 menos baseline=H-PAD_BOTTOM, o sea PAD_BOTTOM-6) y el factor
+  // px-por-unidad-Y de este SVG es contenedor/W — un valor que NO depende de
+  // H. Subir solo H (como se pidió literal) no habría cambiado ni un solo
+  // px reales de separación; había que crecer PAD_BOTTOM. W/PAD_LEFT/PAD_TOP
+  // y la escala no cambian.
+  const W=900,H=117,PAD_TOP=15,PAD_BOTTOM=20,PAD_LEFT=34,PAD_RIGHT=18;
   const chartW=W-PAD_LEFT-PAD_RIGHT,chartH=H-PAD_TOP-PAD_BOTTOM;
   const n=keys.length;
   const xStep=n>1?chartW/(n-1):0;
@@ -18492,7 +18683,7 @@ const ALL_MODULES = [
   {id:'organigrama',label:'Organigrama',icon:'ti-hierarchy',badge:null},
   {id:'clientes',label:'Clientes',icon:'ti-building-store',badge:'clientes-count'},
   {id:'proveedores',label:'Proveedores',icon:'ti-truck',badge:null},
-  {id:'prospectos',label:'Prospectos',icon:'ti-user-search',badge:null},
+  {id:'prospectos',label:'Prospectos',icon:'ti-user-search',badge:'prosp-overdue-badge',badgeUrgent:true},
   {id:'marketing',label:'Marketing',icon:'ti-forms',badge:null},
   {id:'crm',label:'CRM Clientify',icon:'ti-users-group',badge:null},
   {id:'desarrollos',label:'Desarrollos',icon:'ti-code',badge:'dev-count'},
@@ -18608,7 +18799,7 @@ function renderSidebarNav(){
     visItems.forEach(modId=>{
       const mod=ALL_MODULES.find(m=>m.id===modId);
       if(!mod)return;
-      const badgeHTML=mod.badge?'<span class="nav-badge" id="'+mod.badge+'">0</span>':'';
+      const badgeHTML=mod.badge?'<span class="nav-badge'+(mod.badgeUrgent?' urgent':'')+'" id="'+mod.badge+'">0</span>':'';
       html+='<div class="nav-item" data-view="'+mod.id+'" data-tip="'+mod.label+'" onclick="nav(this.dataset.view)"><i class="ti '+mod.icon+'"></i><span class="nav-item-label"> '+mod.label+'</span>'+badgeHTML+'</div>';
     });
     html+='</div></div>';
@@ -18811,8 +19002,10 @@ function updateAllBadges(){
   // en getMisPendientes (v1.9.1: corrige bug reportado en v1.8).
   const myEmpIdBadge=misPendMyEmpId();
   setBadgeCount('diseno-badge',myEmpIdBadge?disenoTareas.filter(t=>t.asignadoA===myEmpIdBadge&&t.estado!=='completada').length:0);
-  // mis pendientes — total asignado a mí entre los 4 módulos de origen (motor único)
+  // mis pendientes — total asignado a mí entre los 5 módulos de origen (motor único)
   setBadgeCount('mispend-badge',getMisPendientesSync(state.currentUser?.id).filter(i=>i._isAsignado).length);
+  // prospectos — tareas VENCIDAS del usuario actual (badge rojo, ver ALL_MODULES.badgeUrgent)
+  setBadgeCount('prosp-overdue-badge',_crmTareasPendientesCache.filter(_crmTareaIsVencida).length);
 }
 
 // ── NAV CONFIG EDITOR ────────────────────────────
