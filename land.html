@@ -14,6 +14,13 @@
 <meta name="twitter:title" content="">
 <meta name="twitter:description" content="">
 <meta name="twitter:image" content="">
+<!-- Fuentes de la plantilla 'editorial' — mismo patrón de preconnect que
+     usa index.html. Cargadas siempre (no solo cuando la plantilla activa es
+     'editorial') para no complicar la carga condicional de <link> desde JS;
+     el costo es un request de fuente no usada en el resto de plantillas. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Space+Grotesk:wght@400;500;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --l-navy:#182235; --l-accent:#3B6BF5; --l-accent-dark:#2f57d1;
@@ -23,6 +30,7 @@
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     color:var(--l-gray-700);background:#fff;font-size:15px;line-height:1.6;
@@ -104,6 +112,74 @@
   .l-evt-agenda .l-bloque-dot{width:8px;height:8px;border-radius:50%;background:var(--l-accent);margin-top:7px;flex-shrink:0;}
   .l-evt-agenda .l-bloque-titulo,.l-evt-agenda .l-bloque-texto{color:#fff;}
   .l-evt-agenda .l-bloque-texto{color:rgba(255,255,255,.7);}
+
+  /* ═══ PLANTILLA: editorial — la más elaborada, ritmo claro/oscuro/morado
+     entre secciones. Todo escapado bajo .l-edt para no filtrar tipografía
+     serif/variables al resto de plantillas. ═══ */
+  .l-edt{
+    --e-purple:#2D1B4E; --e-purple-light:#4A3376; --e-gold:#E8B87A; --e-gold-dark:#D6A264;
+    --e-black:#120C1E; --e-cream:#FBF8F4; --e-ink:#2A2333;
+    font-family:'Manrope',-apple-system,BlinkMacSystemFont,sans-serif;
+    background:#fff;
+  }
+  .l-edt h1,.l-edt h2,.l-edt blockquote{font-family:'Cormorant Garamond',Georgia,serif;}
+  .l-edt .l-edt-label,.l-edt-nav-brand,.l-edt-numeral{font-family:'Space Grotesk',sans-serif;}
+
+  /* Navbar */
+  .l-edt-nav{position:sticky;top:0;z-index:20;background:var(--e-black);padding:14px 24px;}
+  .l-edt-nav-inner{max-width:1040px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;}
+  .l-edt-nav-brand{color:#fff;font-size:16px;font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .l-edt-nav-links{display:flex;align-items:center;gap:20px;}
+  .l-edt-nav-link{color:rgba(255,255,255,.75);font-size:13px;font-weight:500;text-decoration:none;white-space:nowrap;}
+  .l-edt-nav-link:hover{color:#fff;}
+  .l-edt-nav-cta{background:var(--e-gold);color:var(--e-black);padding:8px 18px;border-radius:99px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;}
+  .l-edt-nav-cta:hover{background:var(--e-gold-dark);}
+
+  /* Hero */
+  .l-edt-hero{position:relative;min-height:min(78vh,560px);display:flex;align-items:flex-end;background:linear-gradient(160deg,var(--e-purple),var(--e-black));background-size:cover;background-position:center;padding:60px 24px 56px;}
+  .l-edt-hero::before{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(10,6,20,.82),rgba(10,6,20,.35));}
+  .l-edt-hero-inner{position:relative;max-width:1040px;margin:0 auto;width:100%;}
+  .l-edt-hero h1{color:#fff;font-size:clamp(34px,5.5vw,58px);font-weight:600;margin:0 0 14px;max-width:760px;}
+  .l-edt-hero p{color:rgba(255,255,255,.82);font-size:17px;max-width:520px;margin:0;}
+  .l-edt-price{position:absolute;top:-30px;right:24px;background:#fff;border-radius:12px;padding:14px 20px;box-shadow:0 10px 30px rgba(0,0,0,.25);text-align:right;}
+  .l-edt-price-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--e-ink);text-transform:uppercase;opacity:.55;}
+  .l-edt-price-val{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:var(--e-purple);}
+  .l-edt-price-val span{font-family:'Manrope',sans-serif;font-size:13px;font-weight:600;color:var(--e-ink);opacity:.6;}
+
+  /* Encabezado de sección numerado */
+  .l-edt-label{display:flex;align-items:center;gap:12px;margin-bottom:34px;}
+  .l-edt-label-num{font-size:13px;font-weight:700;letter-spacing:.12em;color:var(--e-gold-dark);}
+  .l-edt-label-line{flex:0 0 46px;height:2px;background:var(--e-gold);}
+  .l-edt-label-text{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--e-ink);text-transform:uppercase;opacity:.7;}
+
+  /* Beneficios */
+  .l-edt-beneficios{background:var(--e-cream);padding:70px 24px;}
+  .l-edt-beneficios-inner{max-width:1040px;margin:0 auto;}
+  .l-edt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px;}
+  .l-edt-card{background:#fff;border-radius:4px;padding:28px 24px;border-top:2px solid var(--e-gold);}
+  .l-edt-numeral{font-size:13px;font-weight:700;color:var(--e-gold-dark);letter-spacing:.06em;margin-bottom:10px;display:block;}
+  .l-edt-card .l-bloque-titulo{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600;color:var(--e-purple);margin-bottom:8px;}
+  .l-edt-card .l-bloque-texto{color:var(--e-ink);opacity:.75;font-size:14px;}
+
+  /* Testimonio (condicional) */
+  .l-edt-testimonio{background:var(--e-purple);padding:80px 24px;text-align:center;}
+  .l-edt-testimonio-inner{max-width:700px;margin:0 auto;}
+  .l-edt-testimonio blockquote{margin:0 0 20px;font-style:italic;font-weight:500;font-size:clamp(22px,3.2vw,32px);line-height:1.4;color:#fff;}
+  .l-edt-testimonio-autor{font-size:12px;font-weight:700;letter-spacing:.14em;color:var(--e-gold);text-transform:uppercase;}
+
+  /* CTA + formulario */
+  .l-edt-cta{background:var(--e-black);padding:76px 24px;}
+  .l-edt-cta-inner{max-width:520px;margin:0 auto;}
+  .l-edt-cta-intro{color:rgba(255,255,255,.7);font-size:15px;margin:0 0 30px;}
+  .l-edt-cta .l-form-card{background:linear-gradient(160deg,var(--e-purple-light),var(--e-purple));border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 50px rgba(0,0,0,.35);}
+  .l-edt-cta .l-f-title{color:#fff;font-family:'Cormorant Garamond',serif;font-size:22px;}
+  .l-edt-cta .l-f-label{color:rgba(255,255,255,.85);}
+  .l-edt-cta .l-f-btn{background:var(--e-gold);color:var(--e-black);font-weight:700;}
+  .l-edt-cta .l-f-btn:hover{background:var(--e-gold-dark);}
+
+  /* Footer */
+  .l-edt-footer{background:var(--e-black);padding:22px 24px;}
+  .l-edt-footer-inner{max-width:1040px;margin:0 auto;color:rgba(255,255,255,.5);font-size:13px;}
 </style>
 </head>
 <body>
@@ -317,12 +393,64 @@
         formHtml(cfg.formulario)+
       '</div></div>';
   }
+  // ── Plantilla 'editorial' — la más elaborada del catálogo, alterna fondos
+  // oscuro/claro/morado entre secciones. numerales romanos en los bloques en
+  // vez de iconos (mismo dato crudo que las otras 3 plantillas). El callout
+  // de precio y la sección de testimonio son 100% condicionales — si el dato
+  // no viene, no se pinta ningún hueco. ──
+  function toRoman(n){
+    var vals=[10,9,5,4,1],syms=['X','IX','V','IV','I'],out='';
+    for(var i=0;i<vals.length;i++){while(n>=vals[i]){out+=syms[i];n-=vals[i];}}
+    return out||'I';
+  }
+  function renderEditorial(cfg){
+    var bloques=(cfg.bloques||[]).filter(function(b){return b.titulo||b.texto;});
+    var heroStyle=cfg.imagen_portada_url?' style="background-image:linear-gradient(0deg,rgba(10,6,20,.55),rgba(10,6,20,.25)),url(\''+esc(cfg.imagen_portada_url)+'\')"':'';
+    var nombre=cfg.nombre||cfg.titulo||'';
+    var tienePrecio=cfg.precio_desde!=null&&cfg.precio_desde!=='';
+    var priceHtml=tienePrecio?
+      '<div class="l-edt-price"><div class="l-edt-price-lbl">Desde</div><div class="l-edt-price-val">$'+esc(Number(cfg.precio_desde).toLocaleString('es-MX'))+(cfg.precio_unidad?' <span>'+esc(cfg.precio_unidad)+'</span>':'')+'</div></div>':'';
+    var tieneTestimonio=cfg.testimonio_texto&&String(cfg.testimonio_texto).trim();
+    var testimonioHtml=tieneTestimonio?
+      '<section class="l-edt-testimonio"><div class="l-edt-testimonio-inner">'+
+        '<blockquote>“'+esc(cfg.testimonio_texto)+'”</blockquote>'+
+        (cfg.testimonio_autor?'<div class="l-edt-testimonio-autor">'+esc(cfg.testimonio_autor)+'</div>':'')+
+      '</div></section>':'';
+    root.innerHTML='<div class="l-edt">'+
+      '<nav class="l-edt-nav"><div class="l-edt-nav-inner">'+
+        '<div class="l-edt-nav-brand">'+esc(nombre)+'</div>'+
+        '<div class="l-edt-nav-links">'+
+          '<a class="l-edt-nav-link" href="#l-edt-beneficios">Beneficios</a>'+
+          '<a class="l-edt-nav-cta" href="#l-edt-form">Reservar</a>'+
+        '</div>'+
+      '</div></nav>'+
+      '<div class="l-edt-hero"'+heroStyle+'><div class="l-edt-hero-inner">'+
+        '<h1>'+esc(cfg.titulo||'')+'</h1>'+
+        (cfg.subtitulo?'<p>'+esc(cfg.subtitulo)+'</p>':'')+
+        priceHtml+
+      '</div></div>'+
+      '<section class="l-edt-beneficios" id="l-edt-beneficios"><div class="l-edt-beneficios-inner">'+
+        '<div class="l-edt-label"><span class="l-edt-label-num">01</span><span class="l-edt-label-line"></span><span class="l-edt-label-text">Lo que incluye</span></div>'+
+        (bloques.length?'<div class="l-edt-grid">'+bloques.map(function(b,i){
+          return '<div class="l-edt-card l-bloque"><span class="l-edt-numeral">'+toRoman(i+1)+'</span><div class="l-bloque-titulo">'+esc(b.titulo||'')+'</div><p class="l-bloque-texto">'+esc(b.texto||'')+'</p></div>';
+        }).join('')+'</div>':'')+
+      '</div></section>'+
+      testimonioHtml+
+      '<section class="l-edt-cta" id="l-edt-form"><div class="l-edt-cta-inner">'+
+        '<div class="l-edt-label"><span class="l-edt-label-num">02</span><span class="l-edt-label-line"></span><span class="l-edt-label-text">Reserva tu lugar</span></div>'+
+        '<p class="l-edt-cta-intro">Completa tus datos y te contactaremos a la brevedad.</p>'+
+        formHtml(cfg.formulario)+
+      '</div></section>'+
+      '<footer class="l-edt-footer"><div class="l-edt-footer-inner">'+esc(nombre)+'</div></footer>'+
+    '</div>';
+  }
   function render(cfg){
     config=cfg;
     applySeo(cfg);
     var plantilla=cfg.plantilla||'simple';
     if(plantilla==='servicios')renderServicios(cfg);
     else if(plantilla==='evento')renderEvento(cfg);
+    else if(plantilla==='editorial')renderEditorial(cfg);
     else renderSimple(cfg);
     var formEl=document.getElementById('l-f-form');
     if(formEl)formEl.addEventListener('submit',onSubmit);
