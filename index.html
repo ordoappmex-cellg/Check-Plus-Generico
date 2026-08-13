@@ -11050,7 +11050,7 @@ function prospDashFunnelCard(model){
         '<span>'+escHtml(e.nombre)+'</span><span style="color:var(--cp-gray-500)">'+c+'</span>'+
       '</div>'+
       '<div style="background:var(--cp-gray-100);border-radius:4px;height:10px;overflow:hidden">'+
-        '<div style="width:'+pct+'%;height:100%;background:'+(e.color||'var(--cp-purple)')+';border-radius:4px"></div>'+
+        '<div style="width:'+pct+'%;height:100%;background:'+(e.color||'#94A0BB')+';border-radius:4px"></div>'+
       '</div>'+
       (conv!=null?'<div style="font-size:10px;color:var(--cp-gray-400);margin-top:2px">'+escHtml(etapas[i-1].nombre)+' → '+escHtml(e.nombre)+': '+conv+'</div>':'')+
     '</div>';
@@ -11135,23 +11135,44 @@ function prospDashTendenciaCard(model){
     if(idx!==-1) confirmados[idx]++;
   });
   const max=Math.max.apply(null,creados.concat(confirmados).concat([1]));
-  const W=560,H=140,PAD=28;
+  // Barras agrupadas (2 por mes). PAD_TOP deja espacio para la etiqueta de
+  // valor sobre la barra más alta (posible incluso con max, no solo con
+  // valores intermedios) — el bug anterior era que la línea del gráfico
+  // podía tocar el borde superior del SVG.
+  const W=580,H=190,PAD_TOP=26,PAD_BOTTOM=22,PAD_LEFT=34,PAD_RIGHT=10;
+  const chartW=W-PAD_LEFT-PAD_RIGHT,chartH=H-PAD_TOP-PAD_BOTTOM;
   const n=keys.length;
-  const xStep=n>1?(W-PAD*2)/(n-1):0;
-  const yOf=function(v){ return H-PAD-(v/max)*(H-PAD*2); };
-  function lineFor(arr,color){
-    const pts=arr.map(function(v,i){ return {x:PAD+i*xStep, y:yOf(v)}; });
-    const poly=pts.map(function(p){return p.x.toFixed(1)+','+p.y.toFixed(1);}).join(' ');
-    const dots=pts.map(function(p){
-      return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3" fill="white" stroke="'+color+'" stroke-width="2"/>';
-    }).join('');
-    return '<polyline points="'+poly+'" fill="none" stroke="'+color+'" stroke-width="2"/>'+dots;
+  const groupW=chartW/n;
+  const barW=Math.max(6,groupW*0.30);
+  const gap=groupW*0.08;
+  const baseline=PAD_TOP+chartH;
+  const hOf=function(v){ return (v/max)*chartH; };
+  // Líneas guía tenues (3 niveles) con su valor a la izquierda, para dar
+  // escala sin un grid pesado — mismo criterio de líneas sutiles que ya se
+  // usa en otras partes de la app.
+  const gridFracs=[1/3,2/3,1];
+  const gridLines=gridFracs.map(function(f){
+    const y=baseline-chartH*f;
+    const val=Math.round(max*f);
+    return '<line x1="'+PAD_LEFT+'" y1="'+y.toFixed(1)+'" x2="'+(W-PAD_RIGHT)+'" y2="'+y.toFixed(1)+'" stroke="var(--cp-gray-200)" stroke-width="1"/>'+
+      '<text x="'+(PAD_LEFT-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end" font-size="9" fill="var(--cp-gray-400)" font-family="Inter,sans-serif">'+val+'</text>';
+  }).join('');
+  function barRect(x,val,color){
+    if(val<=0) return ''; // mes sin datos: no se dibuja barra (ni altura mínima forzada)
+    const h=hOf(val),y=baseline-h;
+    return '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+color+'"/>'+
+      '<text x="'+(x+barW/2).toFixed(1)+'" y="'+(y-4).toFixed(1)+'" text-anchor="middle" font-size="9" font-weight="700" fill="'+color+'" font-family="Inter,sans-serif">'+val+'</text>';
   }
-  const labels=keys.map(function(k,i){
-    return '<text x="'+(PAD+i*xStep).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--cp-gray-500)" font-family="Inter,sans-serif">'+_prospMonthLabel(k)+'</text>';
+  const bars=keys.map(function(k,i){
+    const xg=PAD_LEFT+i*groupW;
+    const pairW=barW*2+gap;
+    const x1=xg+(groupW-pairW)/2;
+    const x2=x1+barW+gap;
+    const lbl='<text x="'+(xg+groupW/2).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--cp-gray-500)" font-family="Inter,sans-serif">'+_prospMonthLabel(k)+'</text>';
+    return barRect(x1,creados[i],'#9B5FF8')+barRect(x2,confirmados[i],'#10C080')+lbl;
   }).join('');
   const svg='<svg width="100%" height="'+H+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="display:block">'+
-    lineFor(creados,'#9B5FF8')+lineFor(confirmados,'#10C080')+labels+
+    gridLines+bars+
   '</svg>';
   return '<div class="section-card" style="margin-bottom:0">'+
     '<div class="section-header"><div class="section-title"><i class="ti ti-chart-line" style="margin-right:6px;color:var(--cp-purple)"></i>Tendencia mensual (últimos 6 meses)</div></div>'+
