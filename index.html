@@ -2323,6 +2323,17 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <thead><tr><th>Nombre</th><th>Slug</th><th>Canal</th><th>Leads captados</th><th>Estado</th><th></th></tr></thead>
           <tbody id="mkt-form-tbody"></tbody>
         </table>
+
+        <!-- LANDING PAGES — sección hermana de Formularios, mismo patrón visual
+             (card header + botón + tabla), ver mktLandingLoad()/renderMktLandings(). -->
+        <div style="display:flex;align-items:center;gap:8px;margin:28px 0 14px;flex-wrap:wrap">
+          <div style="font-size:12px;color:var(--cp-gray-400)">Landing pages públicas (land.html) con formulario embebido.</div>
+          <button class="btn-sm btn-blue" id="btn-nuevo-mkt-landing" style="margin-left:auto" onclick="openAddMktLanding()"><i class="ti ti-plus"></i> Nueva landing</button>
+        </div>
+        <table class="emp-table" id="mkt-landing-table">
+          <thead><tr><th>Nombre</th><th>Slug</th><th>Plantilla</th><th>Formulario vinculado</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="mkt-landing-tbody"></tbody>
+        </table>
       </div>
 
       <!-- CLIENTE DETAIL VIEW -->
@@ -4803,7 +4814,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <!-- MKT FORM SNIPPET MODAL -->
 <div class="modal-overlay" id="modal-mkt-snippet">
   <div class="modal" style="width:560px">
-    <div class="modal-header"><div class="modal-title">Código para embeber</div><button class="modal-close" onclick="closeModal('modal-mkt-snippet')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-header"><div class="modal-title" id="mkt-snippet-modal-title">Código para embeber</div><button class="modal-close" onclick="closeModal('modal-mkt-snippet')"><i class="ti ti-x"></i></button></div>
     <div class="modal-body">
       <div style="font-size:12px;color:var(--cp-gray-400);margin-bottom:10px">Pega este código en la página donde quieras mostrar el formulario.</div>
       <textarea class="form-input" id="mkt-snippet-code" readonly rows="4" style="font-family:monospace;font-size:12px;background:var(--cp-gray-50)" onclick="this.select()"></textarea>
@@ -4812,6 +4823,61 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
     <div class="modal-footer">
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-mkt-snippet')">Cerrar</button>
       <button class="btn-sm btn-blue" onclick="copyMktSnippet()"><i class="ti ti-copy"></i> Copiar código</button>
+    </div>
+  </div>
+</div>
+
+<!-- MKT LANDING EDITOR MODAL — mismo patrón de formularios (form-grid +
+     campos configurables en memoria hasta Guardar), imagen de portada sube a
+     Storage (bucket landing-images) recién al guardar, no antes. -->
+<div class="modal-overlay" id="modal-mkt-landing">
+  <div class="modal" style="width:680px;max-height:90vh;overflow-y:auto">
+    <div class="modal-header"><div class="modal-title" id="mkt-landing-modal-title">Nueva landing</div><button class="modal-close" onclick="closeModal('modal-mkt-landing')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Nombre interno *</label><input class="form-input" id="mktlandf-nombre" placeholder="Ej. Landing paquetes de verano" oninput="mktLandingOnNombreInput()"></div>
+        <div class="form-field"><label class="form-label">Slug (URL) *</label><input class="form-input" id="mktlandf-slug" placeholder="paquetes-verano" oninput="mktLandingOnSlugInput()"></div>
+        <div class="form-field"><label class="form-label">Plantilla</label><select class="form-input" id="mktlandf-plantilla"><option value="servicios">Servicios</option><option value="evento">Evento</option><option value="simple">Simple</option></select></div>
+        <div class="form-field"><label class="form-label">Estado</label><select class="form-input" id="mktlandf-activo"><option value="true">✅ Activo</option><option value="false">⏸ Inactivo</option></select></div>
+        <div class="form-field"><label class="form-label">Formulario vinculado *</label><select class="form-input" id="mktlandf-formulario"></select></div>
+
+        <div class="form-field full"><label class="form-label">Título *</label><input class="form-input" id="mktlandf-titulo" placeholder="Título principal de la landing"></div>
+        <div class="form-field full"><label class="form-label">Subtítulo</label><input class="form-input" id="mktlandf-subtitulo" placeholder="Frase de apoyo debajo del título"></div>
+
+        <div class="form-field full" style="display:flex;align-items:center;gap:16px;margin-bottom:4px">
+          <div id="mktlandf-portada-zone" onclick="document.getElementById('mktlandf-portada-input').click()" style="width:140px;height:80px;border-radius:var(--radius-md);border:2px dashed var(--cp-gray-200);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;background:var(--cp-gray-50);overflow:hidden;position:relative;flex-shrink:0">
+            <img id="mktlandf-portada-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0">
+            <i class="ti ti-photo" style="font-size:22px;color:var(--cp-gray-400)"></i>
+            <span style="font-size:9px;color:var(--cp-gray-400);margin-top:2px">Imagen de portada</span>
+            <input type="file" id="mktlandf-portada-input" accept="image/*" style="display:none" onchange="previewMktLandingPortada(event)">
+          </div>
+          <div style="font-size:11px;color:var(--cp-gray-400);flex:1">Imagen de portada (opcional). Se sube al guardar.</div>
+        </div>
+
+        <div class="form-field full">
+          <label class="form-label">Bloques (tarjetas de servicios/beneficios)</label>
+          <div style="font-size:11px;color:var(--cp-gray-400);margin:2px 0 8px">Arrastra para reordenar.</div>
+          <div id="mktlandf-bloques-list" style="margin-bottom:10px"></div>
+          <button type="button" class="btn-sm btn-ghost" onclick="mktLandingBloqueAdd()"><i class="ti ti-plus"></i> Agregar bloque</button>
+        </div>
+
+        <div class="form-field full" style="border-top:1px solid var(--cp-gray-100);padding-top:14px;margin-top:4px">
+          <label class="form-label" style="margin-bottom:8px;display:block">SEO</label>
+        </div>
+        <div class="form-field full"><label class="form-label">Meta título</label><input class="form-input" id="mktlandf-meta-titulo" placeholder="Si vacío, usa el título"></div>
+        <div class="form-field full"><label class="form-label">Meta descripción</label><textarea class="form-input" id="mktlandf-meta-desc" rows="2" placeholder="Descripción para buscadores y redes sociales"></textarea></div>
+        <div class="form-field full"><label class="form-label">Imagen Open Graph (URL, opcional)</label><input class="form-input" id="mktlandf-og-imagen" placeholder="Si vacío, usa la imagen de portada"></div>
+
+        <div class="form-field full" style="border-top:1px solid var(--cp-gray-100);padding-top:14px;margin-top:4px">
+          <label class="form-label" style="margin-bottom:8px;display:block">Pantalla de agradecimiento</label>
+        </div>
+        <div class="form-field full"><label class="form-label">Título de agradecimiento</label><input class="form-input" id="mktlandf-gracias-titulo" placeholder="¡Gracias!"></div>
+        <div class="form-field full"><label class="form-label">Texto de agradecimiento</label><textarea class="form-input" id="mktlandf-gracias-texto" rows="2" placeholder="Te contactaremos pronto."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-mkt-landing')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-mkt-landing-btn" onclick="saveMktLanding()"><i class="ti ti-check"></i> Guardar</button>
     </div>
   </div>
 </div>
@@ -5490,6 +5556,7 @@ async function _loadModuleDataInner(moduleId) {
       }
       case 'marketing': {
         await mktFormLoad();
+        await mktLandingLoad();
         break;
       }
     }
@@ -5708,6 +5775,7 @@ async function nav(view){
     if(!_moduleLoaded['marketing'])showModuleSkeleton('mkt-form-tbody');
     await loadModuleData('marketing');
     renderMktForms();
+    renderMktLandings();
   }
   if(view==='desarrollos'){
     document.getElementById('page-title').textContent='Desarrollos';
@@ -12517,6 +12585,283 @@ function copyToClipboard(text,msg){
   }else{
     toast('Tu navegador no soporta copiar automáticamente. Selecciona y copia manualmente.','error');
   }
+}
+
+// ═══════════════════════════════════════════════
+// LANDING PAGES (Marketing) — hermano de Formularios embebibles, mismo
+// patrón sbUpsert/sbGetAll/uid9 sobre hb_crm_landings. land.html (público,
+// archivo aparte) consume crm_landing_config(slug) para pintarse y llama
+// crm_captar_lead con el slug del FORMULARIO vinculado (nunca el de la
+// landing) para capturar — ningún dato de captura se duplica aquí, esta
+// pantalla solo referencia el formulario ya existente.
+// ═══════════════════════════════════════════════
+let mktLandingData = [];
+let mktLandingCurrentId = null;
+let mktLandingBloques = [];
+let _mktLandingSlugManuallyEdited = false;
+let _mktLandingDragIdx = null;
+const LANDING_STORAGE_BUCKET = 'landing-images';
+// Imagen de portada: File object en memoria hasta Guardar, igual que
+// prospPhotoData de Prospectos pero subiendo a Storage en vez de guardar
+// base64 — land.html es pública y no debe cargar imágenes pesadas
+// embebidas en el HTML/config.
+let _mktLandingPortadaFile = null;
+let _mktLandingPortadaUrl = null; // URL ya guardada (al editar) o recién subida
+
+function mktLandingSaveSB(row){ return sbUpsert('hb_crm_landings', row); }
+
+async function mktLandingLoad(){
+  const rows = await sbGetAll('hb_crm_landings');
+  mktLandingData = rows.map(r=>({
+    id:r.id, nombre:r.nombre, slug:r.slug, plantilla:r.plantilla||'servicios',
+    activo:r.activo!==false, titulo:r.titulo, subtitulo:r.subtitulo,
+    imagenPortadaUrl:r.imagen_portada_url, bloques:r.bloques||[],
+    formularioId:r.formulario_id, metaTitulo:r.meta_titulo, metaDescripcion:r.meta_descripcion,
+    ogImagenUrl:r.og_imagen_url, graciasTitulo:r.gracias_titulo, graciasTexto:r.gracias_texto,
+    createdAt:r.created_at, updatedAt:r.updated_at
+  }));
+}
+
+// ── Lista ──────────────────────────────────────────
+const MKT_LANDING_PLANTILLA_LABELS={servicios:'Servicios',evento:'Evento',simple:'Simple'};
+function renderMktLandings(){
+  const addBtn=document.getElementById('btn-nuevo-mkt-landing');if(addBtn)addBtn.style.display=canEdit('marketing')?'':'none';
+  const tbody=document.getElementById('mkt-landing-tbody');if(!tbody)return;
+  if(!mktLandingData.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><i class="ti ti-browser"></i><p>Sin landing pages creadas.</p></div></td></tr>';return;}
+  tbody.innerHTML=mktLandingData.map(function(l){
+    const form=mktFormData.find(function(f){return f.id===l.formularioId;});
+    const url=location.origin+'/land.html?l='+encodeURIComponent(l.slug);
+    return '<tr onclick="openEditMktLanding(\''+l.id+'\')" style="cursor:pointer">'+
+      '<td><div class="emp-name" style="font-size:13px">'+escHtml(l.nombre)+'</div></td>'+
+      '<td style="font-size:12px;color:var(--cp-gray-600);font-family:monospace">'+escHtml(l.slug)+'</td>'+
+      '<td>'+(MKT_LANDING_PLANTILLA_LABELS[l.plantilla]||escHtml(l.plantilla))+'</td>'+
+      '<td>'+(form?escHtml(form.nombre):'<span style="color:var(--cp-red)">— sin formulario —</span>')+'</td>'+
+      '<td>'+(l.activo?'<span class="badge badge-green">Activo</span>':'<span class="badge badge-gray">Inactivo</span>')+'</td>'+
+      '<td onclick="event.stopPropagation()">'+
+        '<a href="'+escHtml(url)+'" target="_blank" class="btn-sm btn-ghost" title="Ver landing"><i class="ti ti-external-link"></i></a> '+
+        '<button type="button" class="btn-sm btn-ghost" onclick="copyToClipboard(\''+escJs(url)+'\',\'URL copiada ✓\')" title="Copiar URL"><i class="ti ti-copy"></i></button>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ── Editor de landing (modal) ───────────────────────
+function mktLandingOnNombreInput(){
+  if(_mktLandingSlugManuallyEdited)return;
+  document.getElementById('mktlandf-slug').value=mktSlugify(document.getElementById('mktlandf-nombre').value);
+}
+function mktLandingOnSlugInput(){
+  _mktLandingSlugManuallyEdited=true;
+  const el=document.getElementById('mktlandf-slug');
+  const pos=el.selectionStart;
+  el.value=mktSlugify(el.value);
+  try{el.setSelectionRange(pos,pos);}catch(e){}
+}
+// Solo formularios activos — salvo el ya vinculado a ESTA landing (mismo
+// criterio que canal/vendedor en otros selectores de la app: un catálogo
+// desactivado no le cambia el dato por sorpresa a algo que ya lo tenía).
+function populateMktLandingFormularioSelect(current){
+  const sel=document.getElementById('mktlandf-formulario');if(!sel)return;
+  const forms=mktFormData.filter(function(f){return f.activo||f.id===current;});
+  sel.innerHTML='<option value="">— Selecciona un formulario —</option>'+forms.map(function(f){return '<option value="'+f.id+'">'+escHtml(f.nombre)+'</option>';}).join('');
+}
+function openAddMktLanding(){
+  if(!canEdit('marketing'))return;
+  mktLandingCurrentId=null;
+  _mktLandingSlugManuallyEdited=false;
+  _mktLandingPortadaFile=null;_mktLandingPortadaUrl=null;
+  document.getElementById('mkt-landing-modal-title').textContent='Nueva landing';
+  document.getElementById('mktlandf-nombre').value='';
+  document.getElementById('mktlandf-slug').value='';
+  document.getElementById('mktlandf-plantilla').value='servicios';
+  document.getElementById('mktlandf-activo').value='true';
+  populateMktLandingFormularioSelect();
+  document.getElementById('mktlandf-formulario').value='';
+  document.getElementById('mktlandf-titulo').value='';
+  document.getElementById('mktlandf-subtitulo').value='';
+  document.getElementById('mktlandf-meta-titulo').value='';
+  document.getElementById('mktlandf-meta-desc').value='';
+  document.getElementById('mktlandf-og-imagen').value='';
+  document.getElementById('mktlandf-gracias-titulo').value='';
+  document.getElementById('mktlandf-gracias-texto').value='';
+  const img=document.getElementById('mktlandf-portada-preview');img.src='';img.style.display='none';
+  const zone=document.getElementById('mktlandf-portada-zone');zone.querySelector('i').style.display='';zone.querySelector('span').style.display='';
+  mktLandingBloques=[];
+  renderMktLandingBloquesEditor();
+  const saveBtn=document.getElementById('save-mkt-landing-btn');if(saveBtn)saveBtn.style.display='';
+  openModal('modal-mkt-landing');
+}
+function openEditMktLanding(id){
+  const l=mktLandingData.find(function(x){return x.id===id;});if(!l)return;
+  mktLandingCurrentId=id;
+  _mktLandingSlugManuallyEdited=true; // ya tiene slug guardado — tocar el nombre no debe regenerarlo
+  _mktLandingPortadaFile=null;_mktLandingPortadaUrl=l.imagenPortadaUrl||null;
+  document.getElementById('mkt-landing-modal-title').textContent='Editar landing';
+  document.getElementById('mktlandf-nombre').value=l.nombre||'';
+  document.getElementById('mktlandf-slug').value=l.slug||'';
+  document.getElementById('mktlandf-plantilla').value=l.plantilla||'servicios';
+  document.getElementById('mktlandf-activo').value=l.activo?'true':'false';
+  populateMktLandingFormularioSelect(l.formularioId);
+  document.getElementById('mktlandf-formulario').value=l.formularioId||'';
+  document.getElementById('mktlandf-titulo').value=l.titulo||'';
+  document.getElementById('mktlandf-subtitulo').value=l.subtitulo||'';
+  document.getElementById('mktlandf-meta-titulo').value=l.metaTitulo||'';
+  document.getElementById('mktlandf-meta-desc').value=l.metaDescripcion||'';
+  document.getElementById('mktlandf-og-imagen').value=l.ogImagenUrl||'';
+  document.getElementById('mktlandf-gracias-titulo').value=l.graciasTitulo||'';
+  document.getElementById('mktlandf-gracias-texto').value=l.graciasTexto||'';
+  const img=document.getElementById('mktlandf-portada-preview');
+  const zone=document.getElementById('mktlandf-portada-zone');
+  if(l.imagenPortadaUrl){img.src=l.imagenPortadaUrl;img.style.display='block';zone.querySelector('i').style.display='none';zone.querySelector('span').style.display='none';}
+  else{img.src='';img.style.display='none';zone.querySelector('i').style.display='';zone.querySelector('span').style.display='';}
+  mktLandingBloques=JSON.parse(JSON.stringify(l.bloques||[]));
+  renderMktLandingBloquesEditor();
+  const saveBtn=document.getElementById('save-mkt-landing-btn');if(saveBtn)saveBtn.style.display=canEdit('marketing')?'':'none';
+  openModal('modal-mkt-landing');
+}
+function previewMktLandingPortada(event){
+  const file=event.target.files[0];if(!file)return;
+  if(!checkFileSize(file)){event.target.value='';return;}
+  _mktLandingPortadaFile=file;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const img=document.getElementById('mktlandf-portada-preview');
+    const zone=document.getElementById('mktlandf-portada-zone');
+    img.src=ev.target.result;img.style.display='block';
+    zone.querySelector('i').style.display='none';zone.querySelector('span').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+// Mismo patrón REST directo que uploadProspDocFile (línea ~11316): NO el SDK
+// de Storage, x-upsert:true, ruta '<slug>/<timestamp>-<nombre sanitizado>'.
+// Bucket público — URL pública directa, sin signed URL.
+async function uploadLandingImage(file,slug){
+  if(!checkFileSize(file)) throw new Error('Archivo demasiado grande.');
+  const session=await sbGetSession();
+  const token=session?.access_token||state.currentUser?.token;
+  const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path=slug+'/'+Date.now()+'-'+safeName;
+  const encodedPath=path.split('/').map(encodeURIComponent).join('/');
+  const res=await fetch(SUPABASE_URL+'/storage/v1/object/'+LANDING_STORAGE_BUCKET+'/'+encodedPath,{
+    method:'POST',
+    headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'},
+    body:file
+  });
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||e.error||'Error al subir imagen. Verifica que el bucket "'+LANDING_STORAGE_BUCKET+'" exista en Supabase Storage.');}
+  return SUPABASE_URL+'/storage/v1/object/public/'+LANDING_STORAGE_BUCKET+'/'+encodedPath;
+}
+
+// ── Bloques (tarjetas de servicios/beneficios) — lista libre en memoria, se
+// guarda completa con la landing (jsonb). Sin 'key' fijo como en campos de
+// formulario: el orden del array ES el orden de display, por eso el drag
+// reordena por índice.
+function renderMktLandingBloquesEditor(){
+  const el=document.getElementById('mktlandf-bloques-list');if(!el)return;
+  if(!mktLandingBloques.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:6px 0">Sin bloques agregados.</div>';return;}
+  el.innerHTML=mktLandingBloques.map(function(b,i){
+    return '<div class="mkt-bloque-row" draggable="true" data-idx="'+i+'" style="display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--cp-gray-100)">'+
+      '<i class="ti ti-grip-vertical" style="cursor:grab;color:var(--cp-gray-300);flex-shrink:0;margin-top:8px" title="Arrastrar para reordenar"></i>'+
+      '<div style="flex:1;display:flex;flex-direction:column;gap:5px">'+
+        '<input type="text" value="'+escHtml(b.titulo||'')+'" onchange="mktLandingBloqueSetTitulo('+i+',this.value)" placeholder="Título del bloque" style="border:1px solid var(--cp-gray-200);border-radius:5px;background:none;font-size:12px;font-weight:600;color:var(--cp-navy);padding:5px 7px">'+
+        '<textarea onchange="mktLandingBloqueSetTexto('+i+',this.value)" placeholder="Texto del bloque" rows="2" style="border:1px solid var(--cp-gray-200);border-radius:5px;background:none;font-size:12px;color:var(--cp-navy);padding:5px 7px;resize:vertical;font-family:inherit">'+escHtml(b.texto||'')+'</textarea>'+
+      '</div>'+
+      '<button type="button" style="background:none;border:none;color:var(--cp-red);cursor:pointer;padding:4px;flex-shrink:0" onclick="mktLandingBloqueDelete('+i+')" title="Quitar"><i class="ti ti-trash"></i></button>'+
+    '</div>';
+  }).join('');
+  _initMktLandingBloquesDrag();
+}
+function _initMktLandingBloquesDrag(){
+  const el=document.getElementById('mktlandf-bloques-list');if(!el)return;
+  el.querySelectorAll('.mkt-bloque-row').forEach(function(row){
+    row.addEventListener('dragstart',function(){_mktLandingDragIdx=parseInt(this.dataset.idx,10);this.style.opacity='0.5';});
+    row.addEventListener('dragend',function(){this.style.opacity='';_mktLandingDragIdx=null;});
+    row.addEventListener('dragover',function(e){e.preventDefault();this.style.background='var(--cp-blue-light)';});
+    row.addEventListener('dragleave',function(){this.style.background='';});
+    row.addEventListener('drop',function(e){
+      e.preventDefault();this.style.background='';
+      const from=_mktLandingDragIdx,to=parseInt(this.dataset.idx,10);
+      if(from==null||from===to)return;
+      const moved=mktLandingBloques.splice(from,1)[0];
+      mktLandingBloques.splice(to,0,moved);
+      renderMktLandingBloquesEditor();
+    });
+  });
+}
+function mktLandingBloqueAdd(){
+  mktLandingBloques.push({titulo:'',texto:''});
+  renderMktLandingBloquesEditor();
+}
+function mktLandingBloqueSetTitulo(idx,val){
+  if(!mktLandingBloques[idx])return;
+  mktLandingBloques[idx].titulo=sanitizeInput(val,120);
+}
+function mktLandingBloqueSetTexto(idx,val){
+  if(!mktLandingBloques[idx])return;
+  mktLandingBloques[idx].texto=sanitizeInput(val,500);
+}
+function mktLandingBloqueDelete(idx){
+  mktLandingBloques.splice(idx,1);
+  renderMktLandingBloquesEditor();
+}
+async function saveMktLanding(){
+  if(!canEdit('marketing'))return;
+  const nombre=sanitizeInput(document.getElementById('mktlandf-nombre').value,120);
+  if(!nombre){toast('El nombre es obligatorio.','error');return;}
+  const slug=mktSlugify(document.getElementById('mktlandf-slug').value);
+  if(!slug){toast('El slug es obligatorio.','error');return;}
+  const dup=mktLandingData.some(function(l){return l.slug===slug&&l.id!==mktLandingCurrentId;});
+  if(dup){toast('Ya existe una landing con ese slug.','error');return;}
+  const titulo=sanitizeInput(document.getElementById('mktlandf-titulo').value,150);
+  if(!titulo){toast('El título es obligatorio.','error');return;}
+  const formularioId=document.getElementById('mktlandf-formulario').value;
+  if(!formularioId){toast('Selecciona un formulario vinculado.','error');return;}
+  setBtn('save-mkt-landing-btn',true);
+  const rowId=mktLandingCurrentId||uid9();
+  // La imagen sube a Storage AQUÍ, recién al guardar — nunca al elegir el
+  // archivo (mismo criterio de staging que el resto de la app).
+  let imagenPortadaUrl=_mktLandingPortadaUrl;
+  if(_mktLandingPortadaFile){
+    try{
+      imagenPortadaUrl=await uploadLandingImage(_mktLandingPortadaFile,slug);
+    }catch(err){
+      setBtn('save-mkt-landing-btn',false);
+      toast('Error subiendo imagen: '+(err.message||''),'error');
+      return;
+    }
+  }
+  const row={
+    id:rowId,
+    nombre,
+    slug,
+    plantilla:document.getElementById('mktlandf-plantilla').value||'servicios',
+    activo:document.getElementById('mktlandf-activo').value==='true',
+    titulo,
+    subtitulo:sanitizeInput(document.getElementById('mktlandf-subtitulo').value,200)||null,
+    imagen_portada_url:imagenPortadaUrl,
+    bloques:mktLandingBloques.filter(function(b){return (b.titulo||'').trim()||(b.texto||'').trim();}),
+    formulario_id:formularioId,
+    meta_titulo:sanitizeInput(document.getElementById('mktlandf-meta-titulo').value,150)||null,
+    meta_descripcion:sanitizeInput(document.getElementById('mktlandf-meta-desc').value,300)||null,
+    og_imagen_url:sanitizeInput(document.getElementById('mktlandf-og-imagen').value,400)||null,
+    gracias_titulo:sanitizeInput(document.getElementById('mktlandf-gracias-titulo').value,120)||null,
+    gracias_texto:sanitizeInput(document.getElementById('mktlandf-gracias-texto').value,400)||null
+  };
+  const ok=await mktLandingSaveSB(row);
+  setBtn('save-mkt-landing-btn',false);
+  if(!ok)return;
+  const mapped={
+    id:row.id,nombre:row.nombre,slug:row.slug,plantilla:row.plantilla,activo:row.activo,
+    titulo:row.titulo,subtitulo:row.subtitulo,imagenPortadaUrl:row.imagen_portada_url,
+    bloques:row.bloques,formularioId:row.formulario_id,metaTitulo:row.meta_titulo,
+    metaDescripcion:row.meta_descripcion,ogImagenUrl:row.og_imagen_url,
+    graciasTitulo:row.gracias_titulo,graciasTexto:row.gracias_texto
+  };
+  const idx=mktLandingData.findIndex(function(x){return x.id===row.id;});
+  if(idx!==-1)mktLandingData[idx]={...mktLandingData[idx],...mapped};else mktLandingData.push(mapped);
+  auditLog(mktLandingCurrentId?'editar':'crear','hb_crm_landings',row.id,'Landing: '+nombre);
+  closeModal('modal-mkt-landing');
+  renderMktLandings();
+  toast(mktLandingCurrentId?'Landing actualizada ✓':'Landing creada ✓');
 }
 
 // ── DOCUMENTOS CLIENTE ──────────────────────────
