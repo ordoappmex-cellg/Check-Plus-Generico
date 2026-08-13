@@ -1657,6 +1657,10 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                 <button class="btn-sm btn-ghost" onclick="openAddDoc()"><i class="ti ti-paperclip"></i> Adjuntar documento</button>
                 <button class="btn-sm btn-ghost" onclick="openAddPermiso()"><i class="ti ti-clipboard-plus"></i> Nueva solicitud</button>
                 <div id="acceso-btn-wrap" style="margin-top:4px;border-top:1px solid var(--cp-gray-100);padding-top:10px"></div>
+                <div id="emp-vendedor-crm-indicator" style="font-size:11px;color:var(--cp-gray-500);text-align:center"></div>
+                <div style="text-align:center;margin-top:6px;display:none" id="emp-delete-btn-wrap">
+                  <button class="btn-sm btn-ghost" style="color:var(--cp-red);padding:4px 8px;font-size:11px" onclick="confirmDeleteColaborador(state.currentEmpId)" title="Eliminar colaborador"><i class="ti ti-trash"></i> Eliminar colaborador</button>
+                </div>
               </div>
             </div>
           </div>
@@ -3742,6 +3746,12 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <option value="admin">Admin &mdash; acceso total</option>
             <option value="usuario">Usuario &mdash; acceso según módulos configurados</option>
           </select>
+        </div>
+        <div class="form-field full">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--cp-navy);cursor:pointer">
+            <input type="checkbox" id="uf-vendedor-crm" style="width:16px;height:16px;cursor:pointer">
+            Es vendedor CRM <span style="color:var(--cp-gray-400);font-weight:400">(aparece en el selector "Vendedor asignado" de Prospectos)</span>
+          </label>
         </div>
         <div class="form-field full">
           <label class="form-label">Permisos por módulo <span style="color:var(--cp-gray-400);font-weight:400">(Editor = edita, Viewer = solo lectura, Oculto = sin acceso)</span></label>
@@ -6480,6 +6490,9 @@ function openDetail(id){
   if (nTab) nTab.style.display = state.readonlyMode ? 'none' : '';
   // Render access button
   renderAccesoBtn(e);
+  renderEmpVendedorCrmIndicator(e);
+  const delBtnWrap=document.getElementById('emp-delete-btn-wrap');
+  if(delBtnWrap)delBtnWrap.style.display=(state.currentUser?.role==='admin'&&e.estado==='baja')?'':'none';
 }
 
 function switchTab(n){
@@ -6752,6 +6765,61 @@ async function deleteEmpDocFile(url){
       await fetch(SUPABASE_URL+'/storage/v1/object/'+EMP_DOC_STORAGE_BUCKET+'/'+encodedPath,{method:'DELETE',headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token}});
     }
   }catch(e){console.warn('deleteEmpDocFile storage error:',e);}
+}
+
+// ── Borrado físico de colaborador (admin, solo estado==='baja') ──
+// Confirmado en producción (pg_constraint) que vacaciones/documentos/
+// solicitudes/seguimientos(+seg_tareas) tienen ON DELETE CASCADE hacia
+// empleados — esas se limpian solas en el paso 5. Lo que NO tiene FK real
+// (eval_evaluaciones.empleado_id) bloquea el borrado en vez de dejar
+// huérfanos; lo que es una referencia suelta de asignación (kb_cards,
+// gp_tareas, diseno_tareas) se pone en null/se quita del arreglo en vez de
+// borrar esas filas — la tarjeta/tarea sigue existiendo, solo "sin asignar".
+async function confirmDeleteColaborador(id){
+  if(!guardAdmin('confirmDeleteColaborador'))return;
+  const emp=state.employees.find(function(x){return x.id===id;});if(!emp)return;
+  if(emp.estado!=='baja'){toast('Solo se puede eliminar a colaboradores en Baja.','error');return;}
+  // 1. Bloqueo si tiene evaluaciones (eval_evaluaciones.empleado_id no tiene FK real)
+  const {count,error:evalErr}=await sb.from('eval_evaluaciones').select('id',{count:'exact',head:true}).eq('empleado_id',id);
+  if(evalErr){toast('Error al verificar evaluaciones del colaborador.','error');return;}
+  if(count>0){toast('No se puede eliminar: tiene '+count+' evaluación(es) registradas.','error');return;}
+  // 2. Confirmación
+  if(!confirm('¿Eliminar permanentemente a '+emp.nombre+' '+emp.apellidos+'? Esta acción no se puede deshacer.'))return;
+  // 3. Storage a mano ANTES del delete (documentos.doc_url + vacaciones.doc_url,
+  // mismo bucket 'documentos-empleados') — reutiliza deleteEmpDocFile(), que
+  // ya hace try/catch+console.warn internamente, un huérfano ahí es aceptable.
+  try{
+    const [{data:docs},{data:vacs}]=await Promise.all([
+      sb.from('documentos').select('doc_url').eq('empleado_id',id),
+      sb.from('vacaciones').select('doc_url').eq('empleado_id',id)
+    ]);
+    const urls=[...(docs||[]),...(vacs||[])].map(function(r){return r.doc_url;}).filter(Boolean);
+    for(const url of urls){await deleteEmpDocFile(url);}
+  }catch(e){console.warn('Error al limpiar Storage del colaborador:',e);}
+  // 4. Referencias sueltas de asignación (sin FK, no se limpian con el cascade) —
+  // se ponen en null / se quitan del arreglo, nunca se borran esas filas.
+  try{
+    await sb.from('kb_cards').update({assignee_id:null}).eq('assignee_id',id);
+    await sb.from('diseno_tareas').update({asignado_a:null}).eq('asignado_a',id);
+    await sb.from('gp_tareas').update({asignado_a:null}).eq('asignado_a',id);
+    // gp_tareas.asignados es un jsonb de {id,...} (multi-asignado) — no hay
+    // forma de "quitar un elemento" en un solo UPDATE de PostgREST, así que
+    // se trae id+asignados, se filtra en cliente, y se re-guarda solo lo afectado.
+    const {data:gpRows}=await sb.from('gp_tareas').select('id,asignados');
+    const afectadas=(gpRows||[]).filter(function(r){return (r.asignados||[]).some(function(a){return a.id===id;});});
+    for(const r of afectadas){
+      await sb.from('gp_tareas').update({asignados:(r.asignados||[]).filter(function(a){return a.id!==id;})}).eq('id',r.id);
+    }
+  }catch(e){console.warn('Error al limpiar referencias sueltas del colaborador:',e);}
+  // 5. DELETE del empleado — vacaciones/documentos/solicitudes/seguimientos
+  // (+seg_tareas) se limpian solos por CASCADE (confirmado en producción).
+  const {error:delErr}=await sb.from('empleados').delete().eq('id',id);
+  if(delErr){toast('Error al eliminar el colaborador.','error');return;}
+  // 6. Auditoría + salir de la ficha
+  auditLog('eliminar','empleados',id,'Colaborador eliminado: '+emp.nombre+' '+emp.apellidos);
+  state.employees=state.employees.filter(function(x){return x.id!==id;});
+  nav('empleados');
+  toast('Colaborador eliminado.','info');
 }
 
 async function saveDoc(){
@@ -8620,6 +8688,7 @@ async function openEditUser(userId){
   document.getElementById('uf-email').value=p.email||'';
   document.getElementById('uf-role').value=normalizeRole(p.role);
   document.getElementById('uf-user-id-display').textContent=userId;
+  const vendCrmCb=document.getElementById('uf-vendedor-crm');if(vendCrmCb)vendCrmCb.checked=!!p.es_vendedor_crm;
   const perms=normalizeModulesAllowed(p.modules_allowed,p.role);
   MODULES_ALL.forEach(modId=>{
     const val=perms[modId]||'oculto';
@@ -8642,6 +8711,7 @@ async function saveUserProfile(){
   const displayName=document.getElementById('uf-name').value.trim();
   const email=document.getElementById('uf-email').value.trim();
   const role=normalizeRole(document.getElementById('uf-role').value); // legacy editor/viewer -> usuario
+  const esVendedorCrm=!!document.getElementById('uf-vendedor-crm')?.checked;
   const modulesAllowed={};
   MODULES_ALL.forEach(modId=>{
     const r=document.querySelector('#uf-modules-grid input[name="uf-mod-'+modId+'"]:checked');
@@ -8652,12 +8722,17 @@ async function saveUserProfile(){
     // Use fetch directly with token for reliable write
     const session = await sbGetSession();
     const token = session?.access_token || state.currentUser?.token;
-    const payload = {display_name:displayName,email,role,modules_allowed:modulesAllowed,updated_at:new Date().toISOString()};
+    const payload = {display_name:displayName,email,role,modules_allowed:modulesAllowed,es_vendedor_crm:esVendedorCrm,updated_at:new Date().toISOString()};
     const res = await fetch(SUPABASE_URL+'/rest/v1/user_profiles?user_id=eq.'+encodeURIComponent(_editingUserId),{
       method:'PATCH',
       headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'return=minimal'}
     ,body:JSON.stringify(payload)});
     if(!res.ok){const e=await res.json();throw new Error(e.message||'Error al guardar');}
+    // Invalida el cache en memoria (_userProfilesCache), NO esperar a un reload —
+    // así prospf-vendedor y el indicador de Colaboradores ven el cambio de
+    // inmediato en la misma sesión.
+    const cached=(_userProfilesCache||[]).find(function(u){return u.user_id===_editingUserId;});
+    if(cached)cached.es_vendedor_crm=esVendedorCrm;
     closeModal('modal-user-edit');renderUsersList();toast('Perfil actualizado ✓');
   }catch(e){toast('Error: '+(e.message||''),'error');}
   setBtn('save-user-btn',false);
@@ -8801,6 +8876,20 @@ function renderAccesoBtn(emp) {
   } else {
     wrap.innerHTML = `<button class="btn-sm btn-blue" onclick="openAccesoModal()" style="width:100%;justify-content:center;background:linear-gradient(135deg,#7B2FF7,#C83CB4)"><i class="ti ti-user-plus"></i> Activar acceso colaborador</button>`;
   }
+}
+// Indicador de solo lectura — cruza el email del colaborador (case-insensitive)
+// contra _userProfilesCache para mostrar si tiene cuenta y si es vendedor CRM.
+// Sin match (sin cuenta, o cuenta con otro correo) → no pinta nada, a
+// diferencia de renderAccesoBtn que siempre pinta algo.
+async function renderEmpVendedorCrmIndicator(emp){
+  const el=document.getElementById('emp-vendedor-crm-indicator');if(!el)return;
+  el.innerHTML='';
+  if(!emp?.email)return;
+  if(!(_userProfilesCache||[]).length){try{await loadAllUserProfiles();}catch(e){}}
+  const empEmailLc=emp.email.toLowerCase();
+  const match=(_userProfilesCache||[]).find(function(u){return (u.email||'').toLowerCase()===empEmailLc;});
+  if(!match)return;
+  el.innerHTML='Cuenta de acceso: '+escHtml(match.display_name||match.email)+' — Vendedor CRM: '+(match.es_vendedor_crm?'Sí':'No');
 }
 
 
@@ -9934,9 +10023,18 @@ async function loadCrmTareasPendientes(){
   if(!uid){_crmTareasPendientesCache=[];return _crmTareasPendientesCache;}
   const {data,error}=await sb.from('hb_crm_tareas').select('*').eq('usuario_id',uid).eq('completada',false);
   if(error){console.error('loadCrmTareasPendientes',error);return _crmTareasPendientesCache;}
-  _crmTareasPendientesCache=data||[];
+  // fecha_vence normalizada a 'YYYY-MM-DD' aquí mismo (ver _crmFechaDia) — si
+  // la columna es timestamptz, Supabase la devuelve como ISO completo y el
+  // resto del código (acá y en prospTareasLoad) le concatena 'T12:00:00'
+  // asumiendo un string de solo fecha; sin este recorte arma un ISO con doble
+  // "T" → Date inválida → "NaN undefined aN" en cascada (bug reportado).
+  _crmTareasPendientesCache=(data||[]).map(function(r){return {...r,fecha_vence:_crmFechaDia(r.fecha_vence)};});
   return _crmTareasPendientesCache;
 }
+// Recorta cualquier string de fecha/timestamp a solo 'YYYY-MM-DD' — usado
+// para blindar el parseo new Date(v+'T12:00:00') sin importar si la columna
+// de origen es date (ya viene así) o timestamptz (viene con hora/offset).
+function _crmFechaDia(v){ return v?String(v).slice(0,10):null; }
 function _crmTareaIsVencida(t){
   if(!t.fecha_vence)return false;
   const hoy=new Date();hoy.setHours(0,0,0,0);
@@ -10301,13 +10399,18 @@ function prospLogEtapaChange(prospId,fromEtapaId,toEtapaId,obs){
 // (index.html ~22319): un catálogo desactivado deja de ofrecerse para leads
 // NUEVOS, pero no le cambia el valor por sorpresa a uno que ya lo tenía.
 function populateProspFormSelects(current){
-  const keepCanal=current?.canalEntrada,keepTemp=current?.temperatura,keepGiro=current?.giro,keepMotivo=current?.motivoPerdidaId;
+  const keepCanal=current?.canalEntrada,keepTemp=current?.temperatura,keepGiro=current?.giro,keepMotivo=current?.motivoPerdidaId,keepVendedor=current?.vendedorId;
   const canales=prospCanales.filter(c=>c.activo!==false||c.id===keepCanal);
   const temps=prospTemperaturas.filter(t=>t.activo!==false||t.id===keepTemp);
   const giros=prospGiros.filter(g=>g.activo!==false||g.id===keepGiro);
   const motivos=(prospMotivosPerdida||[]).filter(m=>m.activo!==false||m.id===keepMotivo);
+  // Solo usuarios marcados 'Es vendedor CRM' — salvo el ya asignado a ESTE lead
+  // (mismo criterio que canal/temperatura/giro arriba): si no tuviera el
+  // fallback, un lead ya asignado a alguien sin el flag se vería "Sin
+  // asignar" al abrir su ficha, y guardar sin corregirlo le borraría el dato.
+  const vendedores=(_userProfilesCache||[]).filter(u=>u.es_vendedor_crm||u.user_id===keepVendedor);
   document.getElementById('prospf-canal').innerHTML=canales.map(c=>'<option value="'+c.id+'">'+escHtml(c.nombre)+'</option>').join('');
-  document.getElementById('prospf-vendedor').innerHTML='<option value="">— Sin asignar —</option>'+(_userProfilesCache||[]).map(u=>'<option value="'+u.user_id+'">'+escHtml(u.display_name||u.email)+'</option>').join('');
+  document.getElementById('prospf-vendedor').innerHTML='<option value="">— Sin asignar —</option>'+vendedores.map(u=>'<option value="'+u.user_id+'">'+escHtml(u.display_name||u.email)+'</option>').join('');
   document.getElementById('prospf-etapa').innerHTML=prospEtapas.map(e=>'<option value="'+e.id+'">'+escHtml(e.nombre)+'</option>').join('');
   document.getElementById('prospf-temperatura').innerHTML='<option value="">— Sin definir —</option>'+temps.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
   document.getElementById('prospf-giro').innerHTML='<option value="">— Sin definir —</option>'+giros.map(g=>'<option value="'+g.id+'">'+escHtml(g.nombre)+'</option>').join('');
@@ -10802,7 +10905,11 @@ async function saveProspSeg(){
 async function prospTareasLoad(prospectoId){
   const {data,error}=await sb.from('hb_crm_tareas').select('*').eq('prospecto_id',prospectoId).order('fecha_vence',{ascending:true,nullsFirst:false});
   if(error){console.error('prospTareasLoad',error);return [];}
-  return (data||[]).map(r=>({id:r.id,prospectoId:r.prospecto_id,titulo:r.titulo,descripcion:r.descripcion,fechaVence:r.fecha_vence,tipo:r.tipo,completada:r.completada,completadaEn:r.completada_en,usuarioId:r.usuario_id,createdAt:r.created_at}));
+  // fechaVence normalizada (ver _crmFechaDia) — necesario también aquí porque
+  // openEditProspTarea() mete este valor directo en un <input type="date">,
+  // que exige 'YYYY-MM-DD' exacto; un ISO completo con hora lo deja vacío
+  // en silencio (bug de prellenado, mismo origen que el de Mis Pendientes).
+  return (data||[]).map(r=>({id:r.id,prospectoId:r.prospecto_id,titulo:r.titulo,descripcion:r.descripcion,fechaVence:_crmFechaDia(r.fecha_vence),tipo:r.tipo,completada:r.completada,completadaEn:r.completada_en,usuarioId:r.usuario_id,createdAt:r.created_at}));
 }
 function renderProspTareas(){
   const el=document.getElementById('prosp-tareas-list');if(!el)return;
