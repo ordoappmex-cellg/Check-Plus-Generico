@@ -11156,7 +11156,10 @@ function prospDashTendenciaCard(model){
   // alto y su radio no toquen el borde superior del SVG. PAD_RIGHT (además
   // del text-anchor de la última etiqueta, ver 'labels' más abajo) evita que
   // el mes más reciente se corte contra el borde del viewBox.
-  const W=580,H=190,PAD_TOP=26,PAD_BOTTOM=22,PAD_LEFT=34,PAD_RIGHT=18;
+  // H bajó de 190 a 130 (PAD_TOP/PAD_BOTTOM escalados en la misma proporción,
+  // ~0.68×) para que la tarjeta rinda ~220-260px de alto real en vez de ~300+
+  // — el ancho (W, PAD_LEFT/RIGHT) y la escala (_prospNiceAxis) no cambian.
+  const W=580,H=130,PAD_TOP=18,PAD_BOTTOM=15,PAD_LEFT=34,PAD_RIGHT=18;
   const chartW=W-PAD_LEFT-PAD_RIGHT,chartH=H-PAD_TOP-PAD_BOTTOM;
   const n=keys.length;
   const xStep=n>1?chartW/(n-1):0;
