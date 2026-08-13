@@ -2121,6 +2121,8 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <input type="text" id="prosp-search" placeholder="Buscar lead…" oninput="renderProspectos()" class="form-input" style="width:170px;padding:7px 10px;font-size:13px">
             <select class="form-input" id="prosp-filter-etapa" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todas las etapas</option></select>
             <button type="button" class="btn-sm btn-ghost" id="prosp-filter-estancados-btn" onclick="toggleProspEstancadosFilter(this)" title="Leads con más de 7 días sin actividad, excluye perdidos"><i class="ti ti-alert-triangle"></i> Estancados (+7d)</button>
+            <button type="button" class="btn-sm btn-ghost" id="prosp-filter-duplicados-btn" onclick="toggleProspDuplicadosFilter(this)" title="Leads con posible duplicado sin revisar"><i class="ti ti-copy"></i> Duplicados por revisar</button>
+            <button type="button" class="btn-sm btn-ghost" onclick="openProspImport()" title="Importar leads desde un archivo CSV"><i class="ti ti-file-import"></i> Importar CSV</button>
             <select class="form-input" id="prosp-filter-vendedor" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los vendedores</option></select>
             <select class="form-input" id="prosp-filter-canal" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los canales</option></select>
             <button class="btn-sm btn-blue" id="btn-nuevo-prospecto" onclick="openAddProspecto()"><i class="ti ti-plus"></i> Nuevo lead</button>
@@ -2261,7 +2263,9 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
               <div id="prosp-det-icon" style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;margin:0 auto 12px;background:var(--cp-blue-light);color:var(--cp-blue);overflow:hidden"></div>
               <div class="profile-name" id="prosp-det-name"></div>
               <div class="profile-role" id="prosp-det-cargo" style="margin-bottom:2px"></div>
-              <div id="prosp-det-empresa" style="font-size:12px;color:var(--cp-gray-500);margin-bottom:10px"></div>
+              <div id="prosp-det-empresa" style="font-size:12px;color:var(--cp-gray-500);margin-bottom:4px"></div>
+              <!-- BLOQUE B (deduplicación) — aviso de posible duplicado, oculto si no aplica -->
+              <div id="prosp-det-dup-banner" style="display:none;font-size:11px;background:var(--cp-amber-light);color:var(--cp-amber);border-radius:var(--radius-sm);padding:6px 8px;margin-bottom:8px;text-align:left"></div>
               <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:12px" id="prosp-det-chips"></div>
               <div style="display:flex;gap:8px;justify-content:center;margin-bottom:4px" id="prosp-det-contact-btns"></div>
               <div id="prosp-det-info-body" style="text-align:left;margin-top:10px"></div>
@@ -4658,7 +4662,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         </div>
         <div class="form-field full"><label class="form-label">Nombre *</label><input class="form-input" id="prospf-nombre" placeholder="Ej. Juan Pérez"></div>
         <div class="form-field"><label class="form-label">Cargo</label><input class="form-input" id="prospf-cargo" placeholder="Ej. Director de Compras"></div>
-        <div class="form-field"><label class="form-label">Empresa</label><input class="form-input" id="prospf-empresa" placeholder="Ej. Constructora del Valle"></div>
+        <div class="form-field"><label class="form-label">Empresa</label><input class="form-input" id="prospf-empresa" list="prospf-empresa-list" placeholder="Ej. Constructora del Valle" autocomplete="off"><datalist id="prospf-empresa-list"></datalist></div>
         <div class="form-field"><label class="form-label">Contacto (teléfono)</label><div style="display:flex;gap:6px;align-items:center"><input class="form-input" id="prospf-tel" placeholder="+52 999 000 0000" style="flex:1"><a href="#" onclick="event.preventDefault();prospOpenWhatsapp();" title="Abrir en WhatsApp" style="color:var(--cp-green);font-size:18px;flex-shrink:0;display:flex"><i class="ti ti-brand-whatsapp"></i></a></div></div>
         <div class="form-field"><label class="form-label">Contacto (correo)</label><div style="display:flex;gap:6px;align-items:center"><input type="email" class="form-input" id="prospf-mail" placeholder="contacto@empresa.com" style="flex:1"><a href="#" onclick="event.preventDefault();prospOpenMailto();" title="Enviar correo" style="color:var(--cp-blue);font-size:18px;flex-shrink:0;display:flex"><i class="ti ti-mail"></i></a></div></div>
         <div class="form-field"><label class="form-label">Canal de entrada</label><select class="form-input" id="prospf-canal"></select></div>
@@ -4764,6 +4768,38 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
     <div class="modal-footer">
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-prosp-bridge')">Cancelar</button>
       <button class="btn-sm btn-blue" id="prosp-bridge-send-btn" onclick="prospBridgeSend()"><i class="ti ti-send"></i> Abrir y registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- BLOQUE A (empresas) — ficha de empresa: todos los leads que comparten
+     empresa_id con el lead abierto, reutiliza el patrón de tarjeta de lista
+     de Documentos/Tareas del perfil (ver renderProspDocsList). -->
+<div class="modal-overlay" id="modal-empresa-ficha">
+  <div class="modal" style="width:460px">
+    <div class="modal-header"><div class="modal-title" id="empresa-ficha-title">Empresa</div><button class="modal-close" onclick="closeModal('modal-empresa-ficha')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div id="empresa-ficha-leads-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BLOQUE C (importación CSV) — mapeo de columnas (selects en el encabezado
+     de la vista previa) + resumen final. Sin librería externa, parseo propio. -->
+<div class="modal-overlay" id="modal-prosp-import">
+  <div class="modal" style="width:760px;max-height:88vh;overflow-y:auto">
+    <div class="modal-header"><div class="modal-title">Importar leads desde CSV</div><button class="modal-close" onclick="closeModal('modal-prosp-import')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-field full"><label class="form-label">Archivo CSV</label><input type="file" class="form-input" id="prospimpf-file" accept=".csv" onchange="prospImportHandleFile(event)"></div>
+      <div id="prosp-import-step-map" style="display:none">
+        <div style="font-size:11px;color:var(--cp-gray-400);margin:6px 0 8px">Vista previa (primeras 10 filas) — cada columna trae un select para elegir a qué campo del lead corresponde.</div>
+        <div style="overflow-x:auto"><table class="emp-table" id="prosp-import-preview-table"></table></div>
+      </div>
+      <div id="prosp-import-step-result" style="display:none;font-size:13px;margin-top:10px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-prosp-import')">Cerrar</button>
+      <button class="btn-sm btn-blue" id="prosp-import-confirm-btn" style="display:none" onclick="prospImportConfirm()"><i class="ti ti-upload"></i> Importar</button>
     </div>
   </div>
 </div>
@@ -8953,6 +8989,11 @@ let prospTareaEditId = null; // null = crear, id = editar (mismo patrón que pro
 // ligera y acotada por servidor (usuario_id + completada=false), NUNCA con
 // sbGetAll de la tabla completa — ver loadCrmTareasPendientes().
 let _crmTareasPendientesCache = [];
+// BLOQUE A (empresas) — cache de hb_crm_empresas, ver prospLoad().
+let prospEmpresas = [];
+// BLOQUE B (deduplicación) — toggle "Duplicados por revisar" en Lista, mismo
+// patrón que prospFilterEstancados.
+let prospFilterDuplicados = false;
 let prospCurrentId = null;
 let prospOpenEtapaValue = null; // etapa con la que se abrió la ficha actual — ver prospOnEtapaSelectChange()
 let prospViewMode = 'lista';
@@ -9983,16 +10024,24 @@ async function deleteProveedor(){
 // este es el pipeline comercial propio de Grupo Limen, lead → confirmado/perdido.
 
 async function prospLoad(){
-  const [prospRaw, cfgRows, segRows] = await Promise.all([
+  const [prospRaw, cfgRows, segRows, empresasRaw] = await Promise.all([
     sbGetAll('hb_crm_prospectos'),
     sbGetAll('hb_config'),
-    sbGetAllPaged('hb_crm_seguimientos')
+    sbGetAllPaged('hb_crm_seguimientos'),
+    sbGetAll('hb_crm_empresas')
   ]);
   prospData = prospRaw.map(r=>({
-    id:r.id, nombre:r.nombre, empresa:r.empresa, cargo:r.cargo, giro:r.giro, fotoUrl:r.foto_url, contactoTel:r.contacto_tel, contactoMail:r.contacto_mail,
+    id:r.id, nombre:r.nombre, empresa:r.empresa, empresaId:r.empresa_id, cargo:r.cargo, giro:r.giro, fotoUrl:r.foto_url, contactoTel:r.contacto_tel, contactoMail:r.contacto_mail,
     canalEntrada:r.canal_entrada, estado:r.estado, vendedorId:r.vendedor_id, temperatura:r.temperatura,
-    notas:r.notas, valorEstimado:r.valor_estimado, motivoPerdidaId:r.motivo_perdida_id, createdAt:r.created_at, updatedAt:r.updated_at
+    notas:r.notas, valorEstimado:r.valor_estimado, motivoPerdidaId:r.motivo_perdida_id, createdAt:r.created_at, updatedAt:r.updated_at,
+    // BLOQUE B (deduplicación): posible_duplicado_de/duplicado_revisado ya
+    // existían en el esquema — se leen aquí, se escriben en saveProspecto().
+    posibleDuplicadoDe:r.posible_duplicado_de, duplicadoRevisado:r.duplicado_revisado
   }));
+  // BLOQUE A (empresas): cache simple en memoria, compartido por el
+  // autocomplete del formulario (datalist) y por crmFindOrCreateEmpresa —
+  // se actualiza in-place al crear una empresa nueva, sin recargar la tabla.
+  prospEmpresas = (empresasRaw||[]).map(function(e){return {id:e.id, nombre:e.nombre, nombre_normalizado:e.nombre_normalizado};});
   prospBuildActivityMap(segRows);
   prospRecalcDiasActividad();
   // Causa raíz real de "canal no se guarda" / chip "undefined": crm_canales y
@@ -10119,6 +10168,7 @@ function _prospFilteredData(){
   if(vendF)items=items.filter(p=>p.vendedorId===vendF);
   if(canalF)items=items.filter(p=>p.canalEntrada===canalF);
   if(prospFilterEstancados)items=items.filter(p=>p.diasSinActividad!=null&&p.diasSinActividad>7&&p.estado!=='perdido');
+  if(prospFilterDuplicados)items=items.filter(p=>p.posibleDuplicadoDe&&!p.duplicadoRevisado);
   return items;
 }
 // Comparte _prospFilteredData con Lista y Pipeline (igual que búsqueda/
@@ -10128,6 +10178,13 @@ function toggleProspEstancadosFilter(btn){
   prospFilterEstancados=!prospFilterEstancados;
   btn.classList.toggle('btn-blue',prospFilterEstancados);
   btn.classList.toggle('btn-ghost',!prospFilterEstancados);
+  renderProspectos();
+}
+// BLOQUE B (deduplicación) — mismo patrón que toggleProspEstancadosFilter.
+function toggleProspDuplicadosFilter(btn){
+  prospFilterDuplicados=!prospFilterDuplicados;
+  btn.classList.toggle('btn-blue',prospFilterDuplicados);
+  btn.classList.toggle('btn-ghost',!prospFilterDuplicados);
   renderProspectos();
 }
 // Atajos de contacto en la lista — no envían nada, solo abren WhatsApp Web /
@@ -10212,9 +10269,14 @@ function _prospSortValue(p,key){
     default:return '';
   }
 }
+// BLOQUE B (deduplicación) — ícono compartido por Lista y Pipeline junto al
+// nombre, solo si hay un vínculo sin revisar.
+function _prospDupIconHtml(p){
+  return (p.posibleDuplicadoDe&&!p.duplicadoRevisado)?'<i class="ti ti-copy" title="Posible duplicado, sin revisar" style="color:var(--cp-amber);margin-right:4px;font-size:13px;vertical-align:-1px"></i>':'';
+}
 function _prospCellHtml(p,key){
   switch(key){
-    case'nombre':return '<td><div class="emp-name" style="font-size:13px">'+escHtml(p.nombre)+'</div></td>';
+    case'nombre':return '<td><div class="emp-name" style="font-size:13px">'+_prospDupIconHtml(p)+escHtml(p.nombre)+'</div></td>';
     case'contacto':return '<td style="font-size:12px;color:var(--cp-gray-600)">'+prospContactLinkHtml(p.contactoTel,p.contactoMail)+'</td>';
     case'canal':{const canal=prospCanales.find(c=>c.id===p.canalEntrada);return '<td>'+(canal?escHtml(canal.nombre):'—')+'</td>';}
     case'giro':{const giro=prospGiros.find(g=>g.id===p.giro);return '<td>'+(giro?escHtml(giro.nombre):'—')+'</td>';}
@@ -10318,7 +10380,7 @@ function buildProspPipeCard(p){
     tempDotHtml+actDotHtml+
     '<div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">'+
       '<i class="ti ti-grip-vertical" style="font-size:12px;color:var(--cp-gray-300);flex-shrink:0;margin-top:2px"></i>'+
-      '<div style="font-size:12px;font-weight:600;color:var(--cp-navy);line-height:1.4;flex:1">'+escHtml(p.nombre)+'</div>'+
+      '<div style="font-size:12px;font-weight:600;color:var(--cp-navy);line-height:1.4;flex:1">'+_prospDupIconHtml(p)+escHtml(p.nombre)+'</div>'+
     '</div>'+
     (canal?'<div style="font-size:10px;color:var(--cp-gray-400);margin-bottom:5px;padding-left:17px">'+escHtml(canal.nombre)+'</div>':'')+
     '<div style="display:flex;align-items:center;gap:4px;padding-left:17px">'+
@@ -10417,6 +10479,10 @@ function populateProspFormSelects(current){
   document.getElementById('prospf-temperatura').innerHTML='<option value="">— Sin definir —</option>'+temps.map(t=>'<option value="'+t.id+'">'+escHtml(t.nombre)+'</option>').join('');
   document.getElementById('prospf-giro').innerHTML='<option value="">— Sin definir —</option>'+giros.map(g=>'<option value="'+g.id+'">'+escHtml(g.nombre)+'</option>').join('');
   document.getElementById('prospf-motivo').innerHTML='<option value="">— Selecciona un motivo —</option>'+motivos.map(m=>'<option value="'+m.id+'">'+escHtml(m.nombre)+'</option>').join('');
+  // BLOQUE A (empresas): sugerencias de hb_crm_empresas ya en memoria — el
+  // input sigue siendo texto libre, elegir una sugerencia no obliga nada,
+  // crmFindOrCreateEmpresa resuelve el resto al guardar.
+  document.getElementById('prospf-empresa-list').innerHTML=prospEmpresas.map(e=>'<option value="'+escHtml(e.nombre)+'"></option>').join('');
 }
 // Barra de etapas conectadas — inspirada en el "stepper" de Desarrollos
 // (openDevDetail, ver línea ~10815) pero con semántica de recorrido: pasadas
@@ -10715,7 +10781,25 @@ function renderProspDetailHeader(p){
   }
   document.getElementById('prosp-det-name').textContent=p.nombre||'';
   document.getElementById('prosp-det-cargo').textContent=p.cargo||'';
-  document.getElementById('prosp-det-empresa').textContent=p.empresa||'';
+  // BLOQUE A (empresas): clickeable solo si tiene empresa_id — abre la ficha
+  // con todos los leads que comparten esa empresa.
+  const empresaEl=document.getElementById('prosp-det-empresa');
+  empresaEl.textContent=p.empresa||'';
+  empresaEl.style.cursor=p.empresaId?'pointer':'';
+  empresaEl.style.textDecoration=p.empresaId?'underline':'';
+  empresaEl.onclick=p.empresaId?function(){openEmpresaFicha(p.empresaId);}:null;
+  // BLOQUE B (deduplicación): aviso de posible duplicado, oculto si no aplica
+  // o ya fue revisado.
+  const dupBanner=document.getElementById('prosp-det-dup-banner');
+  if(p.posibleDuplicadoDe&&!p.duplicadoRevisado){
+    const otro=prospData.find(x=>x.id===p.posibleDuplicadoDe);
+    dupBanner.style.display='';
+    dupBanner.innerHTML='<i class="ti ti-alert-triangle"></i> Posible duplicado de: <b>'+escHtml(otro?otro.nombre:'(lead no encontrado)')+'</b>'+
+      (otro?' · <a href="#" onclick="event.preventDefault();openProspDetail(\''+otro.id+'\')" style="color:var(--cp-amber)">Ver →</a>':'')+
+      ' · <a href="#" onclick="event.preventDefault();prospMarcarDuplicadoRevisado(\''+p.id+'\')" style="color:var(--cp-amber)">Marcar revisado</a>';
+  }else{
+    dupBanner.style.display='none';dupBanner.innerHTML='';
+  }
   document.getElementById('prosp-det-chips').innerHTML=
     (etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+'">'+escHtml(etapa.nombre)+'</span>':'')+
     (temp?'<span class="badge" style="background:'+temp.color+'22;color:'+temp.color+'">'+escHtml(temp.nombre)+'</span>':'');
@@ -10735,6 +10819,78 @@ function renderProspDetailHeader(p){
   const addSegBtn=document.getElementById('prosp-det-add-seg-btn');if(addSegBtn)addSegBtn.style.display=canEditP?'':'none';
   const delBtnWrap=document.getElementById('prosp-det-delete-btn-wrap');if(delBtnWrap)delBtnWrap.style.display=state.currentUser?.role==='admin'?'':'none';
 }
+// BLOQUE A (empresas) — modal de solo lectura con todos los leads que
+// comparten empresa_id, cada uno clickeable para abrir su perfil. Mismo
+// patrón de tarjeta que renderProspDocsList/renderProspTareas.
+function openEmpresaFicha(empresaId){
+  if(!empresaId)return;
+  const emp=prospEmpresas.find(e=>e.id===empresaId);
+  document.getElementById('empresa-ficha-title').textContent=emp?emp.nombre:'Empresa';
+  const leads=prospData.filter(p=>p.empresaId===empresaId);
+  const el=document.getElementById('empresa-ficha-leads-list');
+  if(!leads.length){
+    el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">Sin otros leads de esta empresa.</div>';
+  }else{
+    el.innerHTML=leads.map(function(p){
+      const etapa=prospEtapas.find(e=>e.id===p.estado);
+      const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
+      return '<div onclick="closeModal(\'modal-empresa-ficha\');openProspDetail(\''+p.id+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--cp-gray-100);cursor:pointer">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:12px;font-weight:600;color:var(--cp-navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(p.nombre)+'</div>'+
+          '<div style="margin-top:2px">'+
+            (etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+';font-size:9px">'+escHtml(etapa.nombre)+'</span>':'')+
+            (temp?'<span class="badge" style="background:'+temp.color+'22;color:'+temp.color+';font-size:9px;margin-left:4px">'+escHtml(temp.nombre)+'</span>':'')+
+          '</div>'+
+        '</div>'+
+        (p.valorEstimado!=null?'<span style="font-size:11px;color:var(--cp-green);font-weight:700;flex-shrink:0">$'+Number(p.valorEstimado).toLocaleString('es-MX')+'</span>':'')+
+      '</div>';
+    }).join('');
+  }
+  openModal('modal-empresa-ficha');
+}
+// ── BLOQUE A (empresas): find-or-create sobre hb_crm_empresas, dedup por
+// nombre_normalizado (lower/trim, igual que hb_normaliza en SQL). Actualiza
+// prospEmpresas in-place al crear una fila nueva, sin recargar la tabla —
+// así el datalist del formulario y la ficha de empresa ven la fila nueva de
+// inmediato. ──
+async function crmFindOrCreateEmpresa(nombreRaw){
+  const nombre=(nombreRaw||'').trim();
+  if(!nombre)return null;
+  const norm=nombre.toLowerCase();
+  const existing=prospEmpresas.find(e=>e.nombre_normalizado===norm);
+  if(existing)return existing.id;
+  const row={id:uid9(),nombre,nombre_normalizado:norm};
+  const ok=await sbUpsert('hb_crm_empresas',row);
+  if(!ok)return null;
+  prospEmpresas.push(row);
+  return row.id;
+}
+// ── BLOQUE B (deduplicación): busca en prospData (ya en memoria, sin query
+// nueva) un lead DISTINTO de excludeId con el mismo teléfono o correo
+// normalizado (teléfono: solo dígitos; correo: lower/trim). Nunca bloquea la
+// creación — solo informa, ver saveProspecto(). ──
+function crmBuscarDuplicado(telefono,correo,excludeId){
+  const tel=(telefono||'').replace(/\D/g,'');
+  const mail=(correo||'').trim().toLowerCase();
+  if(!tel&&!mail)return null;
+  return prospData.find(function(p){
+    if(p.id===excludeId)return false;
+    if(tel&&(p.contactoTel||'').replace(/\D/g,'')===tel)return true;
+    if(mail&&(p.contactoMail||'').trim().toLowerCase()===mail)return true;
+    return false;
+  })||null;
+}
+// BLOQUE B (deduplicación) — solo silencia el aviso (duplicado_revisado=true),
+// NUNCA borra el vínculo posible_duplicado_de.
+async function prospMarcarDuplicadoRevisado(id){
+  const p=prospData.find(x=>x.id===id);if(!p)return;
+  const ok=await sbUpsert('hb_crm_prospectos',{id,duplicado_revisado:true});
+  if(!ok)return;
+  p.duplicadoRevisado=true;
+  auditLog('editar','hb_crm_prospectos',id,'Duplicado marcado como revisado');
+  renderProspDetailHeader(p);
+  renderProspectos();
+}
 async function saveProspecto(){
   const nombre=sanitizeInput(document.getElementById('prospf-nombre')?.value,150);
   if(!nombre){toast('El nombre es obligatorio.','error');return;}
@@ -10747,15 +10903,26 @@ async function saveProspecto(){
     motivoNombre=motivoObj?motivoObj.nombre:null;
   }
   setBtn('save-prosp-btn',true);
+  const isNewLead=!prospCurrentId;
+  const rowId=prospCurrentId||uid9();
   const prevEstado=prospCurrentId?(prospData.find(x=>x.id===prospCurrentId)?.estado||null):null;
   const etapaObs=sanitizeInput(document.getElementById('prospf-etapa-obs')?.value,500);
+  const empresaNombre=sanitizeInput(document.getElementById('prospf-empresa').value,150);
+  const telefono=sanitizeInput(document.getElementById('prospf-tel').value,50);
+  const correo=sanitizeInput(document.getElementById('prospf-mail').value,150);
+  // BLOQUE A: el texto libre 'empresa' nunca se reemplaza, empresa_id se
+  // guarda aparte. BLOQUE B: solo al crear un lead NUEVO — comparar un lead
+  // existente contra sí mismo siempre "encontraría" un duplicado.
+  const empresaId=empresaNombre?await crmFindOrCreateEmpresa(empresaNombre):null;
+  const dupLead=isNewLead?crmBuscarDuplicado(telefono,correo,rowId):null;
   const row={
-    id:prospCurrentId||uid9(),
+    id:rowId,
     nombre,
     cargo:sanitizeInput(document.getElementById('prospf-cargo').value,100),
-    empresa:sanitizeInput(document.getElementById('prospf-empresa').value,150),
-    contacto_tel:sanitizeInput(document.getElementById('prospf-tel').value,50),
-    contacto_mail:sanitizeInput(document.getElementById('prospf-mail').value,150),
+    empresa:empresaNombre,
+    empresa_id:empresaId,
+    contacto_tel:telefono,
+    contacto_mail:correo,
     canal_entrada:document.getElementById('prospf-canal').value||null,
     giro:document.getElementById('prospf-giro').value||null,
     vendedor_id:document.getElementById('prospf-vendedor').value||null,
@@ -10766,10 +10933,12 @@ async function saveProspecto(){
     foto_url:prospPhotoData||null,
     motivo_perdida_id:etapaVal==='perdido'?motivoId:null
   };
+  if(isNewLead)row.posible_duplicado_de=dupLead?dupLead.id:null;
   const ok=await prospSaveSB(row);
   setBtn('save-prosp-btn',false);
   if(!ok)return;
-  const mapped={id:row.id,nombre:row.nombre,cargo:row.cargo,fotoUrl:row.foto_url,empresa:row.empresa,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,giro:row.giro,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas,motivoPerdidaId:row.motivo_perdida_id};
+  const mapped={id:row.id,nombre:row.nombre,cargo:row.cargo,fotoUrl:row.foto_url,empresa:row.empresa,empresaId:row.empresa_id,contactoTel:row.contacto_tel,contactoMail:row.contacto_mail,canalEntrada:row.canal_entrada,giro:row.giro,vendedorId:row.vendedor_id,estado:row.estado,temperatura:row.temperatura,valorEstimado:row.valor_estimado,notas:row.notas,motivoPerdidaId:row.motivo_perdida_id};
+  if(isNewLead){mapped.posibleDuplicadoDe=row.posible_duplicado_de;mapped.duplicadoRevisado=false;}
   const idx=prospData.findIndex(x=>x.id===row.id);
   if(idx!==-1)prospData[idx]={...prospData[idx],...mapped};else prospData.push(mapped);
   auditLog(prospCurrentId?'editar':'crear','hb_crm_prospectos',row.id,'Lead: '+nombre);
@@ -10795,6 +10964,7 @@ async function saveProspecto(){
     renderProspSegTimeline();
   }
   toast(prospCurrentId?'Lead actualizado ✓':'Lead creado ✓');
+  if(isNewLead&&dupLead)toast('Posible duplicado de '+dupLead.nombre+', revisa cuando puedas.','info');
 }
 // No hay soft-delete con booleano en prospectos (la tabla no tiene columna
 // 'activo'): el equivalente es mover el lead a la etapa 'perdido' del catálogo
@@ -10811,6 +10981,151 @@ function marcarProspectoPerdido(){
   // Guardar — este botón ya no guarda "directo" sin motivo.
   prospOnEtapaSelectChange();
   saveProspecto();
+}
+
+// ── BLOQUE C (importación CSV) — parseo propio (sin librería externa, mismo
+// criterio minimalista que form.html), preview con selects de mapeo en el
+// encabezado, y reuso literal de crmBuscarDuplicado/crmFindOrCreateEmpresa
+// (Bloques A y B) al confirmar. ──
+const PROSP_IMPORT_FIELDS=[
+  {key:'',label:'— No importar —'},
+  {key:'nombre',label:'Nombre *'},
+  {key:'empresa',label:'Empresa'},
+  {key:'contacto_tel',label:'Teléfono'},
+  {key:'contacto_mail',label:'Correo'},
+  {key:'canal_entrada',label:'Canal de entrada'},
+  {key:'valor_estimado',label:'Valor estimado'},
+  {key:'giro',label:'Giro'}
+];
+let _prospImportHeaders=[];
+let _prospImportRows=[];
+let _prospImportMapping=[];
+function openProspImport(){
+  if(!canEdit('prospectos'))return;
+  _prospImportHeaders=[];_prospImportRows=[];_prospImportMapping=[];
+  document.getElementById('prospimpf-file').value='';
+  document.getElementById('prosp-import-step-map').style.display='none';
+  document.getElementById('prosp-import-step-result').style.display='none';
+  document.getElementById('prosp-import-step-result').innerHTML='';
+  document.getElementById('prosp-import-confirm-btn').style.display='none';
+  openModal('modal-prosp-import');
+}
+// Separa por líneas y comas respetando comillas dobles (campo con comas o
+// comillas escapadas ""..."" dentro) — suficiente para un CSV exportado de
+// Excel/Sheets, sin traer una librería.
+function _prospParseCsv(text){
+  const rows=[];
+  let row=[],field='',inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQuotes){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inQuotes=false; }
+      else field+=c;
+    }else{
+      if(c==='"')inQuotes=true;
+      else if(c===','){row.push(field);field='';}
+      else if(c==='\r'){ /* ignorado, \n cierra la fila */ }
+      else if(c==='\n'){row.push(field);rows.push(row);row=[];field='';}
+      else field+=c;
+    }
+  }
+  if(field!==''||row.length){row.push(field);rows.push(row);}
+  return rows.filter(r=>r.some(c=>c.trim()!==''));
+}
+function _prospGuessMapping(headers){
+  return headers.map(function(h){
+    const n=(h||'').toLowerCase().trim();
+    if(/nombre/.test(n))return 'nombre';
+    if(/empresa|compañ|compan/.test(n))return 'empresa';
+    if(/tel|phone|celular/.test(n))return 'contacto_tel';
+    if(/mail|correo/.test(n))return 'contacto_mail';
+    if(/canal/.test(n))return 'canal_entrada';
+    if(/valor|monto/.test(n))return 'valor_estimado';
+    if(/giro|industria/.test(n))return 'giro';
+    return '';
+  });
+}
+function prospImportHandleFile(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const parsed=_prospParseCsv(String(ev.target.result||''));
+    if(!parsed.length){toast('Archivo CSV vacío o ilegible.','error');return;}
+    _prospImportHeaders=parsed[0];
+    _prospImportRows=parsed.slice(1);
+    _prospImportMapping=_prospGuessMapping(_prospImportHeaders);
+    _prospRenderImportPreview();
+    document.getElementById('prosp-import-step-map').style.display='';
+    document.getElementById('prosp-import-confirm-btn').style.display='';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+function prospImportSetMapping(idx,val){ _prospImportMapping[idx]=val; }
+function _prospRenderImportPreview(){
+  const theadHtml='<thead><tr>'+_prospImportHeaders.map(function(h,i){
+    return '<th style="min-width:150px;vertical-align:top">'+
+      '<div style="font-size:10px;color:var(--cp-gray-400);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">'+escHtml(h)+'</div>'+
+      '<select class="form-input" style="font-size:11px;padding:4px" onchange="prospImportSetMapping('+i+',this.value)">'+
+        PROSP_IMPORT_FIELDS.map(function(f){return '<option value="'+f.key+'"'+(_prospImportMapping[i]===f.key?' selected':'')+'>'+f.label+'</option>';}).join('')+
+      '</select></th>';
+  }).join('')+'</tr></thead>';
+  const tbodyHtml='<tbody>'+_prospImportRows.slice(0,10).map(function(r){
+    return '<tr>'+_prospImportHeaders.map(function(h,i){return '<td style="font-size:11px">'+escHtml(r[i]||'')+'</td>';}).join('')+'</tr>';
+  }).join('')+'</tbody>';
+  document.getElementById('prosp-import-preview-table').innerHTML=theadHtml+tbodyHtml;
+}
+async function prospImportConfirm(){
+  if(!_prospImportMapping.includes('nombre')){toast('Asigna una columna al campo Nombre.','error');return;}
+  setBtn('prosp-import-confirm-btn',true);
+  let creados=0,duplicados=0;const errores=[];
+  for(let r=0;r<_prospImportRows.length;r++){
+    const raw=_prospImportRows[r];
+    const rec={};
+    _prospImportHeaders.forEach(function(h,i){
+      const field=_prospImportMapping[i];
+      if(field)rec[field]=(raw[i]||'').trim();
+    });
+    const nombre=sanitizeInput(rec.nombre,150);
+    if(!nombre){errores.push('Fila '+(r+2)+': nombre vacío.');continue;}
+    try{
+      const id=uid9();
+      // Reuso literal de los Bloques A y B, no se reescribe la lógica.
+      const empresaId=rec.empresa?await crmFindOrCreateEmpresa(rec.empresa):null;
+      const telefono=rec.contacto_tel?sanitizeInput(rec.contacto_tel,50):null;
+      const correo=rec.contacto_mail?sanitizeInput(rec.contacto_mail,150):null;
+      const dup=crmBuscarDuplicado(telefono,correo,id);
+      const dbRow={
+        id,nombre,
+        empresa:rec.empresa?sanitizeInput(rec.empresa,150):null,
+        empresa_id:empresaId,
+        contacto_tel:telefono,
+        contacto_mail:correo,
+        canal_entrada:rec.canal_entrada||'importacion',
+        giro:rec.giro?sanitizeInput(rec.giro,100):null,
+        valor_estimado:rec.valor_estimado?(parseFloat(rec.valor_estimado)||null):null,
+        estado:'nuevo',
+        posible_duplicado_de:dup?dup.id:null
+      };
+      const ok=await sbUpsert('hb_crm_prospectos',dbRow);
+      if(!ok){errores.push('Fila '+(r+2)+': error al guardar.');continue;}
+      auditLog('crear','hb_crm_prospectos',id,'Lead importado (CSV): '+nombre);
+      prospData.push({
+        id,nombre:dbRow.nombre,empresa:dbRow.empresa,empresaId,cargo:null,giro:dbRow.giro,fotoUrl:null,
+        contactoTel:dbRow.contacto_tel,contactoMail:dbRow.contacto_mail,canalEntrada:dbRow.canal_entrada,
+        estado:'nuevo',vendedorId:null,temperatura:null,notas:null,valorEstimado:dbRow.valor_estimado,
+        motivoPerdidaId:null,posibleDuplicadoDe:dbRow.posible_duplicado_de,duplicadoRevisado:false
+      });
+      creados++;
+      if(dup)duplicados++;
+    }catch(err){errores.push('Fila '+(r+2)+': '+(err.message||'error al procesar'));}
+  }
+  setBtn('prosp-import-confirm-btn',false);
+  renderProspectos();
+  const resEl=document.getElementById('prosp-import-step-result');
+  resEl.style.display='';
+  resEl.innerHTML=creados+' creados, '+duplicados+' marcados como posible duplicado'+
+    (errores.length?', '+errores.length+' con error:<br>'+errores.map(function(e){return escHtml(e);}).join('<br>'):'.');
+  document.getElementById('prosp-import-confirm-btn').style.display='none';
 }
 
 // ── BITÁCORA DE SEGUIMIENTO (timeline dentro de la ficha) ──
