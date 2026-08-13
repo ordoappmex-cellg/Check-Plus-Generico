@@ -833,10 +833,6 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
   .vac-summary{grid-template-columns:1fr 1fr!important;}
   .dev-kpi-grid{grid-template-columns:1fr 1fr!important;}
 
-  /* 5. CRM — card view */
-  #crm-table-wrap{display:none!important;}
-  .crm-mobile-cards{display:flex!important;}
-
   /* 6. Gestión de Proyectos — filtro de tareas apilado, tarjetas sin amontonar */
   #gp-task-filters-bar{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;padding:12px!important;}
   #gp-task-filters-bar>div:first-child{grid-column:1/-1;}
@@ -1992,52 +1988,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
 
 
-      <!-- CRM VIEW -->
-      <div id="view-crm" class="view">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
-          <div>
-            <div style="font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--cp-navy);display:flex;align-items:center;gap:9px"><i class="ti ti-users-group" style="color:var(--cp-purple)"></i> CRM · Clientify</div>
-            <div id="crm-subtitle" style="font-size:12px;color:var(--cp-gray-400);margin-top:2px"></div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <div style="position:relative">
-              <button class="btn-sm btn-ghost" onclick="toggleCrmColPanel()"><i class="ti ti-columns"></i> Columnas</button>
-              <div id="crm-col-panel" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-md);padding:12px;width:230px;z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.1)"></div>
-            </div>
-            <button class="btn-sm btn-blue" id="crm-import-btn" onclick="openCrmImport()"><i class="ti ti-file-upload"></i> Importar Excel</button>
-            <button class="btn-sm btn-ghost" id="crm-clear-btn" onclick="clearCrmData()" style="color:var(--cp-red);display:none"><i class="ti ti-trash"></i> Limpiar datos</button>
-          </div>
-        </div>
-        <!-- KPI cards -->
-        <div id="crm-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px"></div>
-        <!-- Charts section (collapsible) -->
-        <div id="crm-charts-wrap" style="margin-bottom:14px;display:none">
-          <div style="background:white;border-radius:var(--radius-md);border:1px solid var(--cp-gray-200);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleCrmCharts()">
-            <span style="font-weight:600;font-size:13px;color:var(--cp-navy)"><i class="ti ti-chart-bar" style="color:var(--cp-purple);margin-right:6px"></i>Análisis gráfico</span>
-            <i class="ti ti-chevron-down" id="crm-charts-chevron" style="font-size:15px;color:var(--cp-gray-400);transition:transform .2s"></i>
-          </div>
-          <div id="crm-charts-body" style="display:none;background:white;border:1px solid var(--cp-gray-200);border-top:none;border-radius:0 0 var(--radius-md) var(--radius-md);padding:16px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-              <div><div style="font-size:12px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:10px">Nuevos leads por día</div><div id="crm-chart-bar"></div></div>
-              <div><div style="font-size:12px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:10px">Distribución por estado</div><div id="crm-chart-donut" style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap"></div></div>
-            </div>
-          </div>
-        </div>
-        <!-- Filter bar -->
-        <div id="crm-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:white;border-radius:var(--radius-md);border:1px solid var(--cp-gray-200)">
-          <input type="text" class="form-input" id="crm-search" placeholder="Buscar nombre, empresa, email..." style="flex:1;min-width:160px;max-width:260px" oninput="crmPage=0;renderCRM()">
-          <select class="form-input" id="crm-filter-propietario" onchange="crmPage=0;renderCRM()" style="min-width:130px"><option value="">Todos los propietarios</option></select>
-          <select class="form-input" id="crm-filter-estado" onchange="crmPage=0;renderCRM()" style="min-width:120px"><option value="">Todos los estados</option></select>
-          <input type="date" class="form-input" id="crm-date-from" onchange="crmPage=0;renderCRM()" title="Desde" style="min-width:130px">
-          <input type="date" class="form-input" id="crm-date-to" onchange="crmPage=0;renderCRM()" title="Hasta" style="min-width:130px">
-          <button class="btn-sm btn-ghost" onclick="crmClearFilters()"><i class="ti ti-x"></i> Limpiar</button>
-        </div>
-        <!-- Table -->
-        <div id="crm-table-wrap"></div>
-        <!-- Mobile card list -->
-        <div id="crm-list-mobile" class="crm-mobile-cards"></div>
-      </div>
-
       <!-- CLIENTES VIEW -->
       <div id="view-clientes" class="view">
         <div class="section-card">
@@ -2151,7 +2101,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <!-- Importar / Columnas visibles / Exportar — agrupados como iconos -->
             <button type="button" class="btn-sm btn-ghost" onclick="openProspImport()" title="Importar CSV"><i class="ti ti-upload"></i></button>
             <div id="prosp-cols-toolbar-wrap" style="position:relative">
-              <button type="button" class="btn-sm btn-ghost" id="prosp-cols-toolbar-btn" onclick="toggleProspColsToolbarPanel()" title="Columnas visibles"><i class="ti ti-settings"></i></button>
+              <button type="button" class="btn-sm btn-ghost" id="prosp-cols-toolbar-btn" onclick="toggleProspColsToolbarPanel()" title="Columnas visibles"><i class="ti ti-columns"></i></button>
               <div class="prosp-dropdown-panel" id="prosp-cols-toolbar-panel" style="display:none;top:calc(100% + 6px);right:0;width:210px;max-height:280px;overflow-y:auto"></div>
             </div>
             <button type="button" class="btn-sm btn-ghost" onclick="prospExportCsv()" title="Exportar CSV"><i class="ti ti-download"></i></button>
@@ -2923,36 +2873,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
   </div>
 </div>
 
-
-<!-- CRM IMPORT MODAL -->
-<div class="modal-overlay" id="modal-crm-import">
-  <div class="modal" style="width:500px">
-    <div class="modal-header"><div class="modal-title"><i class="ti ti-file-upload" style="color:var(--cp-purple);margin-right:7px"></i>Importar Excel de Clientify</div><button class="modal-close" onclick="closeModal('modal-crm-import')"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body">
-      <div style="background:var(--cp-blue-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--cp-blue);line-height:1.6">
-        <strong>Cómo exportar desde Clientify:</strong><br>
-        1. Ve a <strong>Contactos</strong> → clic en <strong>Exportar</strong><br>
-        2. Selecciona <strong>Excel</strong> como formato<br>
-        3. Descarga el archivo y súbelo aquí
-      </div>
-      <div id="crm-drop-zone" onclick="document.getElementById('crm-file-input').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');processCrmFile(event.dataTransfer.files[0])" style="border:2px dashed var(--cp-gray-300);border-radius:var(--radius-md);padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s">
-        <i class="ti ti-cloud-upload" style="font-size:36px;color:var(--cp-gray-300);display:block;margin-bottom:8px"></i>
-        <div style="font-size:14px;font-weight:600;color:var(--cp-navy);margin-bottom:4px">Arrastra tu archivo aquí o haz clic para seleccionar</div>
-        <div style="font-size:12px;color:var(--cp-gray-400)">.xlsx, .xls o .csv</div>
-        <input type="file" id="crm-file-input" accept=".xlsx,.xls,.csv" style="display:none" onchange="processCrmFile(this.files[0])">
-      </div>
-      <div id="crm-import-progress" style="display:none;margin-top:14px;padding:12px;background:var(--cp-gray-50);border-radius:var(--radius-sm);font-size:13px;color:var(--cp-gray-600)"></div>
-    </div>
-  </div>
-</div>
-
-<!-- CRM LEAD DETAIL MODAL -->
-<div class="modal-overlay" id="modal-crm-lead">
-  <div class="modal" style="width:580px;max-height:90vh;overflow-y:auto">
-    <div class="modal-header"><div class="modal-title" id="crm-lead-modal-title"></div><button class="modal-close" onclick="closeModal('modal-crm-lead')"><i class="ti ti-x"></i></button></div>
-    <div class="modal-body" id="crm-lead-modal-body" style="padding:0"></div>
-  </div>
-</div>
 
 <!-- OKR MODALS -->
 <div class="modal-overlay" id="modal-okr">
@@ -5789,7 +5709,6 @@ async function nav(view){
     await loadModuleData('marketing');
     renderMktForms();
   }
-  if(view==='crm'){Promise.all([crmLoad(),crmLoadPage(0)]).then(()=>renderCRM());document.getElementById('page-title').textContent='CRM · Clientify';}
   if(view==='desarrollos'){
     document.getElementById('page-title').textContent='Desarrollos';
     if(!_moduleLoaded['desarrollos'])showModuleSkeleton('dev-list');
@@ -5853,17 +5772,20 @@ function renderDashboard(){
   renderDashMisPendSummary();
   const wrap=document.getElementById('dashboard-sections');if(!wrap)return;
   const sections=getDashSections();
-  wrap.innerHTML=sections.map(s=>(s.id==='ventas'?'<div id="dash-efemeride-wrap"></div>':'')+`<div id="dash-sec-${s.id}" style="margin-bottom:18px"></div>`).join('');
+  // "Datos curiosos" es un widget de trivia sin relación con CRM Clientify —
+  // antes vivía condicionado a que existiera la sección 'ventas' (mismo
+  // slot de layout, nada más). Al eliminar ese módulo se desacopla aquí:
+  // siempre se pinta, en la misma posición (antes de las secciones).
+  wrap.innerHTML='<div id="dash-efemeride-wrap"></div>'+sections.map(s=>`<div id="dash-sec-${s.id}" style="margin-bottom:18px"></div>`).join('');
   sections.forEach(s=>{
     const el=document.getElementById('dash-sec-'+s.id);
     if(!el)return;
     if(s.id==='calendario')renderDashSectionCalendario(el);
-    else if(s.id==='ventas')renderDashSectionVentas(el);
     else if(s.id==='clientes')renderDashSectionClientes(el);
     else if(s.id==='soporte')renderDashSectionSoporte(el);
     else if(s.id==='okrs')renderDashSectionOKRs(el);
   });
-  if(sections.some(s=>s.id==='ventas'))renderDashEfemeride();
+  renderDashEfemeride();
 }
 
 // ── Efeméride diaria (v50) ─────────────────────────
@@ -6144,111 +6066,6 @@ function renderDashSectionCalendario(el){
     Promise.all([loadModuleData('kanban'),loadModuleData('desarrollos'),loadModuleData('gestion-proyectos')])
       .then(()=>{ if(document.getElementById('ucal-grid')) renderUnifiedCalendar(); });
   }
-}
-
-function renderDashSectionVentas(el){
-  if(!crmData.length&&!el.dataset.crmLoading){
-    el.dataset.crmLoading='1';
-    el.innerHTML='<div style="background:white;border-radius:16px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,.07);text-align:center;color:var(--cp-gray-400);font-size:13px"><i class="ti ti-loader" style="font-size:22px;animation:spin .7s linear infinite;display:block;margin:0 auto 8px"></i>Cargando datos CRM…</div>';
-    crmLoad().then(()=>{delete el.dataset.crmLoading;renderDashSectionVentas(el);}).catch(()=>{delete el.dataset.crmLoading;});
-    return;
-  }
-  const data=crmData||[];
-  const calientes=data.filter(c=>(c.estado||'').toLowerCase().includes('caliente'));
-  const templados=data.filter(c=>(c.estado||'').toLowerCase().includes('templad'));
-  const clientesConv=data.filter(c=>(c.estado||'').toLowerCase().includes('cliente'));
-  const convRate=data.length?Math.round(clientesConv.length/data.length*100):0;
-  const now=new Date();const todayStr=now.toISOString().slice(0,10);
-  const days30=[];
-  for(let i=29;i>=0;i--){const d=new Date(now);d.setDate(now.getDate()-i);days30.push({date:d.toISOString().slice(0,10),count:0});}
-  data.forEach(r=>{const d=(r.creado||'').slice(0,10);const slot=days30.find(x=>x.date===d);if(slot)slot.count++;});
-  const maxCount=Math.max(...days30.map(d=>d.count),1);
-  const barH=180;const barW=14;const bGap=4;const svgW=days30.length*(barW+bGap);
-  const gLines=[0.25,0.5,0.75].map(f=>'<line x1="0" y1="'+Math.round(barH*(1-f))+'" x2="'+svgW+'" y2="'+Math.round(barH*(1-f))+'" stroke="rgba(0,0,0,.04)" stroke-width="1"/>').join('');
-  const barsStr=days30.map((d,i)=>{
-    const bh=Math.max(2,Math.round((d.count/maxCount)*barH));
-    const x=i*(barW+bGap);const isToday=d.date===todayStr;
-    const bar='<rect x="'+x+'" y="'+(barH-bh)+'" width="'+barW+'" height="'+bh+'" rx="3" fill="'+(isToday?'#7B2FF7':'#9B5FF8')+'" opacity="'+(isToday?1:0.65)+'"/>';
-    const val=d.count>0?'<text x="'+(x+barW/2)+'" y="'+(barH-bh-4)+'" text-anchor="middle" font-size="9" fill="#56637E" font-family="Inter,sans-serif">'+d.count+'</text>':'';
-    const lbl=(i%5===0||i===29)?'<text x="'+(x+barW/2)+'" y="'+(barH+20)+'" text-anchor="middle" font-size="9" fill="'+(isToday?'#7B2FF7':'#94A0BB')+'" font-weight="'+(isToday?700:400)+'" font-family="Inter,sans-serif">'+d.date.slice(5)+'</text>':'';
-    return bar+val+lbl;
-  }).join('');
-  const estadoColorMap={};
-  data.forEach(r=>{
-    const ek=(r.estado||'').toLowerCase();
-    let col='#94A0BB';
-    if(ek.includes('caliente'))col='#EF4444';
-    else if(ek.includes('templad'))col='#F59E0B';
-    else if(ek.includes('frio')||ek.includes('frío')||ek.includes('fría'))col='#3B82F6';
-    else if(ek.includes('cliente')||ek.includes('ganada'))col='#10C080';
-    if(r.estado)estadoColorMap[r.estado]=col;
-  });
-  const estadoGroups={};
-  data.forEach(r=>{const e=r.estado||'sin estado';estadoGroups[e]=(estadoGroups[e]||0)+1;});
-  const donutEntries=Object.entries(estadoGroups).sort((a,b)=>b[1]-a[1]);
-  const donutTotal=donutEntries.reduce((s,[,v])=>s+v,0)||1;
-  const Rd=55;const cxd=80;const cyd=80;const circD=2*Math.PI*Rd;const swd=22;
-  let donutArc='';let donutOff=0;
-  donutEntries.forEach(([estado,cnt])=>{
-    const dash=(cnt/donutTotal)*circD;const col=estadoColorMap[estado]||'#94A0BB';
-    donutArc+='<circle cx="'+cxd+'" cy="'+cyd+'" r="'+Rd+'" fill="none" stroke="'+col+'" stroke-width="'+swd+'" stroke-dasharray="'+dash.toFixed(2)+' '+(circD-dash).toFixed(2)+'" stroke-dashoffset="'+(-donutOff).toFixed(2)+'" transform="rotate(-90 '+cxd+' '+cyd+')"/>';
-    donutOff+=dash;
-  });
-  const crmLimit=parseInt(localStorage.getItem('cp_crm_limit')||'5000')||5000;const crmPct=Math.min(100,Math.round(data.length/crmLimit*100));
-  const _SC='background:white;border:1px solid var(--cp-gray-100);border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)';
-  el.innerHTML=
-    '<div style="background:white;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.07)">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--cp-gray-100)">'+
-        '<div style="font-size:16px;font-weight:700;color:var(--cp-navy)"><i class="ti ti-trending-up" style="margin-right:8px;color:var(--cp-purple)"></i>Ventas · CRM</div>'+
-        '<a style="font-size:13px;font-weight:600;color:var(--cp-purple);cursor:pointer;text-decoration:none" onclick="nav(\'crm\')">Ver CRM <i class="ti ti-arrow-right"></i></a>'+
-      '</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+
-        '<div style="'+_SC+'">'+
-          '<div style="width:36px;height:36px;border-radius:10px;background:#FEF2F2;display:flex;align-items:center;justify-content:center;margin-bottom:12px"><i class="ti ti-flame" style="font-size:18px;color:#EF4444"></i></div>'+
-          '<div style="font-size:28px;font-weight:800;color:#EF4444;line-height:1;margin-bottom:4px">'+calientes.length+'</div>'+
-          '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:2px">Leads calientes</div>'+
-          '<div style="font-size:11px;color:var(--cp-gray-400)">contactos con alto interés</div>'+
-        '</div>'+
-        '<div style="'+_SC+'">'+
-          '<div style="width:36px;height:36px;border-radius:10px;background:#FFFBEB;display:flex;align-items:center;justify-content:center;margin-bottom:12px"><i class="ti ti-thermometer" style="font-size:18px;color:#F59E0B"></i></div>'+
-          '<div style="font-size:28px;font-weight:800;color:#F59E0B;line-height:1;margin-bottom:4px">'+templados.length+'</div>'+
-          '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:2px">Leads templados</div>'+
-          '<div style="font-size:11px;color:var(--cp-gray-400)">seguimiento pendiente</div>'+
-        '</div>'+
-        '<div style="'+_SC+'">'+
-          '<div style="width:36px;height:36px;border-radius:10px;background:#F0FDF4;display:flex;align-items:center;justify-content:center;margin-bottom:12px"><i class="ti ti-percentage" style="font-size:18px;color:#10C080"></i></div>'+
-          '<div style="font-size:28px;font-weight:800;color:#10C080;line-height:1;margin-bottom:4px">'+convRate+'%</div>'+
-          '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:2px">Tasa de conversión</div>'+
-          '<div style="font-size:11px;color:var(--cp-gray-400)">leads → clientes</div>'+
-        '</div>'+
-        '<div id="dash-gauge-crm" style="'+_SC+';display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:140px"></div>'+
-      '</div>'+
-      '<div style="display:grid;grid-template-columns:65fr 35fr;gap:16px">'+
-        '<div style="'+_SC+'">'+
-          '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:16px">Contactos nuevos · últimos 30 días</div>'+
-          '<div style="overflow-x:auto"><svg viewBox="0 0 '+svgW+' '+(barH+26)+'" width="'+svgW+'" height="'+(barH+26)+'" style="display:block;max-width:100%">'+gLines+barsStr+'</svg></div>'+
-        '</div>'+
-        '<div style="'+_SC+'">'+
-          '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:16px">Por estado</div>'+
-          '<svg viewBox="0 0 160 160" width="160" height="160" style="display:block;margin:0 auto 12px">'+donutArc+
-            '<circle cx="'+cxd+'" cy="'+cyd+'" r="32" fill="white"/>'+
-            '<text x="'+cxd+'" y="'+(cyd-2)+'" text-anchor="middle" font-size="18" font-weight="700" fill="#0F0A1E" font-family="Inter,sans-serif">'+data.length+'</text>'+
-            '<text x="'+cxd+'" y="'+(cyd+14)+'" text-anchor="middle" font-size="9" fill="#94A0BB" font-family="Inter,sans-serif">total</text>'+
-          '</svg>'+
-          '<div>'+donutEntries.slice(0,6).map(([e,c])=>{
-            const pct=Math.round(c/donutTotal*100);
-            const col2=estadoColorMap[e]||'#94A0BB';
-            return '<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #F8F9FC;font-size:12px">'+
-              '<span style="width:10px;height:10px;border-radius:50%;background:'+col2+';flex-shrink:0"></span>'+
-              '<span style="flex:1;color:var(--cp-gray-700);text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(e)+'</span>'+
-              '<span style="font-weight:700;color:var(--cp-navy);margin-left:4px">'+c+'</span>'+
-              '<span style="color:var(--cp-gray-400);font-size:10px;min-width:28px;text-align:right">'+pct+'%</span>'+
-            '</div>';
-          }).join('')+'</div>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  renderVelocityGauge('dash-gauge-crm',crmPct,'Capacidad CRM',data.length+' de '+crmLimit+' contactos','lg');
 }
 
 function renderDashSectionClientes(el){
@@ -7417,7 +7234,7 @@ const ROLE_DEFAULTS={
   admin:MODULES_ALL,
   // Legacy roles — kept only so old profiles that haven't been re-saved yet still
   // normalize to something sensible. New profiles use 'usuario' (see Step 6/7).
-  editor:['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','crm','desarrollos','repositorio','soporte','ai-chat','okrs','gestion-proyectos'],
+  editor:['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','desarrollos','repositorio','soporte','ai-chat','okrs','gestion-proyectos'],
   viewer:['dashboard','empleados','vacaciones','permisos','documentos','organigrama'],
   usuario:['diseno','gestion-proyectos'], // new users start with every module oculto except Diseño y Gestión de Proyectos (editor by default)
 };
@@ -9027,9 +8844,9 @@ let provData = [];
 let provCurrentId = null;
 function provSaveSB(prov) { return sbUpsert('hb_proveedores', prov); }
 // Prospectos = módulo comercial interno (hb_crm_prospectos/hb_crm_seguimientos).
-// Prefijo 'prosp' a propósito: 'crm'/'crmData'/'renderCRM' ya están tomados por
-// el módulo existente "CRM Clientify" (crm_leads, ver línea ~15252) — son cosas
-// distintas y no deben compartir namespace.
+// Prefijo 'prosp' a propósito — namespace propio, distinto de cualquier otro
+// módulo (histórico: evitaba chocar con el módulo "CRM Clientify", eliminado
+// 14/8; el prefijo se conserva igual).
 let prospData = [];
 let prospEtapas = [];
 let prospTiposContacto = [];
@@ -10103,8 +9920,7 @@ async function deleteProveedor(){
 }
 
 // ── PROSPECTOS (CRM interno — hb_crm_prospectos / hb_crm_seguimientos) ──
-// Distinto del módulo "CRM Clientify" existente (crm_leads/renderCRM/crmData):
-// este es el pipeline comercial propio de Grupo Limen, lead → confirmado/perdido.
+// Pipeline comercial propio de Grupo Limen, lead → confirmado/perdido.
 
 async function prospLoad(){
   const [prospRaw, cfgRows, segRows, empresasRaw] = await Promise.all([
@@ -12395,9 +12211,9 @@ async function deleteProspPlantilla(){
   toast('Plantilla eliminada.','info');
 }
 
-// ── Columnas de la lista — preferencia personal (localStorage), calcada de
-// getCrmVisibleCols/toggleCrmColVisibility/renderCrmColPanel del CRM Clientify
-// (index.html ~16196-16593) sobre PROSP_ALL_COLS en vez de CRM_ALL_COLS. ──
+// ── Columnas de la lista — preferencia personal (localStorage) sobre
+// PROSP_ALL_COLS, mismo patrón get*VisibleCols/toggle*ColVisibility/
+// render*ColPanel usado en el resto de la app. ──
 function getProspVisibleCols(){
   try{const s=localStorage.getItem('cp_prosp_visible_cols');if(s){const arr=JSON.parse(s);if(Array.isArray(arr)&&arr.length)return arr;}}catch(e){}
   return PROSP_ALL_COLS.map(function(c){return c.key;});
@@ -14623,19 +14439,6 @@ function buildAppContextConfigured(){
     ctx += '\n';
   }
 
-  if(crmData.length && detail('crm')!=='oculto'){
-    const byEst={};crmData.forEach(r=>{const e=r.estado||'Sin estado';byEst[e]=(byEst[e]||0)+1;});
-    const byProp={};crmData.forEach(r=>{if(r.propietario)byProp[r.propietario]=(byProp[r.propietario]||0)+1;});
-    const calificados=crmData.filter(r=>{const e=(r.estado||'').toLowerCase();return e.includes('calificado')&&!e.includes('no');}).length;
-    const totalGan=crmData.reduce((s,r)=>s+(parseFloat(r.importeGanadas)||0),0);
-    ctx+=`=== CRM CLIENTIFY — ${crmData.length} contactos ===\n`;
-    ctx+=`Calificados: ${calificados} | No calificados: ${crmData.length-calificados} | Oportunidades ganadas: $${totalGan.toLocaleString('es-MX')}\n`;
-    ctx+='Por estado: '+Object.entries(byEst).map(([k,v])=>k+': '+v).join(' | ')+'\n';
-    ctx+='Por propietario: '+Object.entries(byProp).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>k+': '+v).join(' | ')+'\n';
-    const topScoring=crmData.filter(r=>r.leadScoring).sort((a,b)=>parseFloat(b.leadScoring||0)-parseFloat(a.leadScoring||0)).slice(0,5);
-    if(topScoring.length)ctx+='Top leads: '+topScoring.map(r=>([r.nombre,r.apellidos].filter(Boolean).join(' ')||'?')+' ('+r.leadScoring+')').join(', ')+'\n';
-    ctx+='\n';
-  }
 
   return ctx;
 }
@@ -16131,13 +15934,11 @@ let _krCollapsed = {}; // {krId: true/false}
 let _krHistExpanded = {}; // {krId: true/false} — "Ver historial" toggle
 let _krHistShowCount = {}; // {krId: number} — how many history rows to show
 let _krChartExpanded = {}; // {krId: true/false} — "Ver gráfica" toggle
-let crmData = [];
 let dashboardConfig = null;
 let dashMrrDesde = '';
 let dashMrrHasta = '';
 const DEFAULT_DASH_SECTIONS=[
   {id:'calendario', label:'Calendario', order:0, visibleRoles:['admin','editor','viewer']},
-  {id:'ventas',     label:'Ventas CRM',  order:1, visibleRoles:['admin','editor']},
   {id:'clientes',   label:'Clientes',    order:2, visibleRoles:['admin']},
   {id:'soporte',    label:'Soporte',     order:3, visibleRoles:['admin','editor']},
   {id:'okrs',       label:'OKRs',        order:4, visibleRoles:['admin','editor','viewer']}
@@ -17922,6 +17723,11 @@ function guardAdmin(fnName) {
   return true;
 }
 
+// ── HTML ESCAPING (reubicado 14/8 — vivía dentro del bloque de CRM
+// Clientify, ver eliminación de ese módulo; es el escapador global usado en
+// TODA la app antes de innerHTML, nunca fue específico de CRM) ───────────
+function escHtml(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+
 // ── INPUT SANITIZATION ────────────────────────────
 function sanitizeInput(str, maxLength=500) {
   if(str === null || str === undefined) return '';
@@ -18183,707 +17989,6 @@ async function kbSaveBoardSB(data) {
   });
 }
 async function kbDeleteCardSB(id) { return kbSbDelete('kb_cards', id); }
-
-// ── CRM ───────────────────────────────────────────
-function escHtml(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
-
-let crmSort={col:'creado',dir:'desc'};
-let crmPage=0;
-let crmExpandedRow=null;
-let crmChartsOpen=false;
-let _crmDragCol=null;
-let _crmResizeData=null;
-const CRM_ALL_COLS=[
-  {key:'nombre',label:'Nombre',w:160},
-  {key:'empresa',label:'Empresa',w:140},
-  {key:'cargo',label:'Cargo',w:120},
-  {key:'email',label:'Email',w:160},
-  {key:'telefono',label:'Teléfono',w:110},
-  {key:'estado',label:'Estado',w:120},
-  {key:'propietario',label:'Propietario',w:120},
-  {key:'etiquetas',label:'Etiquetas',w:140},
-  {key:'creado',label:'Fecha creado',w:110},
-  {key:'leadScoring',label:'Scoring',w:80},
-  {key:'origen',label:'Origen',w:110},
-  {key:'descripcion',label:'Descripción',w:150},
-  {key:'observaciones',label:'Observaciones',w:160},
-  {key:'ultimoContacto',label:'Últ. contacto',w:110},
-  {key:'diasSinContacto',label:'Días sin cont.',w:90},
-  {key:'numColaboradores',label:'# Colaboradores',w:100},
-  {key:'importeGanadas',label:'Ganadas',w:90},
-  {key:'importePerdidas',label:'Perdidas',w:90},
-];
-const CRM_DEFAULT_COLS=['nombre','empresa','estado','propietario','etiquetas','creado','leadScoring'];
-function getCrmVisibleCols(){try{const s=localStorage.getItem('cp_crm_visible_cols');if(s)return JSON.parse(s);}catch(e){}return[...CRM_DEFAULT_COLS];}
-function getCrmColOrder(){try{const s=localStorage.getItem('cp_crm_col_order');if(s)return JSON.parse(s);}catch(e){}return CRM_ALL_COLS.map(c=>c.key);}
-function getCrmColWidths(){try{const s=localStorage.getItem('cp_crm_col_widths');if(s)return JSON.parse(s);}catch(e){}return{};}
-function getCrmActiveCols(){
-  const vis=getCrmVisibleCols(),order=getCrmColOrder();
-  const ordered=order.filter(k=>vis.includes(k));
-  const rest=vis.filter(k=>!ordered.includes(k));
-  return[...ordered,...rest].map(k=>CRM_ALL_COLS.find(c=>c.key===k)).filter(Boolean);
-}
-
-document.addEventListener('mousemove',function(e){
-  if(!_crmResizeData)return;
-  const newW=Math.max(60,_crmResizeData.startW+(e.clientX-_crmResizeData.startX));
-  const th=document.querySelector('#crm-table-wrap th[data-col="'+_crmResizeData.col+'"]');
-  if(th)th.style.width=newW+'px';
-});
-document.addEventListener('mouseup',function(e){
-  if(!_crmResizeData)return;
-  const newW=Math.max(60,_crmResizeData.startW+(e.clientX-_crmResizeData.startX));
-  const widths=getCrmColWidths();widths[_crmResizeData.col]=newW;
-  localStorage.setItem('cp_crm_col_widths',JSON.stringify(widths));
-  _crmResizeData=null;
-});
-
-async function crmLoad() {
-  try {
-    const rows = await sbGetAll('crm_leads');
-    crmData = rows.map(r=>({
-      id:r.id, nombre:r.nombre, apellidos:r.apellidos,
-      empresa:r.empresa, cargo:r.cargo, email:r.email,
-      telefono:r.telefono, estado:r.estado, propietario:r.propietario,
-      origen:r.origen, etapaOportunidad:r.etapa_oportunidad,
-      leadScoring:r.lead_scoring, etiquetas:r.etiquetas,
-      observaciones:r.observaciones, descripcion:r.descripcion,
-      importeGanadas:r.importe_ganadas||0, importePerdidas:r.importe_perdidas||0,
-      creado:r.creado, ultimoContacto:r.ultimo_contacto, importedAt:r.imported_at,
-      numColaboradores:r.num_colaboradores,
-      diasSinContacto:(()=>{const ref=r.ultimo_contacto||r.creado;if(!ref)return null;const ms=new Date(ref).getTime();return isNaN(ms)?null:Math.floor((Date.now()-ms)/86400000);})()
-
-    }));
-  } catch(e) { crmData=[]; toast('Error cargando CRM','error'); }
-}
-
-// ── CRM table pagination (server-side) ────────────────────────────
-// crmData (above) holds the full dataset for KPI/breakdown/dropdown stats —
-// those need dataset-wide aggregates. crmTableData is just the current
-// on-screen page, fetched fresh from Supabase so paging/sorting/filtering a
-// large lead list doesn't require the whole table in memory.
-const CRM_PAGE_SIZE = 50;
-let crmTotalCount = 0;
-let crmTableData = [];
-const CRM_SORT_COL_MAP = {nombre:'nombre',empresa:'empresa',cargo:'cargo',email:'email',telefono:'telefono',estado:'estado',propietario:'propietario',etiquetas:'etiquetas',creado:'creado',leadScoring:'lead_scoring',origen:'origen',descripcion:'descripcion',observaciones:'observaciones',ultimoContacto:'ultimo_contacto',diasSinContacto:'ultimo_contacto',numColaboradores:'num_colaboradores',importeGanadas:'importe_ganadas',importePerdidas:'importe_perdidas'};
-
-async function crmLoadPage(page=0) {
-  crmPage = page;
-  const session = await sbGetSession();
-  const token = session?.access_token || state.currentUser?.token;
-
-  const q=(document.getElementById('crm-search')?.value||'').trim();
-  const fProp=document.getElementById('crm-filter-propietario')?.value||'';
-  const fEst=document.getElementById('crm-filter-estado')?.value||'';
-  const fFrom=document.getElementById('crm-date-from')?.value||'';
-  const fTo=document.getElementById('crm-date-to')?.value||'';
-
-  const params=['select=*'];
-  if(q){
-    const esc=q.replace(/[,()]/g,' ').trim();
-    params.push('or=('+['nombre','apellidos','empresa','email'].map(c=>c+'.ilike.*'+encodeURIComponent(esc)+'*').join(',')+')');
-  }
-  if(fProp) params.push('propietario=eq.'+encodeURIComponent(fProp));
-  if(fEst) params.push('estado=eq.'+encodeURIComponent(fEst));
-  if(fFrom) params.push('creado=gte.'+encodeURIComponent(fFrom));
-  if(fTo) params.push('creado=lte.'+encodeURIComponent(fTo+'T23:59:59'));
-  const sortCol=CRM_SORT_COL_MAP[crmSort.col]||'creado';
-  params.push('order='+sortCol+'.'+(crmSort.dir==='asc'?'asc':'desc')+'.nullslast');
-  params.push('limit='+CRM_PAGE_SIZE);
-  params.push('offset='+(page*CRM_PAGE_SIZE));
-
-  const query = SUPABASE_URL+'/rest/v1/crm_leads?'+params.join('&');
-  try{
-    const res = await fetch(query, {headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token,'Prefer':'count=exact'}});
-    crmTotalCount = parseInt(res.headers.get('content-range')?.split('/')?.[1]||'0');
-    const rows = res.ok ? await res.json() : [];
-    crmTableData = rows.map(r=>({
-      id:r.id, nombre:r.nombre, apellidos:r.apellidos,
-      empresa:r.empresa, cargo:r.cargo, email:r.email,
-      telefono:r.telefono, estado:r.estado, propietario:r.propietario,
-      origen:r.origen, etapaOportunidad:r.etapa_oportunidad,
-      leadScoring:r.lead_scoring, etiquetas:r.etiquetas,
-      observaciones:r.observaciones, descripcion:r.descripcion,
-      importeGanadas:r.importe_ganadas||0, importePerdidas:r.importe_perdidas||0,
-      creado:r.creado, ultimoContacto:r.ultimo_contacto, importedAt:r.imported_at,
-      numColaboradores:r.num_colaboradores,
-      diasSinContacto:(()=>{const ref=r.ultimo_contacto||r.creado;if(!ref)return null;const ms=new Date(ref).getTime();return isNaN(ms)?null:Math.floor((Date.now()-ms)/86400000);})()
-    }));
-  }catch(e){ crmTableData=[]; crmTotalCount=0; toast('Error cargando página CRM','error'); }
-}
-
-function _crmEstadoColor(estado){
-  const e=(estado||'').toLowerCase();
-  if(e.includes('caliente'))return{dot:'#EF4444',bg:'#EF444422',text:'#DC2626'};
-  if(e.includes('templado'))return{dot:'#F5A623',bg:'#F5A62322',text:'#D97706'};
-  if(e.includes('frío')||e.includes('frio'))return{dot:'#3B82F6',bg:'#3B82F622',text:'#2563EB'};
-  if(e.includes('no calificado'))return{dot:'#94A0BB',bg:'#94A0BB22',text:'#64748B'};
-  if(e.includes('en oportunidad')||e.includes('oportunidad'))return{dot:'#F97316',bg:'#F9731622',text:'#EA580C'};
-  if(e.includes('cliente'))return{dot:'#10C080',bg:'#10C08022',text:'#059669'};
-  if(e.includes('calificado'))return{dot:'#7B2FF7',bg:'var(--cp-blue-light)',text:'var(--cp-blue)'};
-  return{dot:'#7B2FF7',bg:'var(--cp-purple-light)',text:'var(--cp-purple)'};
-}
-
-function _crmGetFiltered(){
-  const q=(document.getElementById('crm-search')?.value||'').toLowerCase().trim();
-  const fProp=document.getElementById('crm-filter-propietario')?.value||'';
-  const fEst=document.getElementById('crm-filter-estado')?.value||'';
-  const fFrom=document.getElementById('crm-date-from')?.value||'';
-  const fTo=document.getElementById('crm-date-to')?.value||'';
-  let r=crmData;
-  if(q)r=r.filter(x=>((x.nombre||'')+(x.apellidos||'')+(x.empresa||'')+(x.email||'')).toLowerCase().includes(q));
-  if(fProp)r=r.filter(x=>x.propietario===fProp);
-  if(fEst)r=r.filter(x=>x.estado===fEst);
-  if(fFrom)r=r.filter(x=>x.creado&&x.creado.slice(0,10)>=fFrom);
-  if(fTo)r=r.filter(x=>x.creado&&x.creado.slice(0,10)<=fTo);
-  return r;
-}
-
-function sortCrm(col){
-  if(crmSort.col===col)crmSort.dir=crmSort.dir==='asc'?'desc':'asc';
-  else{crmSort.col=col;crmSort.dir='asc';}
-  crmPage=0;renderCRM();
-}
-
-function crmChangePage(dir){
-  const pages=Math.max(1,Math.ceil(crmTotalCount/CRM_PAGE_SIZE));
-  crmPage=Math.max(0,Math.min(crmPage+dir,pages-1));
-  renderCRM();
-}
-
-function crmClearFilters(){
-  ['crm-search','crm-date-from','crm-date-to'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['crm-filter-propietario','crm-filter-estado'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  crmPage=0;renderCRM();
-}
-
-function setCrmLimit(){
-  const el=document.getElementById('crm-limit-input');
-  if(!el)return;
-  const v=parseInt(el.value)||5000;
-  localStorage.setItem('cp_crm_limit',String(v));
-  renderCRM();
-}
-
-function toggleCrmCharts(){
-  const body=document.getElementById('crm-charts-body');
-  const chev=document.getElementById('crm-charts-chevron');
-  if(!body)return;
-  crmChartsOpen=!crmChartsOpen;
-  body.style.display=crmChartsOpen?'':'none';
-  if(chev)chev.style.transform=crmChartsOpen?'rotate(180deg)':'rotate(0deg)';
-  if(crmChartsOpen)_renderCrmCharts();
-}
-
-function _renderCrmCharts(){
-  // Chart A: bar chart (last 30 days)
-  const barEl=document.getElementById('crm-chart-bar');
-  if(barEl){
-    const filtered=_crmGetFiltered();
-    const now=new Date();
-    const days=[];
-    for(let i=29;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);days.push(d.toISOString().slice(0,10));}
-    const counts={};days.forEach(d=>{counts[d]=0;});
-    filtered.forEach(r=>{if(r.creado){const d=r.creado.slice(0,10);if(counts[d]!==undefined)counts[d]++;}});
-    const vals=days.map(d=>counts[d]);
-    const maxV=Math.max(...vals,1);
-    const W=340,H=100,barW=Math.floor((W-20)/days.length)-1;
-    let bars='';let xLabels='';
-    days.forEach((d,i)=>{
-      const h=Math.round((vals[i]/maxV)*(H-20));
-      const x=10+i*(barW+1);
-      const y=H-20-h;
-      bars+=`<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="var(--cp-purple)" rx="2" opacity="${h?'0.85':'0.15'}"/>`;
-      if(vals[i]>0)bars+=`<text x="${x+barW/2}" y="${y-3}" text-anchor="middle" font-size="8" fill="var(--cp-navy)">${vals[i]}</text>`;
-      if(i%7===0||i===29){const dd=new Date(d+'T12:00:00');const mo=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][dd.getMonth()];xLabels+=`<text x="${x+barW/2}" y="${H-2}" text-anchor="middle" font-size="8" fill="#94A0BB">${dd.getDate()} ${mo}</text>`;}
-    });
-    barEl.innerHTML=`<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;max-width:100%">${bars}${xLabels}<line x1="10" y1="${H-20}" x2="${W-10}" y2="${H-20}" stroke="#E2E8F0" stroke-width="1"/></svg>`;
-  }
-  // Chart B: donut
-  const donutEl=document.getElementById('crm-chart-donut');
-  if(donutEl){
-    const filtered=_crmGetFiltered();
-    const byEst={};filtered.forEach(r=>{const e=r.estado||'Sin estado';byEst[e]=(byEst[e]||0)+1;});
-    const entries=Object.entries(byEst).sort((a,b)=>b[1]-a[1]);
-    const total=filtered.length||1;
-    const R=55,r=32,cx=65,cy=65;
-    let angle=-Math.PI/2;let slices='';
-    entries.forEach(([e,cnt])=>{
-      const c=_crmEstadoColor(e);
-      const a=(cnt/total)*Math.PI*2;
-      const x1=cx+R*Math.cos(angle),y1=cy+R*Math.sin(angle);
-      angle+=a;
-      const x2=cx+R*Math.cos(angle),y2=cy+R*Math.sin(angle);
-      const xi=cx+r*Math.cos(angle-a),yi=cy+r*Math.sin(angle-a);
-      const xo=cx+r*Math.cos(angle),yo=cy+r*Math.sin(angle);
-      const lg=a>Math.PI?1:0;
-      if(entries.length===1){slices+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="${c.dot}"/>`;slices+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="white"/>`;}
-      else slices+=`<path d="M${x1},${y1} A${R},${R} 0 ${lg},1 ${x2},${y2} L${xo},${yo} A${r},${r} 0 ${lg},0 ${xi},${yi} Z" fill="${c.dot}" stroke="white" stroke-width="2"/>`;
-    });
-    const legend=entries.map(([e,cnt])=>{const c=_crmEstadoColor(e);return`<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><div style="width:10px;height:10px;border-radius:50%;background:${c.dot};flex-shrink:0"></div><span style="font-size:11px;color:var(--cp-gray-700)">${escHtml(e)}</span><span style="font-size:11px;color:var(--cp-gray-400);margin-left:auto">${cnt} (${Math.round(cnt/total*100)}%)</span></div>`;}).join('');
-    donutEl.innerHTML=`<svg width="130" height="130" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0">${slices}<text x="${cx}" y="${cy-5}" text-anchor="middle" font-size="16" font-weight="700" fill="var(--cp-navy)">${total}</text><text x="${cx}" y="${cy+12}" text-anchor="middle" font-size="9" fill="#94A0BB">total</text></svg><div style="flex:1;min-width:140px">${legend}</div>`;
-  }
-}
-
-function _crmCellContent(r,key,colW){
-  const fullName=[r.nombre,r.apellidos].filter(Boolean).join(' ')||'Sin nombre';
-  const ec=_crmEstadoColor(r.estado);
-  const tags=(r.etiquetas||'').split(',').map(t=>t.trim()).filter(Boolean);
-  const trunc=`white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:${colW}px`;
-  switch(key){
-    case 'nombre': return`<td style="padding:9px 12px;font-size:13px;font-weight:600;color:var(--cp-navy);white-space:nowrap">${escHtml(fullName)}</td>`;
-    case 'empresa': return`<td style="padding:9px 12px;font-size:12px;color:var(--cp-gray-600)"><span style="${trunc}" title="${escHtml(r.empresa||'')}">${escHtml(r.empresa||'')}</span></td>`;
-    case 'cargo': return`<td style="padding:9px 12px;font-size:12px;color:var(--cp-gray-600)"><span style="${trunc}" title="${escHtml(r.cargo||'')}">${escHtml(r.cargo||'')}</span></td>`;
-    case 'email': return`<td style="padding:9px 12px;font-size:11px">${r.email?`<a href="mailto:${escHtml(r.email)}" style="color:var(--cp-blue);white-space:nowrap" onclick="event.stopPropagation()">${escHtml(r.email)}</a>`:''}</td>`;
-    case 'telefono': return`<td style="padding:9px 12px;font-size:11px">${r.telefono?`<a href="tel:${escHtml(r.telefono)}" style="color:var(--cp-blue);white-space:nowrap" onclick="event.stopPropagation()">${escHtml(r.telefono)}</a>`:''}</td>`;
-    case 'estado': return`<td style="padding:9px 12px">${r.estado?`<span style="font-size:10px;padding:2px 8px;border-radius:99px;background:${ec.bg};color:${ec.text};font-weight:600;white-space:nowrap">${escHtml(r.estado)}</span>`:''}</td>`;
-    case 'propietario': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-gray-500);white-space:nowrap">${escHtml(r.propietario||'')}</td>`;
-    case 'etiquetas':{const th=tags.slice(0,2).map(t=>`<span style="font-size:9px;background:var(--cp-purple-light);color:var(--cp-purple);padding:1px 6px;border-radius:99px;white-space:nowrap">${escHtml(t)}</span>`).join('')+(tags.length>2?`<span style="font-size:9px;color:var(--cp-gray-400)">+${tags.length-2}</span>`:'');return`<td style="padding:9px 12px"><div style="display:flex;gap:3px;flex-wrap:wrap">${th}</div></td>`;}
-    case 'creado': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-gray-500);white-space:nowrap">${r.creado?fmtDate(r.creado.slice(0,10)):''}</td>`;
-    case 'leadScoring': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-amber);font-weight:600;text-align:center">${r.leadScoring?'★ '+escHtml(r.leadScoring):''}</td>`;
-    case 'origen': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-gray-500)"><span style="${trunc}" title="${escHtml(r.origen||'')}">${escHtml(r.origen||'')}</span></td>`;
-    case 'descripcion': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-gray-600);cursor:pointer" onclick="event.stopPropagation();_crmToggleCell(this)"><span style="${trunc}">${escHtml(r.descripcion||'')}</span></td>`;
-    case 'observaciones': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-gray-600);cursor:pointer" onclick="event.stopPropagation();_crmToggleCell(this)"><span style="${trunc}">${escHtml(r.observaciones||'')}</span></td>`;
-    case 'ultimoContacto': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-gray-500);white-space:nowrap">${r.ultimoContacto?fmtDate(r.ultimoContacto.slice(0,10)):''}</td>`;
-    case 'diasSinContacto':{const d=r.diasSinContacto;const c=d==null?'var(--cp-gray-400)':d>60?'var(--cp-red)':d>30?'var(--cp-amber)':'var(--cp-green)';return`<td style="padding:9px 12px;font-size:11px;font-weight:600;color:${c};text-align:center">${d!=null?d+'d':'—'}</td>`;}
-    case 'numColaboradores': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-gray-600);text-align:center">${escHtml(r.numColaboradores||'')}</td>`;
-    case 'importeGanadas': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-green);font-weight:600;white-space:nowrap">${r.importeGanadas?'$'+parseFloat(r.importeGanadas).toLocaleString('es-MX'):''}</td>`;
-    case 'importePerdidas': return`<td style="padding:9px 12px;font-size:11px;color:var(--cp-red);font-weight:600;white-space:nowrap">${r.importePerdidas?'$'+parseFloat(r.importePerdidas).toLocaleString('es-MX'):''}</td>`;
-    default: return`<td style="padding:9px 12px"></td>`;
-  }
-}
-function _crmToggleCell(td){
-  const sp=td.querySelector('span');if(!sp)return;
-  if(sp.dataset.expanded==='1'){
-    sp.dataset.expanded='0';
-    sp.setAttribute('style',sp.dataset.origStyle||'');
-    td.style.overflow='';td.style.height='';td.style.whiteSpace='';
-  } else {
-    sp.dataset.expanded='1';
-    if(!sp.dataset.origStyle)sp.dataset.origStyle=sp.getAttribute('style')||'';
-    sp.style.whiteSpace='normal';
-    sp.style.overflow='visible';
-    sp.style.maxWidth='none';
-    sp.style.textOverflow='clip';
-    sp.style.wordBreak='break-word';
-    sp.style.display='block';
-    sp.style.height='auto';
-    td.style.overflow='visible';
-    td.style.height='auto';
-    td.style.whiteSpace='normal';
-  }
-}
-
-function _renderCrmTable(){
-  const wrap=document.getElementById('crm-table-wrap');if(!wrap)return;
-  const cols=getCrmActiveCols();
-  const widths=getCrmColWidths();
-  // crmTableData is already filtered/sorted/paginated server-side by crmLoadPage()
-  const pageData=crmTableData;
-  const pages=Math.max(1,Math.ceil(crmTotalCount/CRM_PAGE_SIZE));
-  const si=crmTotalCount?crmPage*CRM_PAGE_SIZE+1:0,ei=Math.min((crmPage+1)*CRM_PAGE_SIZE,crmTotalCount);
-
-  const header=`<thead><tr style="background:var(--cp-gray-50)">${cols.map(col=>{
-    const w=widths[col.key]||col.w;
-    const active=crmSort.col===col.key;
-    const arrow=active?(crmSort.dir==='asc'?'<i class="ti ti-arrow-up" style="font-size:10px"></i>':'<i class="ti ti-arrow-down" style="font-size:10px"></i>'):'';
-    return`<th data-col="${col.key}" draggable="true" style="padding:8px 12px 8px 10px;text-align:left;font-size:11px;font-weight:700;color:${active?'var(--cp-blue)':'var(--cp-gray-400)'};text-transform:uppercase;user-select:none;border-bottom:2px solid var(--cp-gray-200);position:relative;width:${w}px;overflow:hidden;cursor:pointer" onclick="sortCrm('${col.key}')">${escHtml(col.label)} ${arrow}<span class="crm-rh" data-col="${col.key}" style="position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;z-index:1"></span></th>`;
-  }).join('')}</tr></thead>`;
-
-  const rows=pageData.map((r,ri)=>{
-    const isExp=crmExpandedRow===r.id;
-    const stripe=ri%2===0?'white':'var(--cp-gray-50)';
-    const tags=(r.etiquetas||'').split(',').map(t=>t.trim()).filter(Boolean);
-    let detailRow='';
-    if(isExp){
-      detailRow=`<tr id="crm-detail-${escHtml(r.id)}"><td colspan="${cols.length}" style="padding:0;border-bottom:2px solid var(--cp-purple)">
-        <div style="padding:16px 20px;background:#F9F7FF;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-          ${r.email?`<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:2px">EMAIL</div><a href="mailto:${escHtml(r.email)}" style="font-size:12px;color:var(--cp-blue)">${escHtml(r.email)}</a></div>`:''}
-          ${r.telefono?`<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:2px">TELÉFONO</div><a href="tel:${escHtml(r.telefono)}" style="font-size:12px;color:var(--cp-blue)">${escHtml(r.telefono)}</a></div>`:''}
-          ${r.origen?`<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:2px">ORIGEN</div><div style="font-size:12px;color:var(--cp-navy)">${escHtml(r.origen)}</div></div>`:''}
-          ${r.etapaOportunidad?`<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:2px">ETAPA</div><div style="font-size:12px;color:var(--cp-navy)">${escHtml(r.etapaOportunidad)}</div></div>`:''}
-          ${r.ultimoContacto?`<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:2px">ÚLTIMO CONTACTO</div><div style="font-size:12px;color:var(--cp-navy)">${fmtDate(r.ultimoContacto.slice(0,10))}</div></div>`:''}
-          ${r.numColaboradores?`<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:2px"># COLABORADORES</div><div style="font-size:12px;color:var(--cp-navy)">${escHtml(r.numColaboradores)}</div></div>`:''}
-          ${r.importeGanadas?`<div><div style="font-size:10px;font-weight:700;color:var(--cp-green);margin-bottom:2px">GANADAS</div><div style="font-size:13px;font-weight:700;color:var(--cp-green)">$${parseFloat(r.importeGanadas).toLocaleString('es-MX')}</div></div>`:''}
-          ${r.importePerdidas?`<div><div style="font-size:10px;font-weight:700;color:var(--cp-red);margin-bottom:2px">PERDIDAS</div><div style="font-size:13px;font-weight:700;color:var(--cp-red)">$${parseFloat(r.importePerdidas).toLocaleString('es-MX')}</div></div>`:''}
-          ${tags.length>0?`<div style="grid-column:1/-1"><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:4px">ETIQUETAS</div><div style="display:flex;gap:5px;flex-wrap:wrap">${tags.map(t=>`<span style="font-size:11px;background:var(--cp-purple-light);color:var(--cp-purple);padding:1px 8px;border-radius:99px">${escHtml(t)}</span>`).join('')}</div></div>`:''}
-          ${r.descripcion?`<div style="grid-column:1/-1"><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:4px">DESCRIPCIÓN</div><div style="font-size:12px;color:var(--cp-gray-700);white-space:pre-wrap;line-height:1.6">${escHtml(r.descripcion.slice(0,400))}${r.descripcion.length>400?'…':''}</div></div>`:''}
-          ${r.observaciones?`<div style="grid-column:1/-1"><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);margin-bottom:4px">OBSERVACIONES</div><div style="font-size:12px;color:var(--cp-gray-700);white-space:pre-wrap;line-height:1.6">${escHtml(r.observaciones.slice(0,600))}${r.observaciones.length>600?'…':''}</div></div>`:''}
-        </div>
-        <div style="padding:8px 20px;border-top:1px solid var(--cp-gray-100);text-align:right"><button class="btn-sm btn-ghost" onclick="toggleCrmRow('${escHtml(r.id)}')"><i class="ti ti-chevron-up"></i> Cerrar</button></div>
-      </td></tr>`;
-    }
-    return`<tr style="background:${stripe};cursor:pointer;transition:background .1s" onclick="toggleCrmRow('${escHtml(r.id)}')" onmouseenter="this.style.background='var(--cp-blue-light)'" onmouseleave="this.style.background='${stripe}'">${cols.map(col=>_crmCellContent(r,col.key,widths[col.key]||col.w)).join('')}</tr>${detailRow}`;
-  }).join('');
-
-  wrap.innerHTML=`<div class="section-card" style="padding:0;overflow:hidden">
-    <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;table-layout:fixed">${header}<tbody>${rows||'<tr><td colspan="'+cols.length+'" style="padding:32px;text-align:center;color:var(--cp-gray-400)">Sin contactos que coincidan con los filtros.</td></tr>'}</tbody></table>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--cp-gray-100);flex-wrap:wrap;gap:8px">
-      <span style="font-size:12px;color:var(--cp-gray-500)">${crmTotalCount?`Mostrando ${si}–${ei} de ${crmTotalCount} contactos`:''}</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="btn-sm btn-ghost" onclick="crmChangePage(-1)" ${crmPage===0?'disabled':''} style="${crmPage===0?'opacity:.4':''}"><i class="ti ti-chevron-left"></i> Anterior</button>
-        <span style="font-size:12px;color:var(--cp-gray-600)">Página ${crmPage+1} de ${pages}</span>
-        <button class="btn-sm btn-ghost" onclick="crmChangePage(1)" ${crmPage>=pages-1?'disabled':''} style="${crmPage>=pages-1?'opacity:.4':''}">Siguiente <i class="ti ti-chevron-right"></i></button>
-      </div>
-    </div>
-  </div>`;
-  _initCrmTableInteractions();
-}
-
-function toggleCrmRow(id){
-  crmExpandedRow=(crmExpandedRow===id)?null:id;
-  _renderCrmTable();
-  if(crmExpandedRow){const el=document.getElementById('crm-detail-'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});}
-}
-
-function _initCrmTableInteractions(){
-  const tbl=document.querySelector('#crm-table-wrap table');if(!tbl)return;
-  tbl.querySelectorAll('.crm-rh').forEach(rh=>{
-    rh.addEventListener('mousedown',function(e){
-      e.preventDefault();e.stopPropagation();
-      const col=this.dataset.col;
-      const th=this.closest('th');
-      _crmResizeData={col,startX:e.clientX,startW:th.offsetWidth};
-    });
-  });
-  tbl.querySelectorAll('th[draggable]').forEach(th=>{
-    th.addEventListener('dragstart',function(e){
-      _crmDragCol=this.dataset.col;
-      e.dataTransfer.setData('text/plain',this.dataset.col);
-      e.dataTransfer.effectAllowed='move';
-      setTimeout(()=>this.style.opacity='0.5',0);
-    });
-    th.addEventListener('dragend',function(){this.style.opacity='';_crmDragCol=null;});
-    th.addEventListener('dragover',function(e){e.preventDefault();e.dataTransfer.dropEffect='move';this.style.background='var(--cp-blue-light)';});
-    th.addEventListener('dragleave',function(){this.style.background='';});
-    th.addEventListener('drop',function(e){
-      e.preventDefault();this.style.background='';
-      const from=e.dataTransfer.getData('text/plain');
-      const to=this.dataset.col;
-      if(!from||from===to)return;
-      let order=getCrmColOrder();
-      const fromIdx=order.indexOf(from),toIdx=order.indexOf(to);
-      if(fromIdx>=0&&toIdx>=0){order.splice(fromIdx,1);order.splice(toIdx,0,from);}
-      else{const act=getCrmActiveCols().map(c=>c.key);const fi=act.indexOf(from),ti=act.indexOf(to);if(fi<0||ti<0)return;act.splice(fi,1);act.splice(ti,0,from);order=act;}
-      localStorage.setItem('cp_crm_col_order',JSON.stringify(order));
-      _renderCrmTable();
-    });
-  });
-}
-
-function toggleCrmColPanel(){
-  const p=document.getElementById('crm-col-panel');if(!p)return;
-  if(p.style.display==='none'||p.style.display===''){p.style.display='block';renderCrmColPanel();}
-  else p.style.display='none';
-}
-function renderCrmColPanel(){
-  const p=document.getElementById('crm-col-panel');if(!p)return;
-  const vis=getCrmVisibleCols();
-  let h='<div style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">';
-  h+='<span style="font-size:11px;font-weight:700;color:var(--cp-navy)">Columnas visibles</span>';
-  h+='<button onclick="resetCrmCols()" style="font-size:10px;background:none;border:none;cursor:pointer;color:var(--cp-gray-400);display:flex;align-items:center;gap:3px"><i class="ti ti-refresh"></i> Restablecer</button>';
-  h+='</div><div style="max-height:280px;overflow-y:auto">';
-  CRM_ALL_COLS.forEach(col=>{
-    const chk=vis.includes(col.key);
-    h+=`<label style="display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;font-size:12px;color:var(--cp-navy)"><input type="checkbox" ${chk?'checked':''} onchange="toggleCrmColVisibility('${col.key}',this.checked)">${escHtml(col.label)}</label>`;
-  });
-  h+='</div>';
-  p.innerHTML=h;
-}
-function toggleCrmColVisibility(key,visible){
-  let cols=getCrmVisibleCols();
-  if(visible){if(!cols.includes(key))cols.push(key);}
-  else{cols=cols.filter(k=>k!==key);if(!cols.length)return;}
-  localStorage.setItem('cp_crm_visible_cols',JSON.stringify(cols));
-  // Keep order in sync
-  let order=getCrmColOrder();
-  if(visible&&!order.includes(key))order.push(key);
-  else if(!visible)order=order.filter(k=>k!==key);
-  localStorage.setItem('cp_crm_col_order',JSON.stringify(order));
-  _renderCrmTable();
-  renderCrmColPanel();
-}
-function resetCrmCols(){
-  localStorage.removeItem('cp_crm_visible_cols');
-  localStorage.removeItem('cp_crm_col_order');
-  localStorage.removeItem('cp_crm_col_widths');
-  const p=document.getElementById('crm-col-panel');if(p)p.style.display='none';
-  _renderCrmTable();
-}
-
-async function renderCRM() {
-  const isAdmin = state.currentUser?.role==='admin';
-  const canEditCrm = canEdit('crm');
-  const clearBtn = document.getElementById('crm-clear-btn');
-  if(clearBtn) clearBtn.style.display = isAdmin && crmData.length ? '' : 'none'; // clearCrmData() is admin-only (guardAdmin)
-  const importBtn = document.getElementById('crm-import-btn');
-  if(importBtn) importBtn.style.display = canEditCrm ? '' : 'none';
-
-  // Subtitle
-  const sub = document.getElementById('crm-subtitle');
-  if(sub){
-    if(crmData.length){
-      const lastImport = crmData.reduce((mx,r)=>(!mx||r.importedAt>mx)?r.importedAt:mx,null);
-      sub.textContent = crmData.length+' contactos importados · Última importación: '+(lastImport?fmtDate(lastImport.split('T')[0]):'—');
-    } else { sub.textContent = 'Sin datos importados'; }
-  }
-
-  const tableWrap = document.getElementById('crm-table-wrap');
-  const filters = document.getElementById('crm-filters');
-  const kpiEl = document.getElementById('crm-kpis');
-  const chartsWrap = document.getElementById('crm-charts-wrap');
-
-  if(!crmData.length){
-    if(filters) filters.style.display='none';
-    if(chartsWrap) chartsWrap.style.display='none';
-    if(kpiEl) kpiEl.innerHTML='';
-    if(tableWrap) tableWrap.innerHTML='<div class="empty-state" style="min-height:260px"><i class="ti ti-file-upload" style="font-size:48px"></i><p style="font-size:15px;margin-top:12px">No hay datos importados aún<br><span style="font-size:12px;color:var(--cp-gray-400)">Exporta tus contactos desde Clientify (Contactos → Exportar) y súbelos aquí</span></p>'+(canEditCrm?'<button class="btn-sm btn-blue" onclick="openCrmImport()" style="margin-top:14px"><i class="ti ti-file-upload"></i> Importar Excel de Clientify</button>':'')+'</div>';
-    return;
-  }
-  if(filters) filters.style.display='';
-  if(chartsWrap) chartsWrap.style.display='';
-
-  // Populate filter selects (preserve current selection)
-  const propSel = document.getElementById('crm-filter-propietario');
-  if(propSel){
-    const cur=propSel.value;
-    const props=[...new Set(crmData.map(r=>r.propietario||'').filter(Boolean))].sort();
-    propSel.innerHTML='<option value="">Todos los propietarios</option>'+props.map(p=>'<option value="'+escHtml(p)+'"'+(p===cur?' selected':'')+'>'+escHtml(p)+'</option>').join('');
-  }
-  const estadoSel = document.getElementById('crm-filter-estado');
-  if(estadoSel){
-    const cur=estadoSel.value;
-    const estados=[...new Set(crmData.map(r=>r.estado||'').filter(Boolean))].sort();
-    estadoSel.innerHTML='<option value="">Todos los estados</option>'+estados.map(e=>'<option value="'+escHtml(e)+'"'+(e===cur?' selected':'')+'>'+escHtml(e)+'</option>').join('');
-  }
-
-  const filtered = _crmGetFiltered();
-
-  // ── KPI CARDS ────────────────────────────────────
-  const limit = parseInt(localStorage.getItem('cp_crm_limit')||'5000')||5000;
-  const total = crmData.length;
-  const pct = Math.min(Math.round(total/limit*100),100);
-  const pctColor = pct>=85?'var(--cp-red)':pct>=70?'var(--cp-amber)':'var(--cp-green)';
-  const totalGanadas = filtered.reduce((s,r)=>s+(parseFloat(r.importeGanadas)||0),0);
-  const convertidos = filtered.filter(r=>(r.estado||'').toLowerCase().includes('cliente')||(parseFloat(r.importeGanadas)||0)>0).length;
-  const tasaConv = filtered.length?Math.round(convertidos/filtered.length*100):0;
-
-  // Card 2: estado breakdown
-  const byEst={};filtered.forEach(r=>{const e=r.estado||'Sin estado';byEst[e]=(byEst[e]||0)+1;});
-  const estEntries=Object.entries(byEst).sort((a,b)=>b[1]-a[1]);
-  const top5=estEntries.slice(0,5);const rest=estEntries.slice(5);
-  const estHtml=top5.map(([e,cnt])=>{const c=_crmEstadoColor(e);return`<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><div style="width:8px;height:8px;border-radius:50%;background:${c.dot};flex-shrink:0"></div><span style="font-size:11px;color:var(--cp-gray-700);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(e)}</span><span style="font-size:11px;font-weight:700;color:var(--cp-navy)">${cnt}</span></div>`;}).join('')+(rest.length?`<div style="font-size:10px;color:var(--cp-gray-400);padding-top:3px">+${rest.length} más (${rest.reduce((s,[,c])=>s+c,0)})</div>`:'');
-
-  if(kpiEl){
-    kpiEl.innerHTML=
-      // Card 1: Total + capacity
-      `<div class="stat-card" style="padding:14px 16px;border-left:4px solid var(--cp-blue)">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><i class="ti ti-users" style="color:var(--cp-blue);font-size:17px"></i><span style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase">Total contactos</span></div>
-        <div style="font-size:28px;font-family:var(--font-display);font-weight:800;color:var(--cp-navy);margin-bottom:4px">${total.toLocaleString('es-MX')}</div>
-        <div style="font-size:11px;color:var(--cp-gray-400);margin-bottom:6px;display:flex;align-items:center;gap:4px">de <span id="crm-limit-display" style="font-weight:600;color:var(--cp-gray-600)">${limit.toLocaleString('es-MX')}</span> contratados <button onclick="event.stopPropagation();document.getElementById('crm-limit-editor').style.display=''" style="background:none;border:none;cursor:pointer;padding:0;color:var(--cp-gray-400)"><i class="ti ti-pencil" style="font-size:11px"></i></button></div>
-        <div id="crm-limit-editor" style="display:none;margin-bottom:6px"><input type="number" id="crm-limit-input" value="${limit}" class="form-input" style="width:100px;padding:2px 6px;font-size:12px" onkeydown="if(event.key==='Enter')setCrmLimit()" onblur="setCrmLimit()"></div>
-        <div style="background:var(--cp-gray-100);border-radius:3px;height:5px"><div style="width:${pct}%;height:100%;background:${pctColor};border-radius:3px;transition:width .4s"></div></div>
-        <div style="font-size:10px;color:${pctColor};margin-top:3px;font-weight:600">${pct}% de capacidad</div>
-      </div>`+
-      // Card 2: estado breakdown
-      `<div class="stat-card" style="padding:14px 16px;border-left:4px solid var(--cp-purple)">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><i class="ti ti-chart-pie" style="color:var(--cp-purple);font-size:17px"></i><span style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase">Por estado</span></div>
-        ${estHtml||'<div style="font-size:12px;color:var(--cp-gray-400)">Sin datos</div>'}
-      </div>`+
-      // Card 3: Oportunidades ganadas
-      `<div class="stat-card" style="padding:14px 16px;border-left:4px solid var(--cp-amber)">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><i class="ti ti-trophy" style="color:var(--cp-amber);font-size:17px"></i><span style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase">Oportunidades ganadas</span></div>
-        <div style="font-size:24px;font-family:var(--font-display);font-weight:800;color:var(--cp-navy)">$${totalGanadas.toLocaleString('es-MX',{minimumFractionDigits:0,maximumFractionDigits:0})}</div>
-        <div style="font-size:11px;color:var(--cp-gray-400);margin-top:4px">MXN</div>
-      </div>`+
-      // Card 4: Tasa de conversión
-      `<div class="stat-card" style="padding:14px 16px;border-left:4px solid var(--cp-green)">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><i class="ti ti-trending-up" style="color:var(--cp-green);font-size:17px"></i><span style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase">Tasa de conversión</span></div>
-        <div style="font-size:28px;font-family:var(--font-display);font-weight:800;color:var(--cp-green)">${tasaConv}%</div>
-        <div style="font-size:11px;color:var(--cp-gray-400);margin-top:3px">${convertidos} leads convertidos</div>
-      </div>`;
-  }
-
-  // Refresh charts if open
-  if(document.getElementById('crm-charts-body')?.style.display!=='none') _renderCrmCharts();
-
-  await crmLoadPage(crmPage);
-  _renderCrmTable();
-  renderCrmMobileCards();
-}
-
-// ── Mobile card list (CRM) ────────────────────────
-let crmMobileExpandedId=null;
-function toggleCrmMobileRow(id){
-  crmMobileExpandedId=(crmMobileExpandedId===id)?null:id;
-  renderCrmMobileCards();
-}
-function renderCrmMobileCards(){
-  const wrap=document.getElementById('crm-list-mobile'); if(!wrap)return;
-  const pageData=crmTableData||[];
-  if(!pageData.length){
-    wrap.innerHTML=crmData.length?'':'<div class="empty-state" style="min-height:160px"><i class="ti ti-file-upload"></i><p>No hay datos importados aún</p></div>';
-    return;
-  }
-  wrap.innerHTML=pageData.map(r=>{
-    const ec=_crmEstadoColor(r.estado);
-    const tags=(r.etiquetas||'').split(',').map(t=>t.trim()).filter(Boolean);
-    const d=r.diasSinContacto;
-    const dColor=d==null?'var(--cp-gray-400)':d>60?'var(--cp-red)':d>30?'var(--cp-amber)':'var(--cp-green)';
-    const isExp=crmMobileExpandedId===r.id;
-    return '<div class="crm-mobile-card" onclick="toggleCrmMobileRow(\''+escHtml(r.id)+'\')">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">'+
-        '<span style="font-weight:700;font-size:14px;color:var(--cp-navy)">'+escHtml(r.nombre||'—')+'</span>'+
-        '<span style="font-size:11px;background:'+ec.bg+';color:'+ec.text+';padding:2px 9px;border-radius:99px;font-weight:600;white-space:nowrap">'+escHtml(r.estado||'—')+'</span>'+
-      '</div>'+
-      (r.empresa?'<div style="font-size:12px;color:var(--cp-gray-400);margin-bottom:8px">'+escHtml(r.empresa)+'</div>':'')+
-      '<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--cp-gray-600)">'+
-        '<span>'+escHtml(r.propietario||'—')+'</span>'+
-        '<span style="color:'+dColor+';font-weight:600">'+(d!=null?d+'d sin contacto':'—')+'</span>'+
-      '</div>'+
-      (tags.length?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">'+tags.slice(0,2).map(t=>'<span style="font-size:10px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 8px;border-radius:99px">'+escHtml(t)+'</span>').join('')+(tags.length>2?'<span style="font-size:10px;color:var(--cp-gray-400)">+'+(tags.length-2)+'</span>':'')+'</div>':'')+
-      (isExp?'<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--cp-gray-100);display:flex;flex-direction:column;gap:6px" onclick="event.stopPropagation()">'+
-        (r.email?'<div style="font-size:12px"><i class="ti ti-mail" style="margin-right:5px;color:var(--cp-gray-400)"></i><a href="mailto:'+escHtml(r.email)+'" style="color:var(--cp-blue)">'+escHtml(r.email)+'</a></div>':'')+
-        (r.telefono?'<div style="font-size:12px"><i class="ti ti-phone" style="margin-right:5px;color:var(--cp-gray-400)"></i><a href="tel:'+escHtml(r.telefono)+'" style="color:var(--cp-blue)">'+escHtml(r.telefono)+'</a></div>':'')+
-        (r.origen?'<div style="font-size:12px;color:var(--cp-gray-700)"><i class="ti ti-git-branch" style="margin-right:5px;color:var(--cp-gray-400)"></i>'+escHtml(r.origen)+'</div>':'')+
-      '</div>':'')+
-    '</div>';
-  }).join('');
-}
-
-function openCrmImport(){
-  document.getElementById('crm-import-progress').style.display='none';
-  document.getElementById('crm-file-input').value='';
-  openModal('modal-crm-import');
-}
-
-async function processCrmFile(file){
-  if(!file){return;}
-  const progress=document.getElementById('crm-import-progress');
-  if(progress){progress.style.display='';progress.innerHTML='<i class="ti ti-loader" style="animation:spin .7s linear infinite"></i> Leyendo archivo...';}
-  try{
-    const buf=await file.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array',cellDates:true});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
-    if(!rows.length){toast('El archivo está vacío o no tiene datos','error');if(progress)progress.style.display='none';return;}
-
-    // Normalize header keys (case-insensitive)
-    function findCol(obj,keys){
-      const okeys=Object.keys(obj);
-      for(const k of keys){const found=okeys.find(ok=>ok.toLowerCase().trim()===k.toLowerCase().trim());if(found!==undefined)return obj[found];}
-      return '';
-    }
-    function toStr(v){if(v===null||v===undefined||v==='')return null;if(v instanceof Date)return v.toISOString();return String(v).trim()||null;}
-    function toNum(v){const n=parseFloat(String(v).replace(/[$,\s]/g,''));return isNaN(n)?0:n;}
-
-    const records=rows.map((row,i)=>{
-      const rawId=findCol(row,['id']);
-      const id=rawId?'cf-'+String(rawId).trim():'cf-row-'+i;
-      return {
-        id, nombre:toStr(findCol(row,['nombre'])),
-        apellidos:toStr(findCol(row,['apellidos'])),
-        empresa:toStr(findCol(row,['empresa','company'])),
-        cargo:toStr(findCol(row,['cargo','puesto'])),
-        email:toStr(findCol(row,['correo electrónico 1','correo electronico 1','email','e-mail'])),
-        telefono:toStr(findCol(row,['teléfono 1','telefono 1','teléfono','telefono','phone'])),
-        estado:toStr(findCol(row,['estado'])),
-        propietario:toStr(findCol(row,['propietario','owner'])),
-        origen:toStr(findCol(row,['origen contacto','origen','source'])),
-        etapa_oportunidad:toStr(findCol(row,['etapa de oportunidad activa','etapa de oportunidad','etapa oportunidad','etapa'])),
-        lead_scoring:toStr(findCol(row,['lead scoring','lead_scoring','scoring'])),
-        etiquetas:toStr(findCol(row,['etiquetas','tags'])),
-        observaciones:toStr(findCol(row,['observaciones','notas','notes'])),
-        descripcion:toStr(findCol(row,['descripción','descripcion','description'])),
-        importe_ganadas:toNum(findCol(row,['importe de oportunidades ganadas','importe ganadas','ganadas'])),
-        importe_perdidas:toNum(findCol(row,['importe de oportunidades perdidas','importe perdidas','perdidas'])),
-        creado:toStr(findCol(row,['creado','fecha creación','fecha creacion','created_at','created'])),
-        ultimo_contacto:toStr(findCol(row,['último contacto','ultimo contacto','last contact'])),
-        num_colaboradores:toStr(findCol(row,['# colaboradores','colaboradores','empleados','num colaboradores','número de colaboradores'])),
-        raw_data:{},
-        imported_at:new Date().toISOString()
-      };
-    });
-
-    if(progress)progress.innerHTML='<i class="ti ti-loader" style="animation:spin .7s linear infinite"></i> Importando '+records.length+' contactos...';
-    toast('Importando '+records.length+' contactos...','info');
-
-    // Upsert in batches of 50
-    const BATCH=50;
-    for(let i=0;i<records.length;i+=BATCH){
-      const batch=records.slice(i,i+BATCH);
-      const {error}=await sb.from('crm_leads').upsert(batch,{onConflict:'id'});
-      if(error)throw error;
-    }
-
-    closeModal('modal-crm-import');
-    await crmLoad();
-    renderCRM();
-    toast(''+records.length+' contactos importados correctamente','success');
-  }catch(e){
-    console.error('CRM import error:',e);
-    toast('Error al importar: '+(e.message||'Error desconocido'),'error');
-    if(progress){progress.innerHTML='<span style="color:var(--cp-red)">Error: '+(e.message||'Error desconocido')+'</span>';}
-  }
-}
-
-async function clearCrmData(){
-  if(!guardAdmin('clearCrmData')) return;
-  if(!confirm('¿Eliminar todos los contactos CRM importados? Esta acción no se puede deshacer.'))return;
-  auditLog('delete', 'crm_leads', 'all', 'Datos CRM limpiados por ' + state.currentUser?.email);
-  try{
-    const {error}=await sb.from('crm_leads').delete().neq('id','__placeholder__');
-    if(error)throw error;
-    crmData=[];renderCRM();toast('Datos CRM eliminados','info');
-  }catch(e){toast('Error al limpiar: '+e.message,'error');}
-}
-
-function openCrmLead(id){
-  const r=crmData.find(x=>x.id===id);if(!r)return;
-  const fullName=[r.nombre,r.apellidos].filter(Boolean).join(' ')||'Sin nombre';
-  const eCfg={
-    'lead no calificado':{bg:'#94A0BB22',color:'#64748B'},
-    'lead calificado':{bg:'var(--cp-blue-light)',color:'var(--cp-blue)'},
-    'cliente':{bg:'#10C08022',color:'#059669'},
-    'oportunidad':{bg:'#F5A62322',color:'#D97706'},
-  };
-  const eKey=Object.keys(eCfg).find(k=>(r.estado||'').toLowerCase().includes(k));
-  const ec=eCfg[eKey]||{bg:'var(--cp-gray-100)',color:'var(--cp-gray-600)'};
-  const tags=(r.etiquetas||'').split(',').map(t=>t.trim()).filter(Boolean);
-  const title=document.getElementById('crm-lead-modal-title');
-  if(title)title.innerHTML='<i class="ti ti-user-circle" style="color:var(--cp-purple);margin-right:7px"></i>'+escHtml(fullName);
-  const body=document.getElementById('crm-lead-modal-body');
-  if(!body)return;
-  body.innerHTML=
-    '<div style="padding:20px 24px;background:var(--cp-blue-light)">'+
-      '<div style="font-size:20px;font-weight:700;color:var(--cp-navy);margin-bottom:4px">'+escHtml(fullName)+'</div>'+
-      (r.empresa?'<div style="font-size:13px;color:var(--cp-gray-600);margin-bottom:4px">'+escHtml(r.empresa)+(r.cargo?' · '+escHtml(r.cargo):'')+'</div>':'')+
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">'+
-        (r.estado?'<span style="font-size:11px;padding:2px 10px;border-radius:99px;background:'+ec.bg+';color:'+ec.color+';font-weight:700">'+escHtml(r.estado)+'</span>':'')+
-        (r.leadScoring?'<span style="font-size:11px;background:#F5A62322;color:var(--cp-amber);padding:2px 10px;border-radius:99px;font-weight:600">★ '+escHtml(r.leadScoring)+'</span>':'')+
-        (r.etapaOportunidad?'<span style="font-size:11px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 10px;border-radius:99px;font-weight:600">'+escHtml(r.etapaOportunidad)+'</span>':'')+
-      '</div>'+
-    '</div>'+
-    '<div style="padding:16px 24px;display:grid;grid-template-columns:1fr 1fr;gap:12px;border-bottom:1px solid var(--cp-gray-100)">'+
-      (r.propietario?'<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:2px">Propietario</div><div style="font-size:13px;color:var(--cp-navy)">'+escHtml(r.propietario)+'</div></div>':'')+
-      (r.origen?'<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:2px">Origen</div><div style="font-size:13px;color:var(--cp-navy)">'+escHtml(r.origen)+'</div></div>':'')+
-      (r.email?'<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:2px">Email</div><div style="font-size:13px"><a href="mailto:'+escHtml(r.email)+'" style="color:var(--cp-blue)">'+escHtml(r.email)+'</a></div></div>':'')+
-      (r.telefono?'<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:2px">Teléfono</div><div style="font-size:13px"><a href="tel:'+escHtml(r.telefono)+'" style="color:var(--cp-blue)">'+escHtml(r.telefono)+'</a></div></div>':'')+
-      (r.creado?'<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:2px">Creado</div><div style="font-size:13px;color:var(--cp-navy)">'+fmtDate(r.creado?.split('T')[0])+'</div></div>':'')+
-      (r.ultimoContacto?'<div><div style="font-size:10px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:2px">Último contacto</div><div style="font-size:13px;color:var(--cp-navy)">'+fmtDate(r.ultimoContacto?.split('T')[0])+'</div></div>':'')+
-      ((r.importeGanadas||r.importePerdidas)?'<div style="grid-column:1/-1;display:flex;gap:16px">'+
-        (r.importeGanadas?'<div><div style="font-size:10px;font-weight:700;color:var(--cp-green);text-transform:uppercase;margin-bottom:2px">Oportunidades ganadas</div><div style="font-size:14px;font-weight:700;color:var(--cp-green)">$'+parseFloat(r.importeGanadas).toLocaleString('es-MX')+'</div></div>':'')+
-        (r.importePerdidas?'<div><div style="font-size:10px;font-weight:700;color:var(--cp-red);text-transform:uppercase;margin-bottom:2px">Oportunidades perdidas</div><div style="font-size:14px;font-weight:700;color:var(--cp-red)">$'+parseFloat(r.importePerdidas).toLocaleString('es-MX')+'</div></div>':'')+
-      '</div>':'') +
-    '</div>'+
-    (tags.length?'<div style="padding:14px 24px;border-bottom:1px solid var(--cp-gray-100)"><div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:8px">Etiquetas</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+tags.map(t=>'<span style="font-size:11px;background:var(--cp-purple-light);color:var(--cp-purple);padding:2px 10px;border-radius:99px">'+escHtml(t)+'</span>').join('')+'</div></div>':'')+
-    (r.descripcion?'<div style="padding:14px 24px;border-bottom:1px solid var(--cp-gray-100)"><div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:8px">Descripción</div><div style="font-size:13px;color:var(--cp-gray-700);line-height:1.7;white-space:pre-wrap">'+escHtml(r.descripcion)+'</div></div>':'')+
-    (r.observaciones?'<div style="padding:14px 24px"><div style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;margin-bottom:8px">Observaciones</div><div style="font-size:13px;color:var(--cp-gray-700);line-height:1.7;white-space:pre-wrap">'+escHtml(r.observaciones)+'</div></div>':'')+
-  '';
-  openModal('modal-crm-lead');
-}
 
 // ── CLIENTES ──────────────────────────────────────
 // Write-error helper (v55 pattern) — reuses disenoHandleWriteError, which is
@@ -19276,7 +18381,6 @@ const ALL_MODULES = [
   {id:'proveedores',label:'Proveedores',icon:'ti-truck',badge:null},
   {id:'prospectos',label:'Prospectos',icon:'ti-user-search',badge:'prosp-overdue-badge',badgeUrgent:true},
   {id:'marketing',label:'Marketing',icon:'ti-forms',badge:null},
-  {id:'crm',label:'CRM Clientify',icon:'ti-users-group',badge:null},
   {id:'desarrollos',label:'Desarrollos',icon:'ti-code',badge:'dev-count'},
   {id:'configuracion',label:'Configuración',icon:'ti-settings',badge:null,always:true},
   {id:'ai-chat',label:'Asistente IA',icon:'ti-sparkles',badge:null,always:true},
@@ -19292,7 +18396,7 @@ const ALL_MODULES = [
 function navConfigDefaults(){
   return [
     {id:'g1',label:'Principal',items:['dashboard','mis-pendientes','kanban','empleados']},
-    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','marketing','crm','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
+    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','marketing','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
     {id:'g4',label:'Sistema',items:['configuracion','ai-chat']},
   ];
 }
