@@ -1091,7 +1091,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <body>
 
 <div id="cp-splash">
-  <div id="cp-splash-logo"><span class="cp-splash-glow" id="splash-brand-content"><img src="/assets/Logo.png" alt=""></span></div>
+  <div id="cp-splash-logo"><span class="cp-splash-glow" id="splash-brand-content"><img src="/assets/logo.png" alt=""></span></div>
   <div id="cp-splash-dots"><span></span><span></span><span></span></div>
 </div>
 
@@ -1104,7 +1104,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <div id="login-screen">
   <div class="login-left">
     <div class="login-dots-bg"></div><div class="login-glow"></div><div class="login-glow2"></div>
-    <div class="login-left-brand"><div id="login-brand-content"><span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span></div><div style="font-size:12px;color:rgba(255,255,255,.3);margin-top:8px;letter-spacing:.08em;text-transform:uppercase">Control interno</div></div>
+    <div class="login-left-brand"><div id="login-brand-content"><span class="brand-frost"><img src="/assets/logo.png" alt="Diamante"></span></div><div style="font-size:12px;color:rgba(255,255,255,.3);margin-top:8px;letter-spacing:.08em;text-transform:uppercase">Control interno</div></div>
     <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:0 40px">
       <div style="display:flex;flex-direction:column;gap:14px;width:100%;max-width:340px">
         <div style="text-align:center;margin-bottom:6px"><div style="font-size:22px;font-weight:700;color:white;font-family:var(--font-display)">Bienvenido</div><div style="font-size:13px;color:rgba(255,255,255,.45);margin-top:4px">Ingresa con tu cuenta</div></div>
@@ -1127,7 +1127,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <div id="recovery-screen" style="display:none;height:calc(100vh / 0.88);background:#0F0A1E;overflow:hidden">
   <div class="login-left" style="max-width:460px;margin:0 auto;float:none">
     <div class="login-dots-bg"></div><div class="login-glow"></div>
-    <div class="login-left-brand"><div id="recovery-brand-content"><span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span></div></div>
+    <div class="login-left-brand"><div id="recovery-brand-content"><span class="brand-frost"><img src="/assets/logo.png" alt="Diamante"></span></div></div>
     <div style="position:relative;z-index:1;display:flex;flex-direction:column;gap:14px;width:100%;max-width:340px">
       <div style="text-align:center;margin-bottom:6px"><div style="font-size:22px;font-weight:700;color:white;font-family:var(--font-display)">Establecer nueva contraseña</div><div style="font-size:13px;color:rgba(255,255,255,.45);margin-top:4px">Ingresa y confirma tu nueva contraseña</div></div>
       <div id="recovery-error" class="login-error" style="display:none"><i class="ti ti-alert-circle" style="margin-right:6px"></i><span id="recovery-error-msg">Error al guardar la contraseña.</span></div>
@@ -1143,7 +1143,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <div id="app">
   <nav class="sidebar" id="main-sidebar">
     <div class="sidebar-brand">
-      <div id="sidebar-brand-content" style="flex:1;min-width:0;overflow:hidden"><span class="brand-frost" style="padding:8px 14px"><img src="/assets/Logo.png" alt="Diamante" style="max-height:52px;width:auto;max-width:100%;flex-shrink:0"></span></div>
+      <div id="sidebar-brand-content" style="flex:1;min-width:0;overflow:hidden"><span class="brand-frost" style="padding:8px 14px"><img src="/assets/logo.png" alt="Diamante" style="max-height:52px;width:auto;max-width:100%;flex-shrink:0"></span></div>
       <button class="sb-toggle-btn" id="sb-toggle-btn" onclick="cycleSidebar()" title="Colapsar menú">
         <i class="ti ti-layout-sidebar-left-collapse" id="sb-toggle-icon"></i>
       </button>
@@ -18548,7 +18548,7 @@ async function saveInstanceModulesConfig(){
 
 // ── SIDEBAR / LOGIN / SPLASH / RECOVERY BRANDING (per-client logo, or the
 // static Diamante logo when no custom logoDataUrl is configured). The static
-// /assets/Logo.png markup is already baked into #login-brand-content,
+// /assets/logo.png markup is already baked into #login-brand-content,
 // #sidebar-brand-content, #splash-brand-content and #recovery-brand-content
 // in the HTML, so when there's no custom logo we leave those elements
 // completely untouched — no redundant innerHTML rewrite, no flicker, no
@@ -18577,10 +18577,10 @@ function renderSidebarBranding(){
     if(recoveryEl) recoveryEl.innerHTML = '<span class="brand-frost"><img src="'+logo+'" alt="'+escHtml(name)+'"></span>';
     _brandingHasCustomLogo = true;
   } else if(_brandingHasCustomLogo){
-    if(sbEl) sbEl.innerHTML = '<span class="brand-frost" style="padding:8px 14px"><img src="/assets/Logo.png" alt="Diamante" style="max-height:52px;width:auto;max-width:100%;flex-shrink:0"></span>';
-    if(loginEl) loginEl.innerHTML = '<span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span>';
-    if(splashEl) splashEl.innerHTML = '<img src="/assets/Logo.png" alt="">';
-    if(recoveryEl) recoveryEl.innerHTML = '<span class="brand-frost"><img src="/assets/Logo.png" alt="Diamante"></span>';
+    if(sbEl) sbEl.innerHTML = '<span class="brand-frost" style="padding:8px 14px"><img src="/assets/logo.png" alt="Diamante" style="max-height:52px;width:auto;max-width:100%;flex-shrink:0"></span>';
+    if(loginEl) loginEl.innerHTML = '<span class="brand-frost"><img src="/assets/logo.png" alt="Diamante"></span>';
+    if(splashEl) splashEl.innerHTML = '<img src="/assets/logo.png" alt="">';
+    if(recoveryEl) recoveryEl.innerHTML = '<span class="brand-frost"><img src="/assets/logo.png" alt="Diamante"></span>';
     _brandingHasCustomLogo = false;
   }
   // else: no logo, and none was ever shown this session — leave the
