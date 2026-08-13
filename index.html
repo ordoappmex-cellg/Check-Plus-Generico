@@ -667,6 +667,13 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .org-view-toggle{display:flex;background:var(--cp-gray-100);padding:3px;border-radius:var(--radius-md);gap:2px;}
 .org-view-btn{padding:7px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;border:none;cursor:pointer;transition:all .15s;font-family:var(--font-body);color:var(--cp-gray-600);background:transparent;}
 .org-view-btn.active{background:white;color:var(--cp-navy);box-shadow:var(--shadow-sm);}
+/* Pastillas de filtro rápido (toolbar de Prospectos) — activo reusa el mismo
+   par acento/tenue (--cp-blue / --cp-blue-light) que ya usan las badges de
+   etapa/temperatura/canal en vez de inventar un color nuevo. */
+.prosp-pill-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:99px;border:1px solid var(--cp-gray-200);background:transparent;font-size:12px;font-weight:600;color:var(--cp-gray-600);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.prosp-pill-btn:hover{border-color:var(--cp-gray-300);}
+.prosp-pill-btn.active{background:var(--cp-blue-light);border-color:var(--cp-blue-light);color:var(--cp-blue);}
+.prosp-dropdown-panel{position:absolute;z-index:50;background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:10px;min-width:190px;flex-direction:column;gap:8px;}
 
 /* ─── DESARROLLOS ───────────────────────────────── */
 .dev-stage-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;}
@@ -2117,14 +2124,38 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <button class="org-view-btn" id="prosp-vw-pipeline" onclick="setProspView('pipeline',this)"><i class="ti ti-layout-kanban"></i> Pipeline</button>
             <button class="org-view-btn" id="prosp-vw-dashboard" onclick="setProspView('dashboard',this)"><i class="ti ti-chart-bar"></i> Dashboard</button>
           </div>
-          <div id="prosp-toolbar-filters" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+          <div id="prosp-toolbar-filters" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center">
             <input type="text" id="prosp-search" placeholder="Buscar lead…" oninput="renderProspectos()" class="form-input" style="width:170px;padding:7px 10px;font-size:13px">
-            <select class="form-input" id="prosp-filter-etapa" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todas las etapas</option></select>
-            <button type="button" class="btn-sm btn-ghost" id="prosp-filter-estancados-btn" onclick="toggleProspEstancadosFilter(this)" title="Leads con más de 7 días sin actividad, excluye perdidos"><i class="ti ti-alert-triangle"></i> Estancados (+7d)</button>
-            <button type="button" class="btn-sm btn-ghost" id="prosp-filter-duplicados-btn" onclick="toggleProspDuplicadosFilter(this)" title="Leads con posible duplicado sin revisar"><i class="ti ti-copy"></i> Duplicados por revisar</button>
-            <button type="button" class="btn-sm btn-ghost" onclick="openProspImport()" title="Importar leads desde un archivo CSV"><i class="ti ti-file-import"></i> Importar CSV</button>
-            <select class="form-input" id="prosp-filter-vendedor" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los vendedores</option></select>
-            <select class="form-input" id="prosp-filter-canal" onchange="renderProspectos()" style="width:150px;padding:7px 10px;font-size:13px"><option value="">Todos los canales</option></select>
+
+            <!-- Filtros (Etapa/Vendedor/Canal) — misma lógica de siempre, ahora
+                 agrupados en un panel flotante en vez de 3 selects en línea. -->
+            <div id="prosp-filtros-wrap" style="position:relative">
+              <button type="button" class="btn-sm btn-ghost" id="prosp-filtros-btn" onclick="toggleProspFiltrosPanel()" title="Filtros">
+                <i class="ti ti-filter"></i> Filtros
+                <span id="prosp-filtros-badge" style="display:none;margin-left:2px;background:var(--cp-blue);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;min-width:15px;text-align:center"></span>
+              </button>
+              <div class="prosp-dropdown-panel" id="prosp-filtros-panel" style="display:none;top:calc(100% + 6px);left:0;width:200px">
+                <select class="form-input" id="prosp-filter-etapa" onchange="renderProspectos()" style="font-size:13px"><option value="">Todas las etapas</option></select>
+                <select class="form-input" id="prosp-filter-vendedor" onchange="renderProspectos()" style="font-size:13px"><option value="">Todos los vendedores</option></select>
+                <select class="form-input" id="prosp-filter-canal" onchange="renderProspectos()" style="font-size:13px"><option value="">Todos los canales</option></select>
+              </div>
+            </div>
+
+            <!-- Pastillas de filtro rápido — misma lógica de toggle de siempre,
+                 solo cambia el estilo del botón (ver .prosp-pill-btn). -->
+            <button type="button" class="prosp-pill-btn" id="prosp-filter-estancados-btn" onclick="toggleProspEstancadosFilter(this)" title="Leads con más de 7 días sin actividad, excluye perdidos"><i class="ti ti-alert-triangle"></i> Estancados</button>
+            <button type="button" class="prosp-pill-btn" id="prosp-filter-duplicados-btn" onclick="toggleProspDuplicadosFilter(this)" title="Leads con posible duplicado sin revisar"><i class="ti ti-copy"></i> Duplicados</button>
+
+            <div style="width:1px;height:22px;background:var(--cp-gray-200);margin:0 2px"></div>
+
+            <!-- Importar / Columnas visibles / Exportar — agrupados como iconos -->
+            <button type="button" class="btn-sm btn-ghost" onclick="openProspImport()" title="Importar CSV"><i class="ti ti-upload"></i></button>
+            <div id="prosp-cols-toolbar-wrap" style="position:relative">
+              <button type="button" class="btn-sm btn-ghost" id="prosp-cols-toolbar-btn" onclick="toggleProspColsToolbarPanel()" title="Columnas visibles"><i class="ti ti-settings"></i></button>
+              <div class="prosp-dropdown-panel" id="prosp-cols-toolbar-panel" style="display:none;top:calc(100% + 6px);right:0;width:210px;max-height:280px;overflow-y:auto"></div>
+            </div>
+            <button type="button" class="btn-sm btn-ghost" onclick="prospExportCsv()" title="Exportar CSV"><i class="ti ti-download"></i></button>
+
             <button class="btn-sm btn-blue" id="btn-nuevo-prospecto" onclick="openAddProspecto()"><i class="ti ti-plus"></i> Nuevo lead</button>
           </div>
           <!-- Engranaje de config del CRM — deliberadamente NO usa .org-view-btn:
@@ -10148,6 +10179,7 @@ function renderProspectos(){
   const addBtn=document.getElementById('btn-nuevo-prospecto');if(addBtn)addBtn.style.display=canEdit('prospectos')?'':'none';
   if(prospViewMode==='config')return; // se repinta con renderProspConfigView(), no aquí
   populateProspFilters();
+  updateProspFiltrosBadge();
   if(prospViewMode==='pipeline')renderProspPipeline();
   else renderProspLista();
 }
@@ -10159,6 +10191,37 @@ function populateProspFilters(){
   const canalSel=document.getElementById('prosp-filter-canal');
   if(canalSel){const cur=canalSel.value;canalSel.innerHTML='<option value="">Todos los canales</option>'+prospCanales.map(c=>'<option value="'+c.id+'"'+(c.id===cur?' selected':'')+'>'+escHtml(c.nombre)+'</option>').join('');}
 }
+// Rediseño toolbar Lista — badge de filtros activos en el botón "Filtros"
+// (Etapa/Vendedor/Canal agrupados en el panel flotante, ver toggleProspFiltrosPanel).
+function updateProspFiltrosBadge(){
+  const n=['prosp-filter-etapa','prosp-filter-vendedor','prosp-filter-canal']
+    .filter(function(id){return document.getElementById(id)?.value;}).length;
+  const badge=document.getElementById('prosp-filtros-badge');
+  if(!badge)return;
+  badge.textContent=n;
+  badge.style.display=n>0?'':'none';
+}
+// Cierre-al-click-fuera calcado de openVacMenu (línea ~8799, ya existía en la
+// app para el menú de estatus de vacaciones): listener de un solo uso
+// agregado con setTimeout(...,0) para no capturar el mismo click que abrió
+// el panel, y que se remueve a sí mismo al primer click fuera.
+function _prospToggleDropdown(panelId,btnId,onOpen){
+  const panel=document.getElementById(panelId);
+  const btn=document.getElementById(btnId);
+  if(!panel)return;
+  const opening=panel.style.display!=='flex';
+  document.querySelectorAll('.prosp-dropdown-panel').forEach(function(p){p.style.display='none';});
+  if(!opening)return;
+  if(onOpen)onOpen();
+  panel.style.display='flex';
+  setTimeout(function(){
+    document.addEventListener('click',function h(e){
+      if(!panel.contains(e.target)&&!(btn&&btn.contains(e.target))){panel.style.display='none';document.removeEventListener('click',h);}
+    });
+  },0);
+}
+function toggleProspFiltrosPanel(){ _prospToggleDropdown('prosp-filtros-panel','prosp-filtros-btn'); }
+function toggleProspColsToolbarPanel(){ _prospToggleDropdown('prosp-cols-toolbar-panel','prosp-cols-toolbar-btn',renderProspColPanel); }
 function _prospFilteredData(){
   const q=(document.getElementById('prosp-search')?.value||'').toLowerCase();
   const vendF=document.getElementById('prosp-filter-vendedor')?.value||'';
@@ -10176,15 +10239,13 @@ function _prospFilteredData(){
 // 'perdido' (ahí diasSinActividad ya es null, ver prospRecalcDiasActividad).
 function toggleProspEstancadosFilter(btn){
   prospFilterEstancados=!prospFilterEstancados;
-  btn.classList.toggle('btn-blue',prospFilterEstancados);
-  btn.classList.toggle('btn-ghost',!prospFilterEstancados);
+  btn.classList.toggle('active',prospFilterEstancados);
   renderProspectos();
 }
 // BLOQUE B (deduplicación) — mismo patrón que toggleProspEstancadosFilter.
 function toggleProspDuplicadosFilter(btn){
   prospFilterDuplicados=!prospFilterDuplicados;
-  btn.classList.toggle('btn-blue',prospFilterDuplicados);
-  btn.classList.toggle('btn-ghost',!prospFilterDuplicados);
+  btn.classList.toggle('active',prospFilterDuplicados);
   renderProspectos();
 }
 // Atajos de contacto en la lista — no envían nada, solo abren WhatsApp Web /
@@ -10293,7 +10354,10 @@ function _prospCellHtml(p,key){
 }
 
 // ── LISTA ──────────────────────────────────────────
-function renderProspLista(){
+// Filtro de etapa (fuera de _prospFilteredData porque Pipeline no lo usa —
+// cada columna del pipeline ya es una etapa) + orden vigente — centralizado
+// para que renderProspLista y prospExportCsv nunca vean listas distintas.
+function _prospListaOrderedItems(){
   const etapaF=document.getElementById('prosp-filter-etapa')?.value||'';
   let items=_prospFilteredData();
   if(etapaF)items=items.filter(p=>p.estado===etapaF);
@@ -10307,6 +10371,10 @@ function renderProspLista(){
   }else{
     items.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
   }
+  return items;
+}
+function renderProspLista(){
+  const items=_prospListaOrderedItems();
   const cols=getProspActiveCols();
   const thead=document.getElementById('prosp-thead');
   if(thead)thead.innerHTML=_prospTableHeaderHtml(cols);
@@ -11126,6 +11194,47 @@ async function prospImportConfirm(){
   resEl.innerHTML=creados+' creados, '+duplicados+' marcados como posible duplicado'+
     (errores.length?', '+errores.length+' con error:<br>'+errores.map(function(e){return escHtml(e);}).join('<br>'):'.');
   document.getElementById('prosp-import-confirm-btn').style.display='none';
+}
+
+// ── EXPORTAR CSV — mismos leads visibles en la Lista (todos los filtros
+// aplicados vía _prospListaOrderedItems) y mismas columnas configuradas como
+// visibles (getProspActiveCols). Escapado mínimo, sin librería externa,
+// mismo criterio que _prospParseCsv. ──
+function _prospCellText(p,key){
+  switch(key){
+    case'nombre':return p.nombre||'';
+    case'contacto':return [p.contactoTel,p.contactoMail].filter(Boolean).join(' / ');
+    case'canal':{const c=prospCanales.find(x=>x.id===p.canalEntrada);return c?c.nombre:'';}
+    case'giro':{const g=prospGiros.find(x=>x.id===p.giro);return g?g.nombre:'';}
+    case'vendedor':{const v=p.vendedorId?(_userProfilesCache||[]).find(u=>u.user_id===p.vendedorId):null;return v?(v.display_name||v.email||''):'';}
+    case'etapa':{const e=prospEtapas.find(x=>x.id===p.estado);return e?e.nombre:(p.estado||'');}
+    case'valor':return p.valorEstimado!=null?String(p.valorEstimado):'';
+    case'creado':return p.createdAt?new Date(p.createdAt).toLocaleDateString('es-MX'):'';
+    case'actividad':return p.diasSinActividad!=null?String(p.diasSinActividad):'';
+    default:return '';
+  }
+}
+function _prospCsvEscapeCell(v){
+  const s=String(v==null?'':v);
+  return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function prospExportCsv(){
+  const items=_prospListaOrderedItems();
+  if(!items.length){toast('No hay leads para exportar con los filtros actuales.','info');return;}
+  const cols=getProspActiveCols();
+  const lines=[cols.map(function(c){return _prospCsvEscapeCell(c.label);}).join(',')];
+  items.forEach(function(p){
+    lines.push(cols.map(function(c){return _prospCsvEscapeCell(_prospCellText(p,c.key));}).join(','));
+  });
+  const blob=new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const today=new Date();
+  const pad=function(n){return String(n).padStart(2,'0');};
+  a.href=url;
+  a.download='prospectos_'+today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate())+'.csv';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // ── BITÁCORA DE SEGUIMIENTO (timeline dentro de la ficha) ──
@@ -12255,13 +12364,19 @@ function resetProspCols(){
   renderProspColPanel();
   renderProspLista();
 }
+// Actualiza los DOS contenedores que pueden existir a la vez: el de la vista
+// Config (#prosp-cfg-cols-panel, de siempre) y el dropdown nuevo del toolbar
+// de Lista (#prosp-cols-toolbar-panel) — misma función, mismo estado
+// (getProspVisibleCols/toggleProspColVisibility), sin duplicar lógica.
 function renderProspColPanel(){
-  const el=document.getElementById('prosp-cfg-cols-panel');if(!el)return;
   const vis=getProspVisibleCols();
-  el.innerHTML=PROSP_ALL_COLS.map(function(col){
+  const html=PROSP_ALL_COLS.map(function(col){
     const chk=vis.includes(col.key);
     return '<label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--cp-navy)"><input type="checkbox" '+(chk?'checked':'')+' onchange="toggleProspColVisibility(\''+col.key+'\',this.checked)">'+escHtml(col.label)+'</label>';
   }).join('');
+  ['prosp-cfg-cols-panel','prosp-cols-toolbar-panel'].forEach(function(id){
+    const el=document.getElementById(id);if(el)el.innerHTML=html;
+  });
 }
 
 // ═══════════════════════════════════════════════
