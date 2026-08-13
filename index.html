@@ -11020,6 +11020,22 @@ function _prospMonthLabel(key){
   const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   return meses[parseInt(parts[1],10)-1]+' '+parts[0].slice(2);
 }
+// Techo de escala + niveles de guía "redondos" para un eje de conteos enteros
+// (algoritmo clásico de "nice ticks"): el paso se redondea a 1/2/5/10 × una
+// potencia de 10, y el techo sube al múltiplo de ese paso más cercano hacia
+// arriba — así las guías siempre caen en números como 5/10/15, nunca 4/7/11.
+function _prospNiceAxis(max){
+  const safeMax=max>0?max:1;
+  const roughStep=Math.max(1,safeMax/3);
+  const mag=Math.pow(10,Math.floor(Math.log10(roughStep)));
+  const norm=roughStep/mag;
+  const niceNorm=norm<=1?1:(norm<=2?2:(norm<=5?5:10));
+  const step=niceNorm*mag;
+  const niceMax=Math.ceil(safeMax/step)*step;
+  const levels=[];
+  for(let v=step;v<=niceMax+1e-9;v+=step)levels.push(Math.round(v));
+  return {niceMax:niceMax, levels:levels};
+}
 
 function renderProspDashboard(){
   const el=document.getElementById('prosp-dashboard-view'); if(!el) return;
@@ -11135,21 +11151,23 @@ function prospDashTendenciaCard(model){
     if(idx!==-1) confirmados[idx]++;
   });
   const max=Math.max.apply(null,creados.concat(confirmados).concat([1]));
+  const axis=_prospNiceAxis(max);
   // Línea, no barras (revertido). PAD_TOP deja espacio para que el punto más
-  // alto y su radio no toquen el borde superior del SVG.
-  const W=580,H=190,PAD_TOP=26,PAD_BOTTOM=22,PAD_LEFT=34,PAD_RIGHT=10;
+  // alto y su radio no toquen el borde superior del SVG. PAD_RIGHT (además
+  // del text-anchor de la última etiqueta, ver 'labels' más abajo) evita que
+  // el mes más reciente se corte contra el borde del viewBox.
+  const W=580,H=190,PAD_TOP=26,PAD_BOTTOM=22,PAD_LEFT=34,PAD_RIGHT=18;
   const chartW=W-PAD_LEFT-PAD_RIGHT,chartH=H-PAD_TOP-PAD_BOTTOM;
   const n=keys.length;
   const xStep=n>1?chartW/(n-1):0;
   const baseline=PAD_TOP+chartH;
-  const yOf=function(v){ return baseline-(v/max)*chartH; };
+  // Escala respecto al TECHO redondo (axis.niceMax), no al máximo real de los
+  // datos — así la guía superior cae en un número limpio y las líneas quedan
+  // con margen natural bajo el borde (nunca tocan el punto más alto).
+  const yOf=function(v){ return baseline-(v/axis.niceMax)*chartH; };
   const xOf=function(i){ return PAD_LEFT+i*xStep; };
-  // Líneas guía tenues (3 niveles) con su valor a la izquierda — sin cambios
-  // respecto al prompt anterior, solo se reubicó dentro de este chart de líneas.
-  const gridFracs=[1/3,2/3,1];
-  const gridLines=gridFracs.map(function(f){
-    const y=baseline-chartH*f;
-    const val=Math.round(max*f);
+  const gridLines=axis.levels.map(function(val){
+    const y=baseline-(val/axis.niceMax)*chartH;
     return '<line x1="'+PAD_LEFT+'" y1="'+y.toFixed(1)+'" x2="'+(W-PAD_RIGHT)+'" y2="'+y.toFixed(1)+'" stroke="var(--cp-gray-200)" stroke-width="1"/>'+
       '<text x="'+(PAD_LEFT-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end" font-size="9" fill="var(--cp-gray-400)" font-family="Inter,sans-serif">'+val+'</text>';
   }).join('');
@@ -11168,15 +11186,23 @@ function prospDashTendenciaCard(model){
     }).join('');
   }
   const dots=dotsFor(ptsCreados,'var(--cp-blue)')+dotsFor(ptsConfirmados,'var(--cp-green)');
+  // Ancla el primer/último mes hacia adentro (start/end en vez de middle) —
+  // si no, la mitad del texto centrado cae fuera del viewBox y el SVG (que
+  // recorta su propio overflow) lo corta, ej. "ago 26" se veía como "ago 2".
   const labels=keys.map(function(k,i){
-    return '<text x="'+xOf(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--cp-gray-500)" font-family="Inter,sans-serif">'+_prospMonthLabel(k)+'</text>';
+    const anchor=i===0?'start':(i===n-1?'end':'middle');
+    return '<text x="'+xOf(i).toFixed(1)+'" y="'+(H-6)+'" text-anchor="'+anchor+'" font-size="10" fill="var(--cp-gray-500)" font-family="Inter,sans-serif">'+_prospMonthLabel(k)+'</text>';
   }).join('');
-  // Sin viewBox+CSS de tamaño fijo estirado: el wrapper fija aspect-ratio
-  // W/H por CSS, así el SVG siempre se renderiza al mismo ancho×alto
-  // proporcional que su viewBox — X e Y escalan por el mismo factor sin
-  // importar el ancho real del contenedor (evita que los círculos se
-  // deformen en óvalos).
-  const svg='<svg viewBox="0 0 '+W+' '+H+'" style="display:block;width:100%;height:100%">'+
+  // Sin altura fija en px: el wrapper reserva su alto con padding-top en %
+  // (el mismo truco clásico de "aspect ratio responsivo", basado en
+  // porcentaje — el patrón de dimensionado que ya usan las demás tarjetas,
+  // ninguna de las cuales fija un alto absoluto) y el SVG se posiciona
+  // absoluto dentro para llenarlo. Como el % es sobre el ANCHO del propio
+  // contenedor, width y height del SVG siempre guardan la proporción de su
+  // viewBox sin importar cómo --app-zoom o el viewport encojan el ancho
+  // disponible — y X/Y escalan por el mismo factor (nunca se deforman los
+  // círculos en óvalos).
+  const svg='<svg viewBox="0 0 '+W+' '+H+'" style="position:absolute;inset:0;width:100%;height:100%;display:block">'+
     gridLines+area+lineCreados+lineConfirmados+dots+labels+
   '</svg>';
   return '<div class="section-card" style="margin-bottom:0">'+
@@ -11188,7 +11214,7 @@ function prospDashTendenciaCard(model){
       '</div>'+
     '</div>'+
     '<div class="section-body">'+
-      '<div style="width:100%;aspect-ratio:'+W+'/'+H+'">'+svg+'</div>'+
+      '<div style="position:relative;width:100%;max-width:100%;box-sizing:border-box;padding-top:'+(H/W*100).toFixed(2)+'%">'+svg+'</div>'+
     '</div>'+
   '</div>';
 }
