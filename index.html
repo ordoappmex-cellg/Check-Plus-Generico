@@ -2846,6 +2846,22 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <div id="nav-config-editor"></div>
           </div>
         </div>
+
+        <!-- MÓDULOS ACTIVOS DE ESTA INSTANCIA (solo Admin) — lo que convierte
+             clonar el CRM/la app a un cliente nuevo en "activa/desactiva
+             módulos" en vez de editar código. Un módulo desactivado aquí
+             desaparece del menú y queda inaccesible para TODOS, incluido
+             Admin (ver canView/canEdit/nav()) — no es un permiso por rol. -->
+        <div class="section-card" style="margin-bottom:18px" id="cfg-modules-section">
+          <div class="section-header">
+            <div class="section-title"><i class="ti ti-apps" style="margin-right:6px;color:var(--cp-blue)"></i>Módulos activos de esta instancia</div>
+            <button class="btn-sm btn-blue" onclick="saveInstanceModulesConfig()"><i class="ti ti-check"></i> Guardar cambios</button>
+          </div>
+          <div class="section-body">
+            <p style="font-size:13px;color:var(--cp-gray-600);margin-bottom:16px">Desactiva los módulos que este cliente no usa. Un módulo desactivado desaparece del menú y no se puede abrir para nadie, ni siquiera Admin — es la pieza que permite clonar esta app a un cliente nuevo sin tocar código.</p>
+            <div id="cfg-modules-list"></div>
+          </div>
+        </div>
         <div style="max-width:560px">
           <div class="section-card">
             <div class="section-header"><div class="section-title"><i class="ti ti-shield-check" style="margin-right:7px;color:var(--cp-green)"></i>Seguridad de acceso</div></div>
@@ -5617,6 +5633,15 @@ async function dbLoad(){
     // (v74) Global admin-defined menu order — same app_config row pattern as company_info above.
     const menuOrderRow=(appCfgRaw||[]).find(r=>r.id==='menu_order');
     menuOrderConfig=menuOrderRow?.config?.groups||null;
+    // "Módulos activos de esta instancia" (14/8) — mismo patrón de app_config
+    // que company_info/menu_order arriba. renderSidebarNav() se re-llama aquí
+    // porque el login/checkExistingSession ya lo llamaron ANTES de este
+    // dbLoad() (con modulesDisabled todavía en su default []) — sin esta
+    // segunda pintada, un módulo deshabilitado se vería en el sidebar hasta
+    // la siguiente navegación.
+    const instanceProfileRow=(appCfgRaw||[]).find(r=>r.id==='instance_profile');
+    modulesDisabled=instanceProfileRow?.config?.modules_disabled||[];
+    renderSidebarNav();
     // Run one-time migration from localStorage if needed
     await migrateLocalToSupabase();
   }catch(e){
@@ -5689,6 +5714,14 @@ function fmtDateShort(d){if(!d)return '—';return new Date(d+'T12:00:00').toLoc
 // ═══════════════════════════════
 async function nav(view){
   if(window.innerWidth<=768)closeMobileSidebar();
+  // "Módulos activos de esta instancia" — defensa en profundidad SIN
+  // excepción de rol (a diferencia del chequeo de abajo, que sí exime a
+  // admin): un módulo deshabilitado no se abre por navegación directa ni
+  // para admin. 'configuracion' está exento siempre.
+  if(view!=='configuracion'&&modulesDisabled.includes(view)){
+    toast('Este módulo no está disponible.','error');
+    return;
+  }
   if(state.currentUser&&state.currentUser.role!=='admin'&&!canView(view)){
     toast('Sin acceso','error');
     if(view!=='dashboard')return nav('dashboard');
@@ -5714,6 +5747,9 @@ async function nav(view){
     const navCfgSection=document.getElementById('cfg-nav-section');
     if(navCfgSection)navCfgSection.style.display=isAdminNav?'':'none';
     if(isAdminNav)setTimeout(renderNavConfigEditor,50);
+    const modulesCfgSection=document.getElementById('cfg-modules-section');
+    if(modulesCfgSection)modulesCfgSection.style.display=isAdminNav?'':'none';
+    if(isAdminNav)setTimeout(renderInstanceModulesConfig,50);
     showCfgUsersSection();if(isAdminNav)setTimeout(renderUsersList,100);setTimeout(renderConfigStatus,0);
   }
   if(view==='empleados')renderEmpTable();
@@ -5728,6 +5764,9 @@ async function nav(view){
     const navCfgSection2=document.getElementById('cfg-nav-section');
     if(navCfgSection2)navCfgSection2.style.display=isAdminNav2?'':'none';
     if(isAdminNav2)setTimeout(renderNavConfigEditor,50);
+    const modulesCfgSection2=document.getElementById('cfg-modules-section');
+    if(modulesCfgSection2)modulesCfgSection2.style.display=isAdminNav2?'':'none';
+    if(isAdminNav2)setTimeout(renderInstanceModulesConfig,50);
     showCfgUsersSection();if(isAdminNav2)setTimeout(renderUsersList,100);
   }
   if(view==='kanban'){
@@ -7394,6 +7433,10 @@ function normalizeModulesAllowed(raw,role){
   return obj;
 }
 function canEdit(moduleId){
+  // "Módulos activos de esta instancia" — primera verificación, ANTES del
+  // bypass de admin: un módulo deshabilitado no existe en este despliegue
+  // para NADIE. 'configuracion' está exento siempre (protección dura).
+  if(moduleId!=='configuracion'&&modulesDisabled.includes(moduleId))return false;
   // Admin always has full edit access everywhere, no exceptions
   if(state.currentUser?.role==='admin')return true;
   const perms=state.currentUser?.allowedModules;
@@ -7405,6 +7448,9 @@ function canEdit(moduleId){
   return false;
 }
 function canView(moduleId){
+  // "Módulos activos de esta instancia" — misma primera verificación que
+  // canEdit(), ver ahí.
+  if(moduleId!=='configuracion'&&modulesDisabled.includes(moduleId))return false;
   // Admin sees everything
   if(state.currentUser?.role==='admin')return true;
   // Dashboard is always reachable — it's the fallback redirect target for
@@ -9061,6 +9107,12 @@ let cliDocData = null;
 let ivaPct = 16; // % — loaded from app_config (id:'facturacion_config') in dbLoad(); default 16
 let companyInfo = {nombre:'Diamante', ciudad:'', descripcion:'plataforma de gestión operativa', logoDataUrl:null, faviconDataUrl:null}; // loaded from app_config (id:'company_info') in dbLoad()
 let menuOrderConfig = null; // (v74) {groups:[...]} | null — loaded from app_config (id:'menu_order') in dbLoad(); null = no admin-defined order saved yet, loadNavConfig() falls back to navConfigDefaults()
+// "Módulos activos de esta instancia" (14/8) — array de ids de ALL_MODULES
+// ocultos/inaccesibles para TODOS los usuarios, incluido admin. Loaded from
+// app_config (id:'instance_profile') in dbLoad(). 'configuracion' NUNCA
+// cuenta como deshabilitado aunque aparezca aquí — ver canView/canEdit y
+// nav() — protección dura contra quedar sin forma de reactivar nada.
+let modulesDisabled = [];
 // Tracks whether renderSidebarBranding() has already swapped in a custom logo
 // this session (see that function, further below) — must be initialized here,
 // before the pre-auth renderSidebarBranding() call a few lines down, or that
@@ -19350,6 +19402,44 @@ function renderSidebarNav(){
   const currentView=document.querySelector('.view.active')?.id?.replace('view-','');
   if(currentView){document.querySelectorAll('.nav-item').forEach(n=>{n.classList.toggle('active',n.dataset.view===currentView);});}
   updateAllBadges();
+}
+
+// ── MÓDULOS ACTIVOS DE ESTA INSTANCIA (14/8) — checklist admin-only en
+// Configuración sobre TODOS los ids de ALL_MODULES. 'configuracion' se
+// pinta bloqueado (checkbox disabled + tooltip) porque canView/canEdit/nav()
+// ya lo protegen aunque termine en la lista guardada — doble defensa contra
+// quedar sin forma de reactivar nada. ──
+function renderInstanceModulesConfig(){
+  const el=document.getElementById('cfg-modules-list');if(!el)return;
+  el.innerHTML=ALL_MODULES.map(function(mod){
+    const locked=mod.id==='configuracion';
+    const active=!modulesDisabled.includes(mod.id);
+    return '<label style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--cp-gray-100);cursor:'+(locked?'not-allowed':'pointer')+'"'+
+      (locked?' title="No puedes desactivar Configuración — te dejaría sin forma de reactivar los demás módulos."':'')+'>'+
+      '<input type="checkbox" class="cfg-module-active-cb" data-mod="'+mod.id+'" '+(active||locked?'checked':'')+' '+(locked?'disabled':'')+'>'+
+      '<i class="ti '+mod.icon+'" style="color:var(--cp-gray-400);width:18px;text-align:center"></i>'+
+      '<span style="font-size:13px;color:var(--cp-navy);flex:1">'+escHtml(mod.label)+'</span>'+
+      (locked?'<span style="font-size:11px;color:var(--cp-gray-400);display:flex;align-items:center;gap:3px"><i class="ti ti-lock"></i> Siempre activo</span>':'')+
+    '</label>';
+  }).join('');
+}
+// Mismo patrón de app_config que saveMenuOrderConfig()/persistCompanyInfo()
+// (upsert directo, no sbUpsert). 'configuracion' se filtra aquí también
+// (nunca se escribe en la lista) aunque su checkbox ya esté disabled en el
+// DOM — no depender solo del HTML para esa protección.
+async function saveInstanceModulesConfig(){
+  const checked=new Set();
+  document.querySelectorAll('.cfg-module-active-cb').forEach(function(cb){if(cb.checked)checked.add(cb.dataset.mod);});
+  const disabled=ALL_MODULES.filter(function(m){return m.id!=='configuracion'&&!checked.has(m.id);}).map(function(m){return m.id;});
+  const {error}=await sb.from('app_config').upsert({id:'instance_profile',config:{modules_disabled:disabled},updated_at:new Date().toISOString()});
+  if(error){
+    console.error('instance_profile upsert error:',error);
+    toast('Error al guardar.','error');
+    return;
+  }
+  modulesDisabled=disabled;
+  renderSidebarNav();
+  toast('Módulos actualizados ✓');
 }
 
 // ── SIDEBAR / LOGIN / SPLASH / RECOVERY BRANDING (per-client logo, or the
