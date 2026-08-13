@@ -4837,7 +4837,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
       <div class="form-grid">
         <div class="form-field full"><label class="form-label">Nombre interno *</label><input class="form-input" id="mktlandf-nombre" placeholder="Ej. Landing paquetes de verano" oninput="mktLandingOnNombreInput()"></div>
         <div class="form-field"><label class="form-label">Slug (URL) *</label><input class="form-input" id="mktlandf-slug" placeholder="paquetes-verano" oninput="mktLandingOnSlugInput()"></div>
-        <div class="form-field"><label class="form-label">Plantilla</label><select class="form-input" id="mktlandf-plantilla"><option value="servicios">Servicios</option><option value="evento">Evento</option><option value="simple">Simple</option></select></div>
+        <div class="form-field"><label class="form-label">Plantilla</label><select class="form-input" id="mktlandf-plantilla"><option value="servicios">Servicios</option><option value="evento">Evento</option><option value="simple">Simple</option><option value="editorial">Editorial</option></select></div>
         <div class="form-field"><label class="form-label">Estado</label><select class="form-input" id="mktlandf-activo"><option value="true">✅ Activo</option><option value="false">⏸ Inactivo</option></select></div>
         <div class="form-field"><label class="form-label">Formulario vinculado *</label><select class="form-input" id="mktlandf-formulario"></select></div>
 
@@ -4867,6 +4867,18 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <div class="form-field full"><label class="form-label">Meta título</label><input class="form-input" id="mktlandf-meta-titulo" placeholder="Si vacío, usa el título"></div>
         <div class="form-field full"><label class="form-label">Meta descripción</label><textarea class="form-input" id="mktlandf-meta-desc" rows="2" placeholder="Descripción para buscadores y redes sociales"></textarea></div>
         <div class="form-field full"><label class="form-label">Imagen Open Graph (URL, opcional)</label><input class="form-input" id="mktlandf-og-imagen" placeholder="Si vacío, usa la imagen de portada"></div>
+
+        <!-- Precio y testimonio — 100% opcionales, hoy solo los usa la
+             plantilla 'editorial', pero se guardan igual sin importar la
+             plantilla elegida (son columnas de la landing, no de la vista). -->
+        <div class="form-field full" style="border-top:1px solid var(--cp-gray-100);padding-top:14px;margin-top:4px">
+          <label class="form-label" style="margin-bottom:2px;display:block">Precio y testimonio (opcional)</label>
+          <div style="font-size:11px;color:var(--cp-gray-400)">Si dejas "Precio desde" vacío, el callout de precio no se muestra. Si dejas "Testimonio" vacío, esa sección no se muestra.</div>
+        </div>
+        <div class="form-field"><label class="form-label">Precio desde</label><input type="number" step="0.01" class="form-input" id="mktlandf-precio-desde" placeholder="Ej. 1500"></div>
+        <div class="form-field"><label class="form-label">Unidad / periodo</label><input class="form-input" id="mktlandf-precio-unidad" placeholder='Ej. "MXN / 6h"'></div>
+        <div class="form-field full"><label class="form-label">Testimonio</label><textarea class="form-input" id="mktlandf-testimonio-texto" rows="2" placeholder="Cita de un cliente satisfecho"></textarea></div>
+        <div class="form-field full"><label class="form-label">Autor del testimonio</label><input class="form-input" id="mktlandf-testimonio-autor" placeholder="Ej. María G., Cancún"></div>
 
         <div class="form-field full" style="border-top:1px solid var(--cp-gray-100);padding-top:14px;margin-top:4px">
           <label class="form-label" style="margin-bottom:8px;display:block">Pantalla de agradecimiento</label>
@@ -12373,7 +12385,9 @@ function renderMktForms(){
       '<td>'+(canal?escHtml(canal.nombre):'—')+'</td>'+
       '<td class="mkt-form-lead-count" data-form-id="'+f.id+'"><span style="color:var(--cp-gray-300)">…</span></td>'+
       '<td>'+(f.activo?'<span class="badge badge-green">Activo</span>':'<span class="badge badge-gray">Inactivo</span>')+'</td>'+
-      '<td onclick="event.stopPropagation()"><button class="btn-sm btn-ghost" onclick="openMktSnippet(\''+f.id+'\')"><i class="ti ti-code"></i> Código</button></td>'+
+      '<td onclick="event.stopPropagation()"><button class="btn-sm btn-ghost" onclick="openMktSnippet(\''+f.id+'\')"><i class="ti ti-code"></i> Código</button> '+
+        ((!f.activo&&state.currentUser?.role==='admin')?'<button class="btn-sm btn-ghost" style="color:var(--cp-red)" onclick="confirmDeleteMktForm(\''+f.id+'\')" title="Eliminar formulario"><i class="ti ti-trash"></i></button>':'')+
+      '</td>'+
     '</tr>';
   }).join('');
   mktFormLoadCounts();
@@ -12481,6 +12495,27 @@ async function saveMktForm(){
   closeModal('modal-mkt-form');
   renderMktForms();
   toast(mktFormCurrentId?'Formulario actualizado ✓':'Formulario creado ✓');
+}
+// Solo admin, solo sobre formularios inactivos (mismo patrón que
+// confirmDeleteColaborador/confirmDeleteProspecto). hb_crm_landings.
+// formulario_id referencia esta tabla SIN cascade — si hay landings usando
+// este formulario, Postgres devuelve 23503 (foreign_key_violation); se
+// captura y se traduce a un mensaje claro, nunca el error crudo.
+async function confirmDeleteMktForm(id){
+  if(!guardAdmin('confirmDeleteMktForm'))return;
+  const f=mktFormData.find(function(x){return x.id===id;});if(!f)return;
+  if(f.activo){toast('Solo se puede eliminar un formulario inactivo.','error');return;}
+  if(!confirm('¿Eliminar permanentemente el formulario "'+f.nombre+'"? Esta acción no se puede deshacer.'))return;
+  const {error}=await sb.from('hb_crm_formularios').delete().eq('id',id);
+  if(error){
+    if(error.code==='23503'){toast('No se puede eliminar: hay landing(s) usando este formulario.','error');return;}
+    toast('Error al eliminar el formulario.','error');
+    return;
+  }
+  auditLog('eliminar','hb_crm_formularios',id,'Formulario eliminado: '+f.nombre);
+  mktFormData=mktFormData.filter(function(x){return x.id!==id;});
+  renderMktForms();
+  toast('Formulario eliminado.','info');
 }
 
 // ── Campos configurables (en memoria — se guardan completos con el formulario) ──
@@ -12618,6 +12653,8 @@ async function mktLandingLoad(){
     imagenPortadaUrl:r.imagen_portada_url, bloques:r.bloques||[],
     formularioId:r.formulario_id, metaTitulo:r.meta_titulo, metaDescripcion:r.meta_descripcion,
     ogImagenUrl:r.og_imagen_url, graciasTitulo:r.gracias_titulo, graciasTexto:r.gracias_texto,
+    precioDesde:r.precio_desde, precioUnidad:r.precio_unidad,
+    testimonioTexto:r.testimonio_texto, testimonioAutor:r.testimonio_autor,
     createdAt:r.created_at, updatedAt:r.updated_at
   }));
 }
@@ -12639,7 +12676,8 @@ function renderMktLandings(){
       '<td>'+(l.activo?'<span class="badge badge-green">Activo</span>':'<span class="badge badge-gray">Inactivo</span>')+'</td>'+
       '<td onclick="event.stopPropagation()">'+
         '<a href="'+escHtml(url)+'" target="_blank" class="btn-sm btn-ghost" title="Ver landing"><i class="ti ti-external-link"></i></a> '+
-        '<button type="button" class="btn-sm btn-ghost" onclick="copyToClipboard(\''+escJs(url)+'\',\'URL copiada ✓\')" title="Copiar URL"><i class="ti ti-copy"></i></button>'+
+        '<button type="button" class="btn-sm btn-ghost" onclick="copyToClipboard(\''+escJs(url)+'\',\'URL copiada ✓\')" title="Copiar URL"><i class="ti ti-copy"></i></button> '+
+        ((!l.activo&&state.currentUser?.role==='admin')?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-red)" onclick="confirmDeleteMktLanding(\''+l.id+'\')" title="Eliminar landing"><i class="ti ti-trash"></i></button>':'')+
       '</td>'+
     '</tr>';
   }).join('');
@@ -12682,6 +12720,10 @@ function openAddMktLanding(){
   document.getElementById('mktlandf-meta-titulo').value='';
   document.getElementById('mktlandf-meta-desc').value='';
   document.getElementById('mktlandf-og-imagen').value='';
+  document.getElementById('mktlandf-precio-desde').value='';
+  document.getElementById('mktlandf-precio-unidad').value='';
+  document.getElementById('mktlandf-testimonio-texto').value='';
+  document.getElementById('mktlandf-testimonio-autor').value='';
   document.getElementById('mktlandf-gracias-titulo').value='';
   document.getElementById('mktlandf-gracias-texto').value='';
   const img=document.getElementById('mktlandf-portada-preview');img.src='';img.style.display='none';
@@ -12708,6 +12750,10 @@ function openEditMktLanding(id){
   document.getElementById('mktlandf-meta-titulo').value=l.metaTitulo||'';
   document.getElementById('mktlandf-meta-desc').value=l.metaDescripcion||'';
   document.getElementById('mktlandf-og-imagen').value=l.ogImagenUrl||'';
+  document.getElementById('mktlandf-precio-desde').value=l.precioDesde!=null?l.precioDesde:'';
+  document.getElementById('mktlandf-precio-unidad').value=l.precioUnidad||'';
+  document.getElementById('mktlandf-testimonio-texto').value=l.testimonioTexto||'';
+  document.getElementById('mktlandf-testimonio-autor').value=l.testimonioAutor||'';
   document.getElementById('mktlandf-gracias-titulo').value=l.graciasTitulo||'';
   document.getElementById('mktlandf-gracias-texto').value=l.graciasTexto||'';
   const img=document.getElementById('mktlandf-portada-preview');
@@ -12749,6 +12795,18 @@ async function uploadLandingImage(file,slug){
   });
   if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||e.error||'Error al subir imagen. Verifica que el bucket "'+LANDING_STORAGE_BUCKET+'" exista en Supabase Storage.');}
   return SUPABASE_URL+'/storage/v1/object/public/'+LANDING_STORAGE_BUCKET+'/'+encodedPath;
+}
+// Mismo criterio que deleteProspDocFile: try/catch+console.warn interno,
+// nunca lanza — un huérfano en Storage es aceptable, al revés no.
+async function deleteLandingImageFile(url){
+  try{
+    const session=await sbGetSession();
+    const token=session?.access_token||state.currentUser?.token;
+    const marker='/storage/v1/object/public/'+LANDING_STORAGE_BUCKET+'/';
+    const idx=(url||'').indexOf(marker);
+    const encodedPath=idx>=0?url.slice(idx+marker.length):(url||'').split('/').map(encodeURIComponent).join('/');
+    await fetch(SUPABASE_URL+'/storage/v1/object/'+LANDING_STORAGE_BUCKET+'/'+encodedPath,{method:'DELETE',headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token}});
+  }catch(e){console.warn('deleteLandingImageFile storage error:',e);}
 }
 
 // ── Bloques (tarjetas de servicios/beneficios) — lista libre en memoria, se
@@ -12843,6 +12901,10 @@ async function saveMktLanding(){
     meta_titulo:sanitizeInput(document.getElementById('mktlandf-meta-titulo').value,150)||null,
     meta_descripcion:sanitizeInput(document.getElementById('mktlandf-meta-desc').value,300)||null,
     og_imagen_url:sanitizeInput(document.getElementById('mktlandf-og-imagen').value,400)||null,
+    precio_desde:parseFloat(document.getElementById('mktlandf-precio-desde').value)||null,
+    precio_unidad:sanitizeInput(document.getElementById('mktlandf-precio-unidad').value,60)||null,
+    testimonio_texto:sanitizeInput(document.getElementById('mktlandf-testimonio-texto').value,500)||null,
+    testimonio_autor:sanitizeInput(document.getElementById('mktlandf-testimonio-autor').value,120)||null,
     gracias_titulo:sanitizeInput(document.getElementById('mktlandf-gracias-titulo').value,120)||null,
     gracias_texto:sanitizeInput(document.getElementById('mktlandf-gracias-texto').value,400)||null
   };
@@ -12854,6 +12916,8 @@ async function saveMktLanding(){
     titulo:row.titulo,subtitulo:row.subtitulo,imagenPortadaUrl:row.imagen_portada_url,
     bloques:row.bloques,formularioId:row.formulario_id,metaTitulo:row.meta_titulo,
     metaDescripcion:row.meta_descripcion,ogImagenUrl:row.og_imagen_url,
+    precioDesde:row.precio_desde,precioUnidad:row.precio_unidad,
+    testimonioTexto:row.testimonio_texto,testimonioAutor:row.testimonio_autor,
     graciasTitulo:row.gracias_titulo,graciasTexto:row.gracias_texto
   };
   const idx=mktLandingData.findIndex(function(x){return x.id===row.id;});
@@ -12862,6 +12926,24 @@ async function saveMktLanding(){
   closeModal('modal-mkt-landing');
   renderMktLandings();
   toast(mktLandingCurrentId?'Landing actualizada ✓':'Landing creada ✓');
+}
+// Solo admin, solo sobre landings inactivas (mismo patrón que
+// confirmDeleteColaborador/confirmDeleteProspecto/confirmDeleteMktForm).
+async function confirmDeleteMktLanding(id){
+  if(!guardAdmin('confirmDeleteMktLanding'))return;
+  const l=mktLandingData.find(function(x){return x.id===id;});if(!l)return;
+  if(l.activo){toast('Solo se puede eliminar una landing inactiva.','error');return;}
+  if(!confirm('¿Eliminar permanentemente la landing "'+l.nombre+'"? Esta acción no se puede deshacer.'))return;
+  // Storage a mano ANTES del delete de la fila — mismo criterio que
+  // documentos de Prospectos: si falla, solo console.warn (ya interno a
+  // deleteLandingImageFile), un huérfano en Storage es aceptable, al revés no.
+  if(l.imagenPortadaUrl)await deleteLandingImageFile(l.imagenPortadaUrl);
+  const {error}=await sb.from('hb_crm_landings').delete().eq('id',id);
+  if(error){toast('Error al eliminar la landing.','error');return;}
+  auditLog('eliminar','hb_crm_landings',id,'Landing eliminada: '+l.nombre);
+  mktLandingData=mktLandingData.filter(function(x){return x.id!==id;});
+  renderMktLandings();
+  toast('Landing eliminada.','info');
 }
 
 // ── DOCUMENTOS CLIENTE ──────────────────────────
