@@ -2107,6 +2107,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <div style="display:flex;gap:3px;background:var(--cp-gray-100);padding:3px;border-radius:var(--radius-md)">
             <button class="org-view-btn active" id="prosp-vw-lista" onclick="setProspView('lista',this)"><i class="ti ti-list"></i> Lista</button>
             <button class="org-view-btn" id="prosp-vw-pipeline" onclick="setProspView('pipeline',this)"><i class="ti ti-layout-kanban"></i> Pipeline</button>
+            <button class="org-view-btn" id="prosp-vw-dashboard" onclick="setProspView('dashboard',this)"><i class="ti ti-chart-bar"></i> Dashboard</button>
           </div>
           <div id="prosp-toolbar-filters" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
             <input type="text" id="prosp-search" placeholder="Buscar lead…" oninput="renderProspectos()" class="form-input" style="width:170px;padding:7px 10px;font-size:13px">
@@ -2135,6 +2136,11 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <div id="prosp-pipeline-view" style="display:none">
           <div id="prosp-pipeline-board" style="display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;min-height:400px"></div>
         </div>
+
+        <!-- Dashboard view (hidden by default) — métricas del CRM, todo calculado en
+             cliente de prospData + prospEtapaChangeLog (ya cargados por prospLoad, sin
+             fetch adicional). Ver renderProspDashboard(). -->
+        <div id="prosp-dashboard-view" style="display:none"></div>
 
         <!-- Config view (hidden by default) — configuración del CRM interno,
              separada de la Configuración general de la app (ver renderUsersList
@@ -8776,6 +8782,11 @@ let prospPlantillas = [];
 let prospMotivosPerdida = [];
 // {prospectoId: timestamp_ms} — última actividad (seguimiento) por lead, ver prospLoad()/saveProspSeg().
 let prospLastActivityMap = {};
+// Todas las entradas tipo:'Cambio de etapa' de TODOS los leads (hb_crm_seguimientos,
+// ya traído por prospLoad() vía sbGetAllPaged para el semáforo — no se vuelve a pedir).
+// Usado solo por el Dashboard del CRM (renderProspDashboard) para reconstruir el
+// historial de etapas de cada lead. Ver prospBuildActivityMap() donde se llena.
+let prospEtapaChangeLog = [];
 let prospFilterEstancados = false;
 let prospPlantillaEditId = null;
 // Variables insertables en el texto de una plantilla/mensaje — {vendedor} es
@@ -9857,6 +9868,7 @@ async function prospLoad(){
 // saveProspSeg() nunca setea 'fecha' explícitamente (columna casi siempre nula).
 function prospBuildActivityMap(segRows){
   prospLastActivityMap={};
+  prospEtapaChangeLog=(segRows||[]).filter(function(s){return s.tipo==='Cambio de etapa';});
   (segRows||[]).forEach(function(s){
     const ts=s.fecha||s.created_at;if(!ts)return;
     const t=new Date(ts).getTime();if(isNaN(t))return;
@@ -9888,13 +9900,15 @@ function _prospActividadColor(dias){
 // (deliberado, ver comentario en el HTML del botón).
 function setProspView(mode,btn){
   prospViewMode=mode;
-  document.querySelectorAll('#prosp-vw-lista,#prosp-vw-pipeline').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#prosp-vw-lista,#prosp-vw-pipeline,#prosp-vw-dashboard').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   document.getElementById('prosp-lista-view').style.display=mode==='lista'?'block':'none';
   document.getElementById('prosp-pipeline-view').style.display=mode==='pipeline'?'block':'none';
+  document.getElementById('prosp-dashboard-view').style.display=mode==='dashboard'?'block':'none';
   document.getElementById('prosp-config-view').style.display=mode==='config'?'block':'none';
-  const filtersBar=document.getElementById('prosp-toolbar-filters');if(filtersBar)filtersBar.style.display=mode==='config'?'none':'flex';
+  const filtersBar=document.getElementById('prosp-toolbar-filters');if(filtersBar)filtersBar.style.display=(mode==='config'||mode==='dashboard')?'none':'flex';
   if(mode==='config')renderProspConfigView();
+  else if(mode==='dashboard')renderProspDashboard();
   else renderProspectos();
 }
 function renderProspectos(){
@@ -10905,6 +10919,303 @@ async function prospMarkCotizacion(id){
   prospDocsData=await prospDocsLoad(prospCurrentId);
   renderProspDocsList();renderProspCotizacion();
   toast('Cotización actualizada ✓');
+}
+
+// ── DASHBOARD DEL CRM (vista 'dashboard' dentro de Prospectos) ──
+// Todo calculado en cliente de prospData + prospEtapaChangeLog (ambos ya
+// cargados por prospLoad(), sin fetch adicional). Mismo patrón visual que
+// la vista Config: .section-card/.section-header/.section-body.
+
+// Extrae {etapa,fromNombre} de una nota de bitácora tipo 'Cambio de etapa'.
+// Formato guardado por prospLogEtapaChange(): "Cambió de {from} a {to}" +
+// opcional " — {obs}" (el em dash siempre separa el core de cualquier
+// observación/motivo anexado, así que se corta ahí primero). from/to son
+// NOMBRES de etapa (no ids) congelados en el momento del cambio — no hay
+// columna estructurada para esto en hb_crm_seguimientos. Si una etapa se
+// renombra después, las entradas viejas dejan de matchear contra el
+// catálogo actual y se descartan (ver prospBuildLeadEtapaEvents) — límite
+// conocido de reconstruir el historial desde texto libre, no desde ids.
+function prospParseEtapaChangeCore(nota){
+  if(!nota) return null;
+  const core=nota.split(' — ')[0];
+  const prefix='Cambió de ';
+  if(!core.startsWith(prefix)) return null;
+  const rest=core.slice(prefix.length);
+  let best=null;
+  prospEtapas.forEach(function(et){
+    const suffix=' a '+et.nombre;
+    if(rest.endsWith(suffix)&&(!best||et.nombre.length>best.etapa.nombre.length)){
+      best={etapa:et, fromNombre:rest.slice(0,rest.length-suffix.length).trim()};
+    }
+  });
+  return best;
+}
+function prospParseEtapaChangeEntry(nota){
+  const core=prospParseEtapaChangeCore(nota);
+  if(!core) return null;
+  const fromEtapa=prospEtapas.find(function(e){return e.nombre===core.fromNombre;});
+  return {toId:core.etapa.id, fromId:fromEtapa?fromEtapa.id:null};
+}
+// Eventos de cambio de etapa de UN lead, ordenados ascendente por fecha.
+function prospBuildLeadEtapaEvents(leadId){
+  return prospEtapaChangeLog
+    .filter(function(s){return s.prospecto_id===leadId;})
+    .map(function(s){
+      const parsed=prospParseEtapaChangeEntry(s.nota);
+      if(!parsed) return null;
+      const ts=s.fecha||s.created_at;
+      const t=ts?new Date(ts).getTime():NaN;
+      if(isNaN(t)) return null;
+      return {toId:parsed.toId, fromId:parsed.fromId, ts:t};
+    })
+    .filter(Boolean)
+    .sort(function(a,b){return a.ts-b.ts;});
+}
+// Un solo recorrido de prospData + bitácora que arma los insumos de varias
+// tarjetas a la vez (embudo, tiempo por etapa, mes de confirmación por
+// lead) — evita reparsear la bitácora una vez por tarjeta.
+function prospBuildDashboardModel(){
+  const etapasFunnel=prospEtapas.filter(function(e){return e.id!=='perdido';});
+  const reachedCount={}; etapasFunnel.forEach(function(e){reachedCount[e.id]=0;});
+  const stageDurations={}; // etapaId -> [dias,...]
+  const confirmedAt={}; // leadId -> ts de la primera vez que llegó a 'confirmado'
+  const hasConfirmado=prospEtapas.some(function(e){return e.id==='confirmado';});
+  prospData.forEach(function(lead){
+    const events=prospBuildLeadEtapaEvents(lead.id);
+    const reached=new Set();
+    // Etapa de creación: no queda registrada en bitácora (saveProspecto solo
+    // loguea TRANSICIONES, nunca el alta) — se infiere del 'from' del primer
+    // cambio, o si el lead nunca cambió de etapa, su estado actual.
+    let initialId=events.length?events[0].fromId:null;
+    if(!initialId) initialId=lead.estado;
+    if(initialId) reached.add(initialId);
+    events.forEach(function(ev){ if(ev.toId) reached.add(ev.toId); });
+    etapasFunnel.forEach(function(e){ if(reached.has(e.id)) reachedCount[e.id]++; });
+    if(events.length>=2){
+      for(let i=0;i<events.length-1;i++){
+        const stageId=events[i].toId; if(!stageId) continue;
+        const days=(events[i+1].ts-events[i].ts)/86400000;
+        if(days<0) continue;
+        (stageDurations[stageId]=stageDurations[stageId]||[]).push(days);
+      }
+    }
+    if(hasConfirmado){
+      const firstConf=events.find(function(ev){return ev.toId==='confirmado';});
+      if(firstConf) confirmedAt[lead.id]=firstConf.ts;
+    }
+  });
+  return {etapasFunnel:etapasFunnel, reachedCount:reachedCount, stageDurations:stageDurations, confirmedAt:confirmedAt};
+}
+function _prospMoney(v){ return '$'+Number(v||0).toLocaleString('es-MX'); }
+function _prospLast6MonthKeys(){
+  const now=new Date(); const keys=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(), now.getMonth()-i, 1);
+    keys.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  return keys;
+}
+function _prospMonthLabel(key){
+  const parts=key.split('-');
+  const meses=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return meses[parseInt(parts[1],10)-1]+' '+parts[0].slice(2);
+}
+
+function renderProspDashboard(){
+  const el=document.getElementById('prosp-dashboard-view'); if(!el) return;
+  const model=prospBuildDashboardModel();
+  el.innerHTML=
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-bottom:16px">'+
+      prospDashFunnelCard(model)+
+      prospDashTiempoEtapaCard(model)+
+      prospDashValorPipelineCard()+
+      prospDashCanalCard()+
+    '</div>'+
+    '<div style="margin-bottom:16px">'+prospDashTendenciaCard(model)+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px">'+
+      prospDashMotivosCard()+
+      prospDashRankingCard(model)+
+    '</div>';
+}
+function prospDashFunnelCard(model){
+  const etapas=model.etapasFunnel;
+  const counts=etapas.map(function(e){return model.reachedCount[e.id]||0;});
+  const max=Math.max.apply(null,counts.concat([1]));
+  const rows=etapas.map(function(e,i){
+    const c=counts[i];
+    const pct=max>0?Math.max(2,Math.round(c/max*100)):0;
+    const conv=(i>0)?(counts[i-1]>0?Math.round(c/counts[i-1]*100)+'%':'—'):null;
+    return '<div style="margin-bottom:12px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--cp-navy);margin-bottom:4px">'+
+        '<span>'+escHtml(e.nombre)+'</span><span style="color:var(--cp-gray-500)">'+c+'</span>'+
+      '</div>'+
+      '<div style="background:var(--cp-gray-100);border-radius:4px;height:10px;overflow:hidden">'+
+        '<div style="width:'+pct+'%;height:100%;background:'+(e.color||'var(--cp-purple)')+';border-radius:4px"></div>'+
+      '</div>'+
+      (conv!=null?'<div style="font-size:10px;color:var(--cp-gray-400);margin-top:2px">'+escHtml(etapas[i-1].nombre)+' → '+escHtml(e.nombre)+': '+conv+'</div>':'')+
+    '</div>';
+  }).join('');
+  return '<div class="section-card" style="margin-bottom:0">'+
+    '<div class="section-header"><div class="section-title"><i class="ti ti-filter" style="margin-right:6px;color:var(--cp-purple)"></i>Embudo de conversión</div></div>'+
+    '<div class="section-body">'+
+      (etapas.length?rows:'<div style="font-size:12px;color:var(--cp-gray-400)">Sin etapas configuradas.</div>')+
+      '<div style="font-size:11px;color:var(--cp-gray-400);margin-top:4px">Leads que alcanzaron cada etapa alguna vez, incluidos los que después se perdieron. Calculado del historial de bitácora disponible.</div>'+
+    '</div>'+
+  '</div>';
+}
+function prospDashTiempoEtapaCard(model){
+  const etapas=model.etapasFunnel;
+  const rows=etapas.map(function(e){
+    const durs=model.stageDurations[e.id]||[];
+    if(!durs.length) return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--cp-gray-100);font-size:12px"><span>'+escHtml(e.nombre)+'</span><span style="color:var(--cp-gray-400)">Sin datos</span></div>';
+    const avg=durs.reduce(function(a,b){return a+b;},0)/durs.length;
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--cp-gray-100);font-size:12px">'+
+      '<span>'+escHtml(e.nombre)+'</span><span style="color:var(--cp-navy);font-weight:600">'+avg.toFixed(1)+' días</span>'+
+    '</div>';
+  }).join('');
+  return '<div class="section-card" style="margin-bottom:0">'+
+    '<div class="section-header"><div class="section-title"><i class="ti ti-clock" style="margin-right:6px;color:var(--cp-blue)"></i>Tiempo promedio por etapa</div></div>'+
+    '<div class="section-body">'+
+      (etapas.length?rows:'<div style="font-size:12px;color:var(--cp-gray-400)">Sin etapas configuradas.</div>')+
+      '<div style="font-size:11px;color:var(--cp-gray-400);margin-top:6px">Solo leads con 2+ cambios de etapa registrados aportan dato. La etapa actual sin cambiar aún no se incluye (ver semáforo de actividad).</div>'+
+    '</div>'+
+  '</div>';
+}
+function prospDashValorPipelineCard(){
+  const activos=prospData.filter(function(p){return p.estado!=='perdido';});
+  const byEtapa={};
+  activos.forEach(function(p){ byEtapa[p.estado]=(byEtapa[p.estado]||0)+(Number(p.valorEstimado)||0); });
+  const total=Object.keys(byEtapa).reduce(function(s,k){return s+byEtapa[k];},0);
+  const rows=prospEtapas.filter(function(e){return e.id!=='perdido';}).map(function(e){
+    const v=byEtapa[e.id]||0;
+    const pct=total>0?Math.round(v/total*100):0;
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--cp-gray-100);font-size:12px">'+
+      '<span>'+escHtml(e.nombre)+'</span><span style="color:var(--cp-navy);font-weight:600">'+_prospMoney(v)+' <span style="color:var(--cp-gray-400);font-weight:400">('+pct+'%)</span></span>'+
+    '</div>';
+  }).join('');
+  return '<div class="section-card" style="margin-bottom:0">'+
+    '<div class="section-header"><div class="section-title"><i class="ti ti-currency-dollar" style="margin-right:6px;color:var(--cp-green)"></i>Valor del pipeline</div></div>'+
+    '<div class="section-body">'+rows+
+      '<div style="display:flex;justify-content:space-between;padding-top:8px;font-size:12px;font-weight:700;color:var(--cp-navy)"><span>Total</span><span>'+_prospMoney(total)+'</span></div>'+
+      '<div style="font-size:11px;color:var(--cp-gray-400);margin-top:6px">Excluye leads perdidos. Leads sin valor_estimado capturado suman $0.</div>'+
+    '</div>'+
+  '</div>';
+}
+function prospDashCanalCard(){
+  const byCanal={};
+  prospData.forEach(function(p){ const k=p.canalEntrada||'__sin__'; byCanal[k]=(byCanal[k]||0)+1; });
+  const entries=Object.keys(byCanal).map(function(k){
+    const cat=prospCanales.find(function(c){return c.id===k;});
+    return {nombre:cat?cat.nombre:'Sin canal', color:cat?cat.color:'#94A0BB', count:byCanal[k]};
+  }).sort(function(a,b){return b.count-a.count;});
+  const max=Math.max.apply(null,entries.map(function(e){return e.count;}).concat([1]));
+  const rows=entries.map(function(e){
+    const pct=Math.max(2,Math.round(e.count/max*100));
+    return '<div style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--cp-navy);margin-bottom:4px"><span>'+escHtml(e.nombre)+'</span><span style="color:var(--cp-gray-500)">'+e.count+'</span></div>'+
+      '<div style="background:var(--cp-gray-100);border-radius:4px;height:10px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+(e.color||'#94A0BB')+';border-radius:4px"></div></div>'+
+    '</div>';
+  }).join('');
+  return '<div class="section-card" style="margin-bottom:0">'+
+    '<div class="section-header"><div class="section-title"><i class="ti ti-share" style="margin-right:6px;color:var(--cp-blue)"></i>Leads por canal</div></div>'+
+    '<div class="section-body">'+(entries.length?rows:'<div style="font-size:12px;color:var(--cp-gray-400)">Sin datos.</div>')+'</div>'+
+  '</div>';
+}
+function prospDashTendenciaCard(model){
+  const keys=_prospLast6MonthKeys();
+  const creados=keys.map(function(){return 0;});
+  const confirmados=keys.map(function(){return 0;});
+  prospData.forEach(function(p){
+    if(!p.createdAt) return;
+    const idx=keys.indexOf(p.createdAt.slice(0,7));
+    if(idx!==-1) creados[idx]++;
+  });
+  Object.keys(model.confirmedAt).forEach(function(leadId){
+    const idx=keys.indexOf(new Date(model.confirmedAt[leadId]).toISOString().slice(0,7));
+    if(idx!==-1) confirmados[idx]++;
+  });
+  const max=Math.max.apply(null,creados.concat(confirmados).concat([1]));
+  const W=560,H=140,PAD=28;
+  const n=keys.length;
+  const xStep=n>1?(W-PAD*2)/(n-1):0;
+  const yOf=function(v){ return H-PAD-(v/max)*(H-PAD*2); };
+  function lineFor(arr,color){
+    const pts=arr.map(function(v,i){ return {x:PAD+i*xStep, y:yOf(v)}; });
+    const poly=pts.map(function(p){return p.x.toFixed(1)+','+p.y.toFixed(1);}).join(' ');
+    const dots=pts.map(function(p){
+      return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3" fill="white" stroke="'+color+'" stroke-width="2"/>';
+    }).join('');
+    return '<polyline points="'+poly+'" fill="none" stroke="'+color+'" stroke-width="2"/>'+dots;
+  }
+  const labels=keys.map(function(k,i){
+    return '<text x="'+(PAD+i*xStep).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--cp-gray-500)" font-family="Inter,sans-serif">'+_prospMonthLabel(k)+'</text>';
+  }).join('');
+  const svg='<svg width="100%" height="'+H+'" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="display:block">'+
+    lineFor(creados,'#9B5FF8')+lineFor(confirmados,'#10C080')+labels+
+  '</svg>';
+  return '<div class="section-card" style="margin-bottom:0">'+
+    '<div class="section-header"><div class="section-title"><i class="ti ti-chart-line" style="margin-right:6px;color:var(--cp-purple)"></i>Tendencia mensual (últimos 6 meses)</div></div>'+
+    '<div class="section-body">'+
+      '<div style="display:flex;gap:16px;font-size:11px;margin-bottom:8px">'+
+        '<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#9B5FF8"></span>Creados</span>'+
+        '<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:#10C080"></span>Confirmados</span>'+
+      '</div>'+
+      svg+
+    '</div>'+
+  '</div>';
+}
+function prospDashMotivosCard(){
+  const perdidos=prospData.filter(function(p){return p.estado==='perdido';});
+  const byMotivo={};
+  perdidos.forEach(function(p){ const k=p.motivoPerdidaId||'__sin__'; byMotivo[k]=(byMotivo[k]||0)+1; });
+  const entries=Object.keys(byMotivo).map(function(k){
+    const m=prospMotivosPerdida.find(function(x){return x.id===k;});
+    return {nombre:m?m.nombre:'Sin motivo', count:byMotivo[k]};
+  }).sort(function(a,b){return b.count-a.count;});
+  const max=Math.max.apply(null,entries.map(function(e){return e.count;}).concat([1]));
+  const rows=entries.map(function(e){
+    const pct=Math.max(2,Math.round(e.count/max*100));
+    return '<div style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--cp-navy);margin-bottom:4px"><span>'+escHtml(e.nombre)+'</span><span style="color:var(--cp-gray-500)">'+e.count+'</span></div>'+
+      '<div style="background:var(--cp-gray-100);border-radius:4px;height:10px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:var(--cp-red)"></div></div>'+
+    '</div>';
+  }).join('');
+  return '<div class="section-card" style="margin-bottom:0">'+
+    '<div class="section-header"><div class="section-title"><i class="ti ti-mood-sad" style="margin-right:6px;color:var(--cp-red)"></i>Motivos de pérdida</div></div>'+
+    '<div class="section-body">'+(entries.length?rows:'<div style="font-size:12px;color:var(--cp-gray-400)">Sin leads perdidos.</div>')+'</div>'+
+  '</div>';
+}
+function prospDashRankingCard(model){
+  const keys=_prospLast6MonthKeys();
+  const minKey=keys[0];
+  const byVendor={};
+  Object.keys(model.confirmedAt).forEach(function(leadId){
+    const k=new Date(model.confirmedAt[leadId]).toISOString().slice(0,7);
+    if(k<minKey) return; // fuera de la ventana de 6 meses
+    const lead=prospData.find(function(p){return p.id===leadId;});
+    if(!lead) return;
+    const vid=lead.vendedorId||'__sin__';
+    if(!byVendor[vid]) byVendor[vid]={count:0, valor:0};
+    byVendor[vid].count++;
+    byVendor[vid].valor+=(Number(lead.valorEstimado)||0);
+  });
+  const rows=Object.keys(byVendor).map(function(vid){
+    const u=vid!=='__sin__'?(_userProfilesCache||[]).find(function(x){return x.user_id===vid;}):null;
+    const nombre=u?(u.display_name||u.email):'Sin asignar';
+    return {nombre:nombre, count:byVendor[vid].count, valor:byVendor[vid].valor};
+  }).sort(function(a,b){return b.valor-a.valor;});
+  const body=rows.map(function(r){
+    return '<tr><td>'+escHtml(r.nombre)+'</td><td style="text-align:center">'+r.count+'</td><td style="text-align:right">'+_prospMoney(r.valor)+'</td></tr>';
+  }).join('');
+  return '<div class="section-card" style="margin-bottom:0">'+
+    '<div class="section-header"><div class="section-title"><i class="ti ti-trophy" style="margin-right:6px;color:var(--cp-amber)"></i>Ranking de vendedores (últimos 6 meses)</div></div>'+
+    '<div class="section-body">'+
+      (rows.length?
+        '<table class="emp-table"><thead><tr><th>Vendedor</th><th style="text-align:center">Confirmados</th><th style="text-align:right">Valor confirmado</th></tr></thead><tbody>'+body+'</tbody></table>'
+        :'<div style="font-size:12px;color:var(--cp-gray-400)">Sin leads confirmados en el periodo.</div>')+
+      '<div style="font-size:11px;color:var(--cp-gray-400);margin-top:6px">Periodo: últimos 6 meses, mismo rango que la tendencia mensual. Vendedor resuelto vía _userProfilesCache. Basado en la primera vez que cada lead llegó a la etapa "confirmado" (bitácora).</div>'+
+    '</div>'+
+  '</div>';
 }
 
 // ── CONFIGURACIÓN DEL CRM (vista 'config' dentro de Prospectos) ──
