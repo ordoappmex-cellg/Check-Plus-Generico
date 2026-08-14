@@ -7915,68 +7915,86 @@ function startRealtime() {
   if (_realtimeReconnectTimer) { clearTimeout(_realtimeReconnectTimer); _realtimeReconnectTimer = null; }
   _realtimeChannel = sb.channel('checkplus-live')
     // Core data tables
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'empleados' },    () => dbLoad().then(()=>{ if(document.getElementById('view-empleados')?.classList.contains('active')) renderEmpTable(); }))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'vacaciones' },   () => dbLoad().then(()=>{ if(document.getElementById('view-vacaciones')?.classList.contains('active')) renderVacaciones(); }))
+    // Cada callback invalida PRIMERO la caché con TTL de sbGetAll (Cambio 1) para su
+    // propia tabla — con el nombre literal del filtro .on() de esa misma línea, no
+    // payload.table — antes de disparar el reload. Sin esto, un reload dentro de la
+    // ventana de 60s del caché devolvería datos de antes del cambio remoto.
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'empleados' },    () => { sbInvalidate('empleados'); dbLoad().then(()=>{ if(document.getElementById('view-empleados')?.classList.contains('active')) renderEmpTable(); }); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vacaciones' },   () => { sbInvalidate('vacaciones'); dbLoad().then(()=>{ if(document.getElementById('view-vacaciones')?.classList.contains('active')) renderVacaciones(); }); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'kb_cards' },     () => {
+      sbInvalidate('kb_cards');
       invalidateModule('kanban');
       if(document.getElementById('view-kanban')?.classList.contains('active')) loadModuleData('kanban').then(()=>{ renderKanban(); updateAllBadges(); });
       misPendMaybeRefresh();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'desarrollos' },  () => {
+      sbInvalidate('desarrollos');
       invalidateModule('desarrollos');
       if(document.getElementById('view-desarrollos')?.classList.contains('active')) loadModuleData('desarrollos').then(renderDesarrollos);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'sp_tickets' },   () => {
+      sbInvalidate('sp_tickets');
       invalidateModule('soporte');
       if(document.getElementById('view-soporte')?.classList.contains('active')) loadModuleData('soporte').then(()=>{ renderSoporte(); updateAllBadges(); });
       misPendMaybeRefresh();
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' },     () => { reloadClientes().then(()=>{ if(document.getElementById('view-clientes')?.classList.contains('active')) renderClientes(); updateAllBadges(); }); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'clientes' },     () => { sbInvalidate('clientes'); reloadClientes().then(()=>{ if(document.getElementById('view-clientes')?.classList.contains('active')) renderClientes(); updateAllBadges(); }); })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'diseno_proyectos' }, () => {
+      sbInvalidate('diseno_proyectos');
       invalidateModule('diseno');
       if(document.getElementById('view-diseno')?.classList.contains('active')) loadModuleData('diseno').then(()=>{ renderDiseno(); updateAllBadges(); });
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'diseno_tareas' }, () => {
+      sbInvalidate('diseno_tareas');
       invalidateModule('diseno');
       if(document.getElementById('view-diseno')?.classList.contains('active')) loadModuleData('diseno').then(()=>{ renderDiseno(); updateAllBadges(); });
       misPendMaybeRefresh();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'diseno_publicaciones' }, () => {
+      sbInvalidate('diseno_publicaciones');
       invalidateModule('diseno');
       if(document.getElementById('view-diseno')?.classList.contains('active')) loadModuleData('diseno').then(()=>{ renderDisenoCalendario(); updateAllBadges(); });
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'diseno_calendario_notas' }, () => {
+      sbInvalidate('diseno_calendario_notas');
       invalidateModule('diseno');
       if(document.getElementById('view-diseno')?.classList.contains('active')) loadModuleData('diseno').then(()=>{ renderDisenoCalendario(); updateAllBadges(); });
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'direccion_proyectos' }, () => {
+      sbInvalidate('direccion_proyectos');
       invalidateModule('direccion');
       if(document.getElementById('view-direccion')?.classList.contains('active')) loadModuleData('direccion').then(direccionRenderActiveTab);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'direccion_hitos' }, () => {
+      sbInvalidate('direccion_hitos');
       invalidateModule('direccion');
       if(document.getElementById('view-direccion')?.classList.contains('active')) loadModuleData('direccion').then(direccionRenderActiveTab);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'direccion_tareas' }, () => {
+      sbInvalidate('direccion_tareas');
       invalidateModule('direccion');
       if(document.getElementById('view-direccion')?.classList.contains('active')) loadModuleData('direccion').then(direccionRenderActiveTab);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'direccion_bitacora' }, () => {
+      sbInvalidate('direccion_bitacora');
       invalidateModule('direccion');
       if(document.getElementById('view-direccion')?.classList.contains('active')) loadModuleData('direccion').then(direccionRenderActiveTab);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'gp_proyectos' }, (payload) => {
+      sbInvalidate('gp_proyectos');
       invalidateModule('gestion-proyectos');
       if(document.getElementById('view-gestion-proyectos')?.classList.contains('active')) loadModuleData('gestion-proyectos').then(gpRenderActiveTab);
       gpNotifyIfImplicadoOnMe(payload);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'gp_tareas' }, (payload) => {
+      sbInvalidate('gp_tareas');
       invalidateModule('gestion-proyectos');
       if(document.getElementById('view-gestion-proyectos')?.classList.contains('active')) loadModuleData('gestion-proyectos').then(gpRenderActiveTab);
       misPendMaybeRefresh();
       gpNotifyIfAssignedToMe(payload);
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'gp_bitacora' }, () => {
+      sbInvalidate('gp_bitacora');
       invalidateModule('gestion-proyectos');
       if(document.getElementById('view-gestion-proyectos')?.classList.contains('active')) loadModuleData('gestion-proyectos').then(gpRenderActiveTab);
     })
@@ -7988,6 +8006,7 @@ function startRealtime() {
     // usuario simplemente queda sobreescrito por la misma fila que ya estaba
     // guardada, nunca duplicado.
     .on('postgres_changes', { event: '*', schema: 'public', table: 'hb_crm_prospectos' }, () => {
+      sbInvalidate('hb_crm_prospectos');
       invalidateModule('prospectos');
       if(document.getElementById('view-prospectos')?.classList.contains('active')) loadModuleData('prospectos').then(renderProspectos);
     })
@@ -18748,7 +18767,20 @@ function repoGroupBy() {
 // ═══════════════════════════════════════════════
 
 // ── GENERIC HELPERS ──────────────────────────────
-async function sbGetAll(table) {
+// Caché con TTL por tabla — evita relecturas idénticas dentro de la misma
+// ventana de trabajo (60s default). sbInvalidate/sbInvalidateAll lo vacían
+// tras una escritura exitosa (ver sbUpsert/sbDelete y los 3 wrappers
+// duplicados de Kanban/Clientes/Diseño, que llaman a sbInvalidate por su cuenta).
+const SB_CACHE_TTL_MS = 60000;
+const _sbCache = new Map(); // table -> {data, ts}
+function sbInvalidate(table){ _sbCache.delete(table); }
+function sbInvalidateAll(){ _sbCache.clear(); }
+async function sbGetAll(table, opts) {
+  const force = opts?.force === true;
+  if (!force) {
+    const cached = _sbCache.get(table);
+    if (cached && (Date.now() - cached.ts) < SB_CACHE_TTL_MS) return cached.data;
+  }
   const { data, error } = await sb.from(table).select('*');
   if (error) {
     if (error.code === 'PGRST301' || error.message?.includes('JWT')) {
@@ -18757,7 +18789,9 @@ async function sbGetAll(table) {
     }
     console.error('sbGetAll', table, error); return [];
   }
-  return data || [];
+  const rows = data || [];
+  _sbCache.set(table, { data: rows, ts: Date.now() });
+  return rows;
 }
 async function sbGetAllPaged(table){
   const pageSize=1000; let from=0; let out=[];
@@ -18789,6 +18823,7 @@ async function sbUpsert(table, row) {
           toast('[UPDATE] '+table+': '+(error.message||error.code||JSON.stringify(error)), 'error');
           return false;
         }
+        sbInvalidate(table);
         return true;
       }
     }
@@ -18802,6 +18837,7 @@ async function sbUpsert(table, row) {
       toast('[INSERT] '+table+': '+(error.message||error.code||JSON.stringify(error)), 'error');
       return false;
     }
+    sbInvalidate(table);
     return true;
   } catch(e) {
     console.error('sbUpsert exception', table, e);
@@ -18825,6 +18861,7 @@ function sbSaveAsync(promise, context) {
 async function sbDelete(table, id) {
   const { error } = await sb.from(table).delete().eq('id', id);
   if (error) { console.error('sbDelete', table, error); return false; }
+  sbInvalidate(table);
   return true;
 }
 async function sbDeleteAll(table) {
@@ -19058,6 +19095,7 @@ async function kbSbUpsert(table,row){
           toast('[UPDATE] '+table+': '+(error.message||error.code),'error');
           return false;
         }
+        sbInvalidate(table);
         return true;
       }
     }
@@ -19068,6 +19106,7 @@ async function kbSbUpsert(table,row){
       toast('[INSERT] '+table+': '+(error.message||error.code),'error');
       return false;
     }
+    sbInvalidate(table);
     return true;
   }catch(e){
     console.error(table+' upsert exception:',e,'payload:',row);
@@ -19081,6 +19120,7 @@ async function kbSbDelete(table,id){
     console.error(table+' delete error:',error,'id:',id);
     return false;
   }
+  sbInvalidate(table);
   return true;
 }
 
@@ -19131,6 +19171,7 @@ async function cliSbUpsert(table,row){
           toast('[UPDATE] '+table+': '+(error.message||error.code),'error');
           return false;
         }
+        sbInvalidate(table);
         return true;
       }
     }
@@ -19141,6 +19182,7 @@ async function cliSbUpsert(table,row){
       toast('[INSERT] '+table+': '+(error.message||error.code),'error');
       return false;
     }
+    sbInvalidate(table);
     return true;
   }catch(e){
     console.error(table+' upsert exception:',e,'payload:',row);
@@ -21547,6 +21589,7 @@ async function disenoSbUpsert(table,row){
           toast('[UPDATE] '+table+': '+(error.message||error.code),'error');
           return false;
         }
+        sbInvalidate(table);
         return true;
       }
     }
@@ -21557,6 +21600,7 @@ async function disenoSbUpsert(table,row){
       toast('[INSERT] '+table+': '+(error.message||error.code),'error');
       return false;
     }
+    sbInvalidate(table);
     return true;
   }catch(e){
     console.error(table+' upsert exception:',e,'payload:',row);
@@ -21570,6 +21614,7 @@ async function disenoSbDelete(table,id){
     console.error(table+' delete error:',error,'id:',id);
     return false;
   }
+  sbInvalidate(table);
   return true;
 }
 
