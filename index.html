@@ -6737,10 +6737,10 @@ async function saveEmployee(){
   if(fotoUrl)row.foto_url=fotoUrl;
   if(state.editMode){
     const{error}=await sb.from('empleados').update(row).eq('id',state.currentEmpId);
-    if(error)toast('Error: '+error.message,'error');else{toast('Colaborador actualizado.');closeModal('modal-employee');await dbLoad();openDetail(state.currentEmpId);}
+    if(error)toast('Error: '+error.message,'error');else{sbInvalidate('empleados');toast('Colaborador actualizado.');closeModal('modal-employee');await dbLoad();openDetail(state.currentEmpId);}
   }else{
     const{error}=await sb.from('empleados').insert(row);
-    if(error)toast('Error: '+error.message,'error');else{toast('Colaborador agregado.');closeModal('modal-employee');await dbLoad();renderDashboard();}
+    if(error)toast('Error: '+error.message,'error');else{sbInvalidate('empleados');toast('Colaborador agregado.');closeModal('modal-employee');await dbLoad();renderDashboard();}
   }
   setBtn('save-emp-btn',false);
 }
@@ -6752,8 +6752,8 @@ function openAddVacation(){document.getElementById('vf-start').value='';document
 document.getElementById('vf-start').addEventListener('change',updateVacPreview);
 document.getElementById('vf-end').addEventListener('change',updateVacPreview);
 function updateVacPreview(){const s=document.getElementById('vf-start').value,e=document.getElementById('vf-end').value;if(!s||!e){document.getElementById('vf-days-preview').innerHTML='';return;}const d=diffDias(s,e);const emp=state.employees.find(x=>x.id===state.currentEmpId);const disp=emp?calcVacDisp(emp):0;const ok=d<=disp;document.getElementById('vf-days-preview').innerHTML=`<div style="padding:9px 12px;border-radius:var(--radius-sm);background:${ok?'var(--cp-green-light)':'var(--cp-red-light)'}"><span style="font-weight:600;color:${ok?'var(--cp-green)':'var(--cp-red)'}">${d} días solicitados</span> <span style="font-size:12px;color:var(--cp-gray-600)">· ${disp} disponibles</span>${!ok?`<div style="font-size:12px;color:var(--cp-red);margin-top:2px">⚠ Excede días disponibles</div>`:''}</div>`;}
-async function saveVacation(){const s=document.getElementById('vf-start').value,e=document.getElementById('vf-end').value;if(!s||!e){toast('Selecciona fechas.','error');return;}const dias=diffDias(s,e);setBtn('save-vac-btn',true);const{error}=await sb.from('vacaciones').insert({empleado_id:state.currentEmpId,start_date:s,end_date:e,dias,notas:document.getElementById('vf-notas').value.trim(),estado:'programado'});if(error)toast('Error: '+error.message,'error');else{toast(`${dias} días programados.`);closeModal('modal-vacation');await dbLoad();openDetail(state.currentEmpId);}setBtn('save-vac-btn',false);}
-async function deleteVac(vid,eid){const{error}=await sb.from('vacaciones').delete().eq('id',vid);if(error)toast('Error.','error');else{toast('Vacaciones eliminadas.','info');await dbLoad();openDetail(eid);}}
+async function saveVacation(){const s=document.getElementById('vf-start').value,e=document.getElementById('vf-end').value;if(!s||!e){toast('Selecciona fechas.','error');return;}const dias=diffDias(s,e);setBtn('save-vac-btn',true);const{error}=await sb.from('vacaciones').insert({empleado_id:state.currentEmpId,start_date:s,end_date:e,dias,notas:document.getElementById('vf-notas').value.trim(),estado:'programado'});if(error)toast('Error: '+error.message,'error');else{sbInvalidate('vacaciones');toast(`${dias} días programados.`);closeModal('modal-vacation');await dbLoad();openDetail(state.currentEmpId);}setBtn('save-vac-btn',false);}
+async function deleteVac(vid,eid){const{error}=await sb.from('vacaciones').delete().eq('id',vid);if(error)toast('Error.','error');else{sbInvalidate('vacaciones');toast('Vacaciones eliminadas.','info');await dbLoad();openDetail(eid);}}
 
 function renderDetVac(e){
   autoUpdateVacStates();
@@ -7161,8 +7161,8 @@ function renderDocs(){
 // PERMISOS
 // ═══════════════════════════════
 function openAddPermiso(){openModal('modal-permiso');}
-async function savePermiso(){setBtn('save-perm-btn',true);const{error}=await sb.from('solicitudes').insert({empleado_id:state.currentEmpId,tipo:document.getElementById('pf-tipo').value,start_date:document.getElementById('pf-start').value||null,end_date:document.getElementById('pf-end').value||null,descripcion:document.getElementById('pf-desc').value.trim(),estado:document.getElementById('pf-estado').value});if(error)toast('Error: '+error.message,'error');else{toast('Solicitud registrada.');closeModal('modal-permiso');await dbLoad();openDetail(state.currentEmpId);}setBtn('save-perm-btn',false);}
-async function deleteReq(rid,eid){const{error}=await sb.from('solicitudes').delete().eq('id',rid);if(error)toast('Error.','error');else{toast('Eliminada.','info');await dbLoad();openDetail(eid);}}
+async function savePermiso(){setBtn('save-perm-btn',true);const{error}=await sb.from('solicitudes').insert({empleado_id:state.currentEmpId,tipo:document.getElementById('pf-tipo').value,start_date:document.getElementById('pf-start').value||null,end_date:document.getElementById('pf-end').value||null,descripcion:document.getElementById('pf-desc').value.trim(),estado:document.getElementById('pf-estado').value});if(error)toast('Error: '+error.message,'error');else{sbInvalidate('solicitudes');toast('Solicitud registrada.');closeModal('modal-permiso');await dbLoad();openDetail(state.currentEmpId);}setBtn('save-perm-btn',false);}
+async function deleteReq(rid,eid){const{error}=await sb.from('solicitudes').delete().eq('id',rid);if(error)toast('Error.','error');else{sbInvalidate('solicitudes');toast('Eliminada.','info');await dbLoad();openDetail(eid);}}
 function renderDetReqs(e){
   const l=document.getElementById('det-req-list');const reqs=e.solicitudes||[];
   if(!reqs.length){l.innerHTML='<div class="empty-state"><i class="ti ti-clipboard-list"></i><p>Sin solicitudes.</p></div>';return;}
@@ -7292,6 +7292,7 @@ async function saveSeguimiento(){
     const tasks=modalTaskList.map(t=>({seguimiento_id:sgId,texto:t.texto,done:t.done,prioridad:t.prioridad||'normal'}));
     await sb.from('seg_tareas').insert(tasks);
   }
+  sbInvalidate('seguimientos');sbInvalidate('seg_tareas');
   toast('Seguimiento guardado ✓');closeModal('modal-seguimiento');await dbLoad();
   openDetail(state.currentEmpId);
   // Stay on seguimientos tab
@@ -7302,7 +7303,7 @@ async function saveSeguimiento(){
 async function deleteSeguimiento(sgId,eid){
   await sb.from('seg_tareas').delete().eq('seguimiento_id',sgId);
   const{error}=await sb.from('seguimientos').delete().eq('id',sgId);
-  if(error)toast('Error.','error');else{toast('Seguimiento eliminado.','info');await dbLoad();openDetail(eid);}
+  if(error)toast('Error.','error');else{sbInvalidate('seguimientos');sbInvalidate('seg_tareas');toast('Seguimiento eliminado.','info');await dbLoad();openDetail(eid);}
 }
 
 async function toggleTask(tareaId,done,empId){
@@ -7735,7 +7736,7 @@ function playNotifSound(){
   }catch(e){}
 }
 function ensureNotifPermission(){
-  if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
+  if('Notification' in window && Notification.permission==='default') Notification.requestPermission().catch(e => console.error('Notification.requestPermission rechazada:', e));
 }
 // icon:'/favicon.ico' 404s on the deployed domain (no file at that path) — use
 // the same icon actually declared in <head> so the OS notification resolves.
@@ -8819,6 +8820,7 @@ async function persistCompanyInfo(patch){
     toast('Error al guardar la información de la empresa.','error');
     return false;
   }
+  sbInvalidate('app_config');
   companyInfo=next;
   try{ localStorage.setItem('cp_company_info_cache', JSON.stringify(companyInfo)); }catch(e){}
   renderSidebarBranding();
@@ -12950,6 +12952,7 @@ async function confirmDeleteMktForm(id){
     toast('Error al eliminar el formulario.','error');
     return;
   }
+  sbInvalidate('hb_crm_formularios');
   auditLog('eliminar','hb_crm_formularios',id,'Formulario eliminado: '+f.nombre);
   mktFormData=mktFormData.filter(function(x){return x.id!==id;});
   renderMktForms();
@@ -13465,6 +13468,7 @@ async function confirmDeleteMktLanding(id){
   if(l.imagenPortadaUrl)await deleteLandingImageFile(l.imagenPortadaUrl);
   const {error}=await sb.from('hb_crm_landings').delete().eq('id',id);
   if(error){toast('Error al eliminar la landing.','error');return;}
+  sbInvalidate('hb_crm_landings');
   auditLog('eliminar','hb_crm_landings',id,'Landing eliminada: '+l.nombre);
   mktLandingData=mktLandingData.filter(function(x){return x.id!==id;});
   renderMktLandings();
@@ -16462,6 +16466,8 @@ async function deleteOKR(okrId){
     return;
   }
 
+  sbInvalidate('okrs');sbInvalidate('okr_krs');
+
   // Update memory
   okrData=okrData.filter(o=>o.id!==okrId);
   okrKrData=okrKrData.filter(k=>(k.okr_id||k.okrId)!==okrId);
@@ -16544,6 +16550,8 @@ async function deleteKR(krId){
     toast('Error al eliminar el KR.','error');
     return;
   }
+
+  sbInvalidate('okr_krs');
 
   okrKrData=okrKrData.filter(k=>k.id!==krId);
   okrCheckins=(okrCheckins||[]).filter(c=>(c.kr_id||c.krId)!==krId);
@@ -19577,6 +19585,7 @@ async function saveMenuOrderConfig(groups){
     toast('Error al guardar el menú.','error');
     return false;
   }
+  sbInvalidate('app_config');
   return true;
 }
 function loadNavConfig(){
@@ -19703,6 +19712,7 @@ async function saveInstanceModulesConfig(){
     toast('Error al guardar.','error');
     return;
   }
+  sbInvalidate('app_config');
   modulesDisabled=disabled;
   renderSidebarNav();
   toast('Módulos actualizados ✓');
@@ -19859,6 +19869,7 @@ async function savePaletteConfig(config){
     toast('Error al guardar la paleta de colores.','error');
     return false;
   }
+  sbInvalidate('app_config');
   applyPalette(config);
   return true;
 }
@@ -28077,6 +28088,7 @@ async function deletePilar(pilarId,plantillaId){
   if(!confirm('¿Eliminar este pilar y todos sus criterios?'))return;
   await sb.from('eval_criterios').delete().eq('pilar_id',pilarId).catch(()=>{});
   await sb.from('eval_pilares').delete().eq('id',pilarId).catch(()=>{});
+  sbInvalidate('eval_pilares');
   evalCriterios=evalCriterios.filter(c=>c.pilarId!==pilarId);
   evalPilares=evalPilares.filter(p=>p.id!==pilarId);
   renderCfgEvalPilares(plantillaId);
@@ -28119,6 +28131,7 @@ async function deleteCriterio(criterioId,plantillaId){
   if(!guardAdmin('deleteCriterio')) return;
   if(!confirm('¿Eliminar este criterio?'))return;
   await sb.from('eval_criterios').delete().eq('id',criterioId).catch(()=>{});
+  sbInvalidate('eval_criterios');
   evalCriterios=evalCriterios.filter(c=>c.id!==criterioId);
   renderCfgEvalPilares(plantillaId);
   toast('Criterio eliminado','info');
