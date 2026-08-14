@@ -59,6 +59,10 @@
   --sidebar-bg:#0F0A1E;
   --sidebar-fg:rgba(255,255,255,.5);
   --sidebar-fg-hover:rgba(255,255,255,.8);
+  --sidebar-label-fg:rgba(255,255,255,.28);
+  --sidebar-label-fg-hover:rgba(255,255,255,.5);
+  --sidebar-toggle-fg:rgba(255,255,255,.3);
+  --sidebar-toggle-fg-hover:rgba(255,255,255,.7);
   --cp-gray-50:#F9FAFB;--cp-gray-100:#F0F2F7;--cp-gray-200:#E1E6F0;
   --cp-gray-400:#94A0BB;--cp-gray-500:#6B7688;--cp-gray-600:#56637E;--cp-gray-700:#3A4256;--cp-gray-800:#1E2637;--cp-gray-900:#14161D;
   --cp-green:#10C080;--cp-green-light:#E0FAF2;
@@ -152,8 +156,8 @@ body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-80
 .brand-icon{width:32px;height:32px;background:var(--cp-blue);border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;}
 .brand-name{font-family:var(--font-display);font-weight:700;font-size:15px;color:white;}
 /* Sidebar toggle btn */
-.sb-toggle-btn{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;padding:4px 5px;border-radius:var(--radius-sm);transition:all .15s;flex-shrink:0;}
-.sb-toggle-btn:hover{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);}
+.sb-toggle-btn{margin-left:auto;background:none;border:none;color:var(--sidebar-toggle-fg);cursor:pointer;padding:4px 5px;border-radius:var(--radius-sm);transition:all .15s;flex-shrink:0;}
+.sb-toggle-btn:hover{background:rgba(255,255,255,.08);color:var(--sidebar-toggle-fg-hover);}
 .sb-toggle-btn i{font-size:17px;display:block;}
 /* Scrollable nav */
 .sidebar-nav-scroll{flex:1;overflow-y:auto;overflow-x:hidden;}
@@ -162,8 +166,8 @@ body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-80
 /* Group label + arrow */
 .sidebar-section{padding:10px 12px 2px;}
 .sb-group-header{display:flex;align-items:center;padding:2px 8px 4px;cursor:pointer;user-select:none;gap:4px;}
-.sb-group-header:hover .sidebar-label{color:rgba(255,255,255,.5);}
-.sidebar-label{font-size:10px;font-weight:600;color:rgba(255,255,255,.28);letter-spacing:.1em;text-transform:uppercase;flex:1;margin-bottom:0;padding:0;transition:color .15s;}
+.sb-group-header:hover .sidebar-label{color:var(--sidebar-label-fg-hover);}
+.sidebar-label{font-size:10px;font-weight:600;color:var(--sidebar-label-fg);letter-spacing:.1em;text-transform:uppercase;flex:1;margin-bottom:0;padding:0;transition:color .15s;}
 .sb-group-arrow{color:rgba(255,255,255,.2);font-size:12px;transition:transform .18s,color .15s;}
 .sb-group-header:hover .sb-group-arrow{color:rgba(255,255,255,.5);}
 .sb-group-arrow.closed{transform:rotate(-90deg);}
@@ -19615,7 +19619,7 @@ function renderSidebarNav(){
     });
     html+='</div></div>';
   });
-  html+='<div class="sidebar-section"><div class="nav-item" data-tip="Cerrar sesi\u00f3n" onclick="doLogout()" style="color:var(--cp-gray-400)"><i class="ti ti-logout"></i><span class="nav-item-label"> Cerrar sesi\u00f3n</span></div></div>';
+  html+='<div class="sidebar-section"><div class="nav-item" data-tip="Cerrar sesi\u00f3n" onclick="doLogout()"><i class="ti ti-logout"></i><span class="nav-item-label"> Cerrar sesi\u00f3n</span></div></div>';
   html+='<div class="sb-version-label">'+APP_VERSION+'</div>';
   container.innerHTML=html;
   container.querySelectorAll('.sb-group-items').forEach(el=>{el.style.maxHeight=el.scrollHeight+200+'px';});
@@ -19745,11 +19749,14 @@ function _hexToRgbString(hex){
 // Fórmula de luminancia relativa SIMPLE (percepción de brillo, sin
 // linearizar sRGB — a propósito, se pidió "simple", no la fórmula WCAG
 // completa). >127.5 = fondo claro → texto oscuro; si no, fondo oscuro → texto claro.
-function _isLightColor(hex){
+function _colorLuminance(hex){
   hex=(hex||'').replace('#','');
   if(hex.length===3)hex=hex.split('').map(function(c){return c+c;}).join('');
   const r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
-  return (0.299*r+0.587*g+0.114*b)>127.5;
+  return 0.299*r+0.587*g+0.114*b;
+}
+function _isLightColor(hex){
+  return _colorLuminance(hex)>127.5;
 }
 // Aplica la paleta al documento REAL — nunca se llama mientras se está
 // probando en la vista previa de Configuración (ver _cfgIdentidadUpdatePreview,
@@ -19765,7 +19772,15 @@ function applyPalette(config){
   const gradientEndDark=_paletteMix(gradientEnd,.25,false);
   const textActive=_paletteMix(accent,.45,true);
   const sidebarBg=config?.sidebarBg||'#0F0A1E';
-  const light=_isLightColor(sidebarBg);
+  const luminance=_colorLuminance(sidebarBg);
+  const light=luminance>127.5;
+  // Dentro de la rama oscura, un fondo casi-negro (luminancia <18, ej. Morado
+  // #0F0A1E ≈13.8) mantiene la opacidad de siempre. Un fondo oscuro pero no
+  // tan cercano al negro (18-127.5, ej. Grafito ≈23.6, Dorado ≈20.4) sube esa
+  // opacidad un margen fijo — si no, el blanco fijo se lee débil contra un
+  // gris/marrón que ya no es casi-negro. La rama clara no se toca.
+  const darkBoost=(!light&&luminance>=18)?0.15:0;
+  const boost=function(a){ return Math.min(1,+(a+darkBoost).toFixed(2)); };
   const cssVars={
     '--cp-accent':accent,
     '--cp-accent-rgb':_hexToRgbString(accent),
@@ -19776,8 +19791,12 @@ function applyPalette(config){
     '--cp-accent-gradient-end-dark':gradientEndDark,
     '--cp-accent-text-active':textActive,
     '--sidebar-bg':sidebarBg,
-    '--sidebar-fg':light?'rgba(0,0,0,.6)':'rgba(255,255,255,.5)',
-    '--sidebar-fg-hover':light?'rgba(0,0,0,.85)':'rgba(255,255,255,.8)'
+    '--sidebar-fg':light?'rgba(0,0,0,.6)':'rgba(255,255,255,'+boost(.5)+')',
+    '--sidebar-fg-hover':light?'rgba(0,0,0,.85)':'rgba(255,255,255,'+boost(.8)+')',
+    '--sidebar-label-fg':light?'rgba(0,0,0,.35)':'rgba(255,255,255,'+boost(.28)+')',
+    '--sidebar-label-fg-hover':light?'rgba(0,0,0,.55)':'rgba(255,255,255,'+boost(.5)+')',
+    '--sidebar-toggle-fg':light?'rgba(0,0,0,.4)':'rgba(255,255,255,'+boost(.3)+')',
+    '--sidebar-toggle-fg-hover':light?'rgba(0,0,0,.75)':'rgba(255,255,255,'+boost(.7)+')'
   };
   const rootStyle=document.documentElement.style;
   Object.keys(cssVars).forEach(function(k){ rootStyle.setProperty(k,cssVars[k]); });
