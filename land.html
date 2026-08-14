@@ -198,7 +198,13 @@
   var SUPABASE_KEY='sb_publishable__wCFseQLyXOoiA0emNtHoQ_jCFDPu0y';
 
   var root=document.getElementById('l-root');
-  var slug=new URLSearchParams(window.location.search).get('l');
+  var qs=new URLSearchParams(window.location.search);
+  var slug=qs.get('l');
+  // UTM de la URL de entrada — se usan tanto para el registro de visita como
+  // para adjuntarlos al lead si se envía el formulario (ver onSubmit).
+  var utmSource=qs.get('utm_source');
+  var utmMedium=qs.get('utm_medium');
+  var utmCampaign=qs.get('utm_campaign');
 
   function esc(s){
     var d=document.createElement('div');
@@ -233,6 +239,23 @@
       });
     });
   }
+
+  // Registro de visita — fire-and-forget, NUNCA bloquea el render ni espera
+  // respuesta. referencia = el slug de ESTA landing (no el del formulario
+  // vinculado). Dedup con sessionStorage, mismo criterio que form.html: si
+  // falla, se ignora en silencio (console.warn), nunca afecta al visitante.
+  (function registrarVisita(){
+    if(!slug)return;
+    var key='visita_landing_'+slug;
+    var already=false;
+    try{ already=!!sessionStorage.getItem(key); }catch(e){}
+    if(already)return;
+    rpc('crm_registrar_visita',{
+      p_tipo:'landing', p_referencia:slug,
+      p_utm_source:utmSource, p_utm_medium:utmMedium, p_utm_campaign:utmCampaign
+    }).catch(function(e){ console.warn('crm_registrar_visita:',e); });
+    try{ sessionStorage.setItem(key,'1'); }catch(e){}
+  })();
 
   var config=null;
 
@@ -321,6 +344,10 @@
       alertEl.innerHTML='<div class="l-f-msg l-f-msg-error">Falta completar: '+esc(missing.join(', '))+'.</div>';
       return;
     }
+    // UTM leídos al cargar (paso 1) — se adjuntan al lead solo si vinieron en la URL.
+    if(utmSource)datos.utm_source=utmSource;
+    if(utmMedium)datos.utm_medium=utmMedium;
+    if(utmCampaign)datos.utm_campaign=utmCampaign;
     var honeypotEl=document.getElementById('l-f-honeypot');
     var honeypot=honeypotEl?honeypotEl.value:'';
     var btn=document.getElementById('l-f-submit-btn');
