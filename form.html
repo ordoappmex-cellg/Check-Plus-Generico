@@ -69,6 +69,29 @@
   var utmSource=qs.get('utm_source');
   var utmMedium=qs.get('utm_medium');
   var utmCampaign=qs.get('utm_campaign');
+  // Geolocalización por IP — cortesía analítica, nunca bloqueante. Se dispara
+  // ya (sin await) y se referencia más abajo cuando ya haya resuelto (éxito,
+  // falla o timeout de 3s): al enviar el formulario (onSubmit ocurre segundos
+  // después de cargar, tiempo de sobra) y en el registro de visita, que
+  // encadena su llamada real a geoPromise para no mandarla siempre en null
+  // (ver registrarVisita más abajo) sin por eso bloquear el render de la página.
+  var geoPais=null, geoCiudad=null, geoLat=null, geoLng=null;
+  var geoPromise=(function(){
+    var controller=(typeof AbortController!=='undefined')?new AbortController():null;
+    var timeoutId=controller?setTimeout(function(){controller.abort();},3000):null;
+    return fetch('https://ipapi.co/json/',controller?{signal:controller.signal}:{}).then(function(res){
+      return res.json();
+    }).then(function(data){
+      if(data){
+        geoCiudad=data.city||null;
+        geoPais=data.country_name||null;
+        geoLat=(data.latitude!=null)?data.latitude:null;
+        geoLng=(data.longitude!=null)?data.longitude:null;
+      }
+    }).catch(function(e){ console.warn('geo ipapi:',e); }).then(function(){
+      if(timeoutId)clearTimeout(timeoutId);
+    });
+  })();
 
   function esc(s){
     var d=document.createElement('div');
@@ -115,11 +138,20 @@
     var already=false;
     try{ already=!!sessionStorage.getItem(key); }catch(e){}
     if(already)return;
-    rpc('crm_registrar_visita',{
-      p_tipo:'form', p_referencia:slug,
-      p_utm_source:utmSource, p_utm_medium:utmMedium, p_utm_campaign:utmCampaign
-    }).catch(function(e){ console.warn('crm_registrar_visita:',e); });
+    // Marca el dedup YA (no espera a geoPromise) — evita una doble llamada si
+    // algo más disparara esto de nuevo mientras la geo sigue resolviendo.
     try{ sessionStorage.setItem(key,'1'); }catch(e){}
+    // La llamada real espera a que geoPromise resuelva (éxito/falla/timeout,
+    // máx. 3s) para poder mandar geo_pais/ciudad/lat/lng — sin esto, siempre
+    // irían en null porque el fetch nunca resuelve de forma síncrona. Esto NO
+    // bloquea el render de la página, solo retrasa esta llamada de fondo.
+    geoPromise.catch(function(){}).then(function(){
+      rpc('crm_registrar_visita',{
+        p_tipo:'form', p_referencia:slug,
+        p_utm_source:utmSource, p_utm_medium:utmMedium, p_utm_campaign:utmCampaign,
+        p_geo_pais:geoPais, p_geo_ciudad:geoCiudad, p_geo_lat:geoLat, p_geo_lng:geoLng
+      }).catch(function(e){ console.warn('crm_registrar_visita:',e); });
+    });
   })();
 
   var config=null;
@@ -193,6 +225,13 @@
     if(utmSource)datos.utm_source=utmSource;
     if(utmMedium)datos.utm_medium=utmMedium;
     if(utmCampaign)datos.utm_campaign=utmCampaign;
+    // Geo por IP — a estas alturas (el visitante ya llenó el formulario)
+    // geoPromise casi siempre ya resolvió; si no, estos 4 valores simplemente
+    // siguen en null y no se manda nada, nunca se espera aquí.
+    if(geoPais)datos.geo_pais=geoPais;
+    if(geoCiudad)datos.geo_ciudad=geoCiudad;
+    if(geoLat!=null)datos.geo_lat=geoLat;
+    if(geoLng!=null)datos.geo_lng=geoLng;
     var honeypotEl=document.getElementById('f-honeypot');
     var honeypot=honeypotEl?honeypotEl.value:'';
     var btn=document.getElementById('f-submit-btn');
