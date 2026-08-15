@@ -309,6 +309,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .detail-tabs{display:flex;gap:2px;background:var(--cp-gray-100);padding:3px;border-radius:var(--radius-md);margin-bottom:14px;flex-wrap:wrap;}
 .tab-btn{flex:1;padding:7px 4px;border-radius:var(--radius-sm);font-size:11.5px;font-weight:500;border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--cp-gray-600);font-family:var(--font-body);white-space:nowrap;}
 .tab-btn.active{background:white;color:var(--cp-navy);box-shadow:var(--shadow-sm);}
+.cfg-tab-btn.active{background:white;color:var(--cp-navy);box-shadow:var(--shadow-sm);}
 .tab-panel{display:none;}.tab-panel.active{display:block;}
 
 /* VAC */
@@ -2735,161 +2736,164 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
       <!-- CONFIGURACIÓN VIEW -->
       <div id="view-configuracion" class="view">
 
-        <!-- USUARIOS Y PERMISOS (solo Admin) -->
-        <div id="cfg-users-section" class="section-card" style="margin-bottom:18px;display:none">
-          <div class="section-header">
-            <div class="section-title"><i class="ti ti-users" style="margin-right:7px;color:var(--cp-purple)"></i>Usuarios y permisos</div>
-            <div style="display:flex;gap:8px">
-              <a href="https://supabase.com/dashboard/project/xciphoxsalbuficfkkcw/auth/users" target="_blank" class="btn-sm btn-ghost"><i class="ti ti-external-link"></i> Crear usuario en Supabase</a>
-              <button class="btn-sm btn-blue" onclick="renderUsersList()"><i class="ti ti-refresh"></i> Actualizar</button>
+        <!-- Sistema de 6 tabs (14/8) — reorganización tras auditoría de inventario:
+             GENERAL / IDENTIDAD / SISTEMA / CATÁLOGOS / SEGURIDAD / NOTIFICACIONES.
+             Mismo patrón que ya existía (barra .cfg-tab-btn + paneles .cfg-section
+             ocultos por default, cada uno con su showCfgX()/renderCfgX()) — solo se
+             amplió de 4 a 6 tabs y se recompusieron las secciones sueltas dentro. -->
+        <div style="display:flex;gap:2px;background:var(--cp-gray-100);padding:3px;border-radius:var(--radius-md);margin-bottom:18px;max-width:fit-content;flex-wrap:wrap">
+          <button class="cfg-tab-btn btn-sm btn-ghost active" onclick="showCfgGeneralSection(this)"><i class="ti ti-adjustments"></i> General</button>
+          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgEmpresaSection(this)"><i class="ti ti-building"></i> Identidad</button>
+          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgSistemaSection(this)"><i class="ti ti-settings"></i> Sistema</button>
+          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgCatalogosSection(this)"><i class="ti ti-list-details"></i> Catálogos</button>
+          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgSeguridadSection(this)"><i class="ti ti-shield-lock"></i> Seguridad</button>
+          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgNotifSection(this)"><i class="ti ti-bell"></i> Notificaciones</button>
+        </div>
+
+        <!-- GENERAL: Usuarios y permisos + Configuración del Dashboard -->
+        <div id="cfg-general-section" class="cfg-section" style="margin-bottom:18px;display:block">
+          <!-- USUARIOS Y PERMISOS (solo Admin) -->
+          <div id="cfg-users-section" class="section-card" style="margin-bottom:18px">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-users" style="margin-right:7px;color:var(--cp-purple)"></i>Usuarios y permisos</div>
+              <div style="display:flex;gap:8px">
+                <a href="https://supabase.com/dashboard/project/xciphoxsalbuficfkkcw/auth/users" target="_blank" class="btn-sm btn-ghost"><i class="ti ti-external-link"></i> Crear usuario en Supabase</a>
+                <button class="btn-sm btn-blue" onclick="renderUsersList()"><i class="ti ti-refresh"></i> Actualizar</button>
+              </div>
+            </div>
+            <div class="section-body">
+              <div style="font-size:13px;color:var(--cp-gray-600);margin-bottom:14px;padding:10px 14px;background:var(--cp-blue-light);border-radius:var(--radius-sm);border-left:3px solid var(--cp-blue)">
+                Para invitar a alguien: clic en <strong>"Crear usuario en Supabase"</strong> &rarr; Authentication &rarr; Add user &rarr; Invite user. Luego asignale rol y modulos aqui.
+              </div>
+              <div id="cfg-users-list"><div style="text-align:center;padding:20px;color:var(--cp-gray-400)"><i class="ti ti-loader" style="animation:spin .7s linear infinite;font-size:20px"></i></div></div>
             </div>
           </div>
-          <div class="section-body">
-            <div style="font-size:13px;color:var(--cp-gray-600);margin-bottom:14px;padding:10px 14px;background:var(--cp-blue-light);border-radius:var(--radius-sm);border-left:3px solid var(--cp-blue)">
-              Para invitar a alguien: clic en <strong>"Crear usuario en Supabase"</strong> &rarr; Authentication &rarr; Add user &rarr; Invite user. Luego asignale rol y modulos aqui.
+
+          <!-- DASHBOARD CONFIG (solo Admin) -->
+          <div id="cfg-dashboard-section" class="section-card" style="margin-bottom:18px">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-layout-dashboard" style="margin-right:7px;color:var(--cp-blue)"></i>Configuración del Dashboard</div>
+              <button class="btn-sm btn-blue" onclick="saveDashboardConfigFromUI()"><i class="ti ti-device-floppy"></i> Guardar configuración</button>
             </div>
-            <div id="cfg-users-list"><div style="text-align:center;padding:20px;color:var(--cp-gray-400)"><i class="ti ti-loader" style="animation:spin .7s linear infinite;font-size:20px"></i></div></div>
+            <div class="section-body">
+              <div style="font-size:12px;color:var(--cp-gray-500);margin-bottom:14px">Elige qué secciones se muestran, en qué orden y para qué roles.</div>
+              <div id="cfg-dash-sections-list"></div>
+            </div>
           </div>
         </div>
 
-        <!-- PRODUCTOS (solo Admin) -->
-        <div id="cfg-productos-section" class="section-card" style="margin-bottom:18px;display:none">
-          <div class="section-header">
-            <div class="section-title"><i class="ti ti-package" style="margin-right:7px;color:var(--cp-amber)"></i>Productos</div>
-            <button class="btn-sm btn-blue" onclick="openAddCfgProducto()"><i class="ti ti-plus"></i> Nuevo producto</button>
-          </div>
-          <div class="section-body" style="padding:0">
-            <div id="cfg-productos-list"></div>
-          </div>
-        </div>
-
-        <!-- TABLERO COMPARTIDO (solo Admin) -->
-        <div id="cfg-kanban-section" class="section-card" style="margin-bottom:18px;display:none">
-          <div class="section-header">
-            <div class="section-title"><i class="ti ti-layout-kanban" style="margin-right:7px;color:var(--cp-blue)"></i>Acceso al tablero compartido</div>
-          </div>
-          <div class="section-body" style="padding:0">
-            <div id="cfg-kanban-members-list"></div>
-          </div>
-        </div>
-
-        <!-- EVALUACIONES (solo Admin) -->
-        <div id="cfg-eval-section" class="section-card" style="margin-bottom:18px;display:none">
-          <div class="section-header">
-            <div class="section-title"><i class="ti ti-chart-radar" style="margin-right:7px;color:var(--cp-purple)"></i>Plantillas de Evaluación</div>
-            <button class="btn-sm btn-blue" onclick="openAddEvalPlantilla()"><i class="ti ti-plus"></i> Nueva plantilla</button>
-          </div>
-          <div class="section-body" style="padding:0">
-            <div id="cfg-eval-plantillas-list"></div>
-          </div>
-        </div>
-
-        <!-- DASHBOARD CONFIG (solo Admin) -->
-        <div id="cfg-dashboard-section" class="section-card" style="margin-bottom:18px;display:none">
-          <div class="section-header">
-            <div class="section-title"><i class="ti ti-layout-dashboard" style="margin-right:7px;color:var(--cp-blue)"></i>Configuración del Dashboard</div>
-            <button class="btn-sm btn-blue" onclick="saveDashboardConfigFromUI()"><i class="ti ti-device-floppy"></i> Guardar configuración</button>
-          </div>
-          <div class="section-body">
-            <div style="font-size:12px;color:var(--cp-gray-500);margin-bottom:14px">Elige qué secciones se muestran, en qué orden y para qué roles.</div>
-            <div id="cfg-dash-sections-list"></div>
-          </div>
-        </div>
-
-        <!-- SEGURIDAD (solo Admin) -->
-        <div style="display:flex;gap:2px;background:var(--cp-gray-100);padding:3px;border-radius:var(--radius-md);margin-bottom:18px;max-width:fit-content">
-          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgSeguridadSection()"><i class="ti ti-shield-lock"></i> Seguridad</button>
-          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgDisenoSection()"><i class="ti ti-brush"></i> Diseño</button>
-          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgNotifSection()"><i class="ti ti-bell"></i> Notificaciones</button>
-          <button class="cfg-tab-btn btn-sm btn-ghost" onclick="showCfgEmpresaSection()"><i class="ti ti-building"></i> Empresa</button>
-        </div>
-        <div id="cfg-seguridad-section" class="cfg-section section-card" style="margin-bottom:18px;padding:20px;display:none"></div>
-        <div id="cfg-diseno-section" class="cfg-section section-card" style="margin-bottom:18px;padding:20px;display:none"></div>
-        <div id="cfg-notif-section" class="cfg-section section-card" style="margin-bottom:18px;padding:20px;display:none"></div>
+        <!-- IDENTIDAD: Empresa (nombre/logo/favicon) + paleta de colores — ya vivían
+             juntos dentro de renderCfgEmpresa(), solo cambia el nombre del tab -->
         <div id="cfg-empresa-section" class="cfg-section section-card" style="margin-bottom:18px;padding:20px;display:none"></div>
 
-        <!-- Nav Layout Config -->
-        <!-- BACKUP & SISTEMA -->
-        <div class="section-card" style="margin-bottom:18px">
-          <div class="section-header">
-            <div class="section-title"><i class="ti ti-database-export" style="margin-right:7px;color:var(--cp-green)"></i>Backup y datos</div>
-          </div>
-          <div class="section-body">
-            <div style="display:flex;flex-direction:column;gap:16px">
-              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-                <div>
-                  <div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">Exportar backup completo</div>
-                  <div style="font-size:12px;color:var(--cp-gray-500)">Descarga todas las tablas en un archivo JSON. Guárdalo en un lugar seguro.</div>
-                </div>
-                <button class="btn-sm btn-ghost" onclick="exportBackup()" style="border-color:var(--cp-green);color:var(--cp-green);flex-shrink:0">
-                  <i class="ti ti-download"></i> Descargar backup
-                </button>
-              </div>
-              <div style="border-top:1px solid var(--cp-gray-100);padding-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-                <div>
-                  <div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">Restaurar desde backup</div>
-                  <div style="font-size:12px;color:var(--cp-gray-500)">Solo Admin. Sobreescribe los datos actuales con los del archivo JSON.</div>
-                  <div style="font-size:11px;color:var(--cp-red);margin-top:3px"><i class="ti ti-alert-triangle"></i> Esta acción no se puede deshacer.</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                  <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="importBackup(this.files[0])">
-                  <button class="btn-sm btn-ghost" id="restore-backup-btn" onclick="document.getElementById('restore-file-input').click()" style="border-color:var(--cp-red);color:var(--cp-red)">
-                    <i class="ti ti-upload"></i> Restaurar backup
+        <!-- SISTEMA: Backup y datos + Configurar menú lateral + Módulos activos —
+             las tres son "cómo se comporta esta instancia completa" -->
+        <div id="cfg-sistema-section" class="cfg-section" style="margin-bottom:18px;display:none">
+          <div class="section-card" style="margin-bottom:18px">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-database-export" style="margin-right:7px;color:var(--cp-green)"></i>Backup y datos</div>
+            </div>
+            <div class="section-body">
+              <div style="display:flex;flex-direction:column;gap:16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">Exportar backup completo</div>
+                    <div style="font-size:12px;color:var(--cp-gray-500)">Descarga todas las tablas en un archivo JSON. Guárdalo en un lugar seguro.</div>
+                  </div>
+                  <button class="btn-sm btn-ghost" onclick="exportBackup()" style="border-color:var(--cp-green);color:var(--cp-green);flex-shrink:0">
+                    <i class="ti ti-download"></i> Descargar backup
                   </button>
                 </div>
+                <div style="border-top:1px solid var(--cp-gray-100);padding-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">Restaurar desde backup</div>
+                    <div style="font-size:12px;color:var(--cp-gray-500)">Solo Admin. Sobreescribe los datos actuales con los del archivo JSON.</div>
+                    <div style="font-size:11px;color:var(--cp-red);margin-top:3px"><i class="ti ti-alert-triangle"></i> Esta acción no se puede deshacer.</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                    <input type="file" id="restore-file-input" accept=".json" style="display:none" onchange="importBackup(this.files[0])">
+                    <button class="btn-sm btn-ghost" id="restore-backup-btn" onclick="document.getElementById('restore-file-input').click()" style="border-color:var(--cp-red);color:var(--cp-red)">
+                      <i class="ti ti-upload"></i> Restaurar backup
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="section-card" style="margin-bottom:18px" id="cfg-nav-section">
-          <div class="section-header">
-            <div class="section-title"><i class="ti ti-layout-sidebar" style="margin-right:6px;color:var(--cp-purple)"></i>Configurar menú lateral</div>
-            <button class="btn-sm btn-blue" onclick="saveNavConfig()"><i class="ti ti-check"></i> Guardar cambios</button>
-          </div>
-          <div class="section-body">
-            <p style="font-size:13px;color:var(--cp-gray-600);margin-bottom:16px">Organiza los módulos en grupos. Puedes renombrar los grupos y mover módulos entre ellos. Los grupos vacíos no aparecen en el menú. Este orden aplica para toda la empresa.</p>
-            <div id="nav-config-editor"></div>
-          </div>
-        </div>
-
-        <!-- MÓDULOS ACTIVOS DE ESTA INSTANCIA (solo Admin) — lo que convierte
-             clonar el CRM/la app a un cliente nuevo en "activa/desactiva
-             módulos" en vez de editar código. Un módulo desactivado aquí
-             desaparece del menú y queda inaccesible para TODOS, incluido
-             Admin (ver canView/canEdit/nav()) — no es un permiso por rol. -->
-        <div class="section-card" style="margin-bottom:18px" id="cfg-modules-section">
-          <div class="section-header">
-            <div class="section-title"><i class="ti ti-apps" style="margin-right:6px;color:var(--cp-blue)"></i>Módulos activos de esta instancia</div>
-            <button class="btn-sm btn-blue" onclick="saveInstanceModulesConfig()"><i class="ti ti-check"></i> Guardar cambios</button>
-          </div>
-          <div class="section-body">
-            <p style="font-size:13px;color:var(--cp-gray-600);margin-bottom:16px">Desactiva los módulos que este cliente no usa. Un módulo desactivado desaparece del menú y no se puede abrir para nadie, ni siquiera Admin — es la pieza que permite clonar esta app a un cliente nuevo sin tocar código.</p>
-            <div id="cfg-modules-list"></div>
-          </div>
-        </div>
-        <div style="max-width:560px">
-          <div class="section-card">
-            <div class="section-header"><div class="section-title"><i class="ti ti-shield-check" style="margin-right:7px;color:var(--cp-green)"></i>Seguridad de acceso</div></div>
+          <div class="section-card" style="margin-bottom:18px" id="cfg-nav-section">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-layout-sidebar" style="margin-right:6px;color:var(--cp-purple)"></i>Configurar menú lateral</div>
+              <button class="btn-sm btn-blue" onclick="saveNavConfig()"><i class="ti ti-check"></i> Guardar cambios</button>
+            </div>
             <div class="section-body">
-              <div style="display:flex;flex-direction:column;gap:12px">
-                <div style="padding:12px 14px;background:var(--cp-green-light);border-left:3px solid var(--cp-green);border-radius:var(--radius-sm)">
-                  <div style="font-size:13px;font-weight:600;color:#005c3a;margin-bottom:3px"><i class="ti ti-lock" style="margin-right:5px"></i>Autenticación cifrada activa</div>
-                  <div style="font-size:12px;color:#005c3a">Los accesos se gestionan con Supabase Auth. Las contraseñas se almacenan cifradas (bcrypt) — nunca en texto plano.</div>
-                </div>
-                <div style="padding:12px 14px;background:var(--cp-gray-50);border-radius:var(--radius-sm)">
-                  <div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">¿Cómo cambio mi contraseña?</div>
-                  <div style="font-size:12px;color:var(--cp-gray-600);margin-bottom:10px">Haz clic en el botón para recibir un enlace de restablecimiento en tu correo.</div>
-                  <button class="btn-sm btn-ghost" onclick="doPasswordReset_me()"><i class="ti ti-mail"></i> Enviar enlace de restablecimiento</button>
-                </div>
-                <div style="padding:12px 14px;background:var(--cp-gray-50);border-radius:var(--radius-sm)">
-                  <div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">¿Cómo agrego o elimino usuarios?</div>
-                  <div style="font-size:12px;color:var(--cp-gray-600)">Ve a la sección "Usuarios y permisos" arriba en esta página (solo visible para Admin), o directo en el dashboard de Supabase.</div>
-                </div>
-              </div>
+              <p style="font-size:13px;color:var(--cp-gray-600);margin-bottom:16px">Organiza los módulos en grupos. Puedes renombrar los grupos y mover módulos entre ellos. Los grupos vacíos no aparecen en el menú. Este orden aplica para toda la empresa.</p>
+              <div id="nav-config-editor"></div>
+            </div>
+          </div>
+
+          <!-- MÓDULOS ACTIVOS DE ESTA INSTANCIA (solo Admin) — lo que convierte
+               clonar el CRM/la app a un cliente nuevo en "activa/desactiva
+               módulos" en vez de editar código. Un módulo desactivado aquí
+               desaparece del menú y queda inaccesible para TODOS, incluido
+               Admin (ver canView/canEdit/nav()) — no es un permiso por rol. -->
+          <div class="section-card" style="margin-bottom:18px" id="cfg-modules-section">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-apps" style="margin-right:6px;color:var(--cp-blue)"></i>Módulos activos de esta instancia</div>
+              <button class="btn-sm btn-blue" onclick="saveInstanceModulesConfig()"><i class="ti ti-check"></i> Guardar cambios</button>
+            </div>
+            <div class="section-body">
+              <p style="font-size:13px;color:var(--cp-gray-600);margin-bottom:16px">Desactiva los módulos que este cliente no usa. Un módulo desactivado desaparece del menú y no se puede abrir para nadie, ni siquiera Admin — es la pieza que permite clonar esta app a un cliente nuevo sin tocar código.</p>
+              <div id="cfg-modules-list"></div>
             </div>
           </div>
         </div>
+
+        <!-- CATÁLOGOS: Productos + Tablero compartido Kanban + Evaluaciones + Tipos de trabajo (Diseño) -->
+        <div id="cfg-catalogos-section" class="cfg-section" style="margin-bottom:18px;display:none">
+          <!-- PRODUCTOS (solo Admin) -->
+          <div id="cfg-productos-section" class="section-card" style="margin-bottom:18px">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-package" style="margin-right:7px;color:var(--cp-amber)"></i>Productos</div>
+              <button class="btn-sm btn-blue" onclick="openAddCfgProducto()"><i class="ti ti-plus"></i> Nuevo producto</button>
+            </div>
+            <div class="section-body" style="padding:0">
+              <div id="cfg-productos-list"></div>
+            </div>
+          </div>
+
+          <!-- TABLERO COMPARTIDO (solo Admin) -->
+          <div id="cfg-kanban-section" class="section-card" style="margin-bottom:18px">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-layout-kanban" style="margin-right:7px;color:var(--cp-blue)"></i>Acceso al tablero compartido</div>
+            </div>
+            <div class="section-body" style="padding:0">
+              <div id="cfg-kanban-members-list"></div>
+            </div>
+          </div>
+
+          <!-- EVALUACIONES (solo Admin) -->
+          <div id="cfg-eval-section" class="section-card" style="margin-bottom:18px">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-chart-radar" style="margin-right:7px;color:var(--cp-purple)"></i>Plantillas de Evaluación</div>
+              <button class="btn-sm btn-blue" onclick="openAddEvalPlantilla()"><i class="ti ti-plus"></i> Nueva plantilla</button>
+            </div>
+            <div class="section-body" style="padding:0">
+              <div id="cfg-eval-plantillas-list"></div>
+            </div>
+          </div>
+
+          <!-- TIPOS DE TRABAJO — DISEÑO (solo Admin), antes tab propio "Diseño" -->
+          <div id="cfg-diseno-section" class="section-card" style="padding:20px"></div>
+        </div>
+
+        <!-- SEGURIDAD: timeout de sesión + IVA + auditoría + (migrado 14/8) reset de
+             password y ayuda de usuarios, antes en la tarjeta suelta "Seguridad de
+             acceso" al final de la vista -->
+        <div id="cfg-seguridad-section" class="cfg-section section-card" style="margin-bottom:18px;padding:20px;display:none"></div>
+
+        <!-- NOTIFICACIONES: sin cambios, solo pasa a ser el 6º tab -->
+        <div id="cfg-notif-section" class="cfg-section section-card" style="margin-bottom:18px;padding:20px;display:none"></div>
       </div>
 
       <!-- NÓMINA VIEW -->
@@ -5900,7 +5904,8 @@ async function nav(view){
     const modulesCfgSection=document.getElementById('cfg-modules-section');
     if(modulesCfgSection)modulesCfgSection.style.display=isAdminNav?'':'none';
     if(isAdminNav)setTimeout(renderInstanceModulesConfig,50);
-    showCfgUsersSection();if(isAdminNav)setTimeout(renderUsersList,100);setTimeout(renderConfigStatus,0);
+    if(isAdminNav){showCfgGeneralSection();}else{showCfgNotifSection();}
+    if(isAdminNav)setTimeout(renderUsersList,100);setTimeout(renderConfigStatus,0);
   }
   if(view==='empleados')renderEmpTable();
   if(view==='vacaciones')renderVacaciones();
@@ -5917,7 +5922,8 @@ async function nav(view){
     const modulesCfgSection2=document.getElementById('cfg-modules-section');
     if(modulesCfgSection2)modulesCfgSection2.style.display=isAdminNav2?'':'none';
     if(isAdminNav2)setTimeout(renderInstanceModulesConfig,50);
-    showCfgUsersSection();if(isAdminNav2)setTimeout(renderUsersList,100);
+    if(isAdminNav2){showCfgGeneralSection();}else{showCfgNotifSection();}
+    if(isAdminNav2)setTimeout(renderUsersList,100);
   }
   if(view==='kanban'){
     document.getElementById('page-title').textContent='Tableros Kanban';
@@ -8449,7 +8455,43 @@ async function loadAiKeyFromSB() {
   } catch(e) { return null; }
 }
 
-// ── User management (Admin only) ────────────────────
+// ── Tabs de Configuración (14/8) — GENERAL/SISTEMA/CATÁLOGOS, mismo patrón
+// que showCfgSeguridadSection/showCfgEmpresaSection: guardAdmin, ocultar todos
+// los .cfg-section, mostrar el propio, marcar el botón .active, disparar los
+// renders de sus secciones (todas reutilizadas tal cual, sin reescribir).
+function showCfgGeneralSection(btn){
+  if(!guardAdmin('showCfgGeneralSection'))return;
+  document.querySelectorAll('.cfg-section').forEach(s=>s.style.display='none');
+  document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('cfg-general-section').style.display='block';
+  if(btn)btn.classList.add('active');
+  renderUsersList();
+  renderCfgDashSections();
+}
+function showCfgSistemaSection(btn){
+  if(!guardAdmin('showCfgSistemaSection'))return;
+  document.querySelectorAll('.cfg-section').forEach(s=>s.style.display='none');
+  document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('cfg-sistema-section').style.display='block';
+  if(btn)btn.classList.add('active');
+  renderNavConfigEditor();
+  renderInstanceModulesConfig();
+}
+async function showCfgCatalogosSection(btn){
+  if(!guardAdmin('showCfgCatalogosSection'))return;
+  document.querySelectorAll('.cfg-section').forEach(s=>s.style.display='none');
+  document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('cfg-catalogos-section').style.display='block';
+  if(btn)btn.classList.add('active');
+  renderCfgProductosList();
+  renderCfgKanbanMembers();
+  loadModuleData('evaluaciones').then(renderCfgEvalSection);
+  if(!disenoTipos||!disenoTipos.length) await loadDisenoTipos().catch(()=>{});
+  renderCfgDisenoSection();
+}
+// showCfgUsersSection() — ya no la llama nav() (sustituida por
+// showCfgGeneralSection arriba, que reparte sus 5 secciones entre GENERAL y
+// CATÁLOGOS); se deja intacta por si algo más la referencia.
 let _editingUserId=null;
 function showCfgUsersSection(){
   const isAdmin=state.currentUser?.role==='admin';
@@ -8472,10 +8514,12 @@ function showCfgProductosSection(){
   renderCfgProductosList();
 }
 
-async function showCfgSeguridadSection() {
+async function showCfgSeguridadSection(btn) {
   if(!guardAdmin('showCfgSeguridadSection')) return;
   document.querySelectorAll('.cfg-section').forEach(s=>s.style.display='none');
+  document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('cfg-seguridad-section').style.display='block';
+  if(btn)btn.classList.add('active');
   renderCfgSeguridad();
 }
 
@@ -8508,6 +8552,25 @@ async function renderCfgSeguridad() {
       '<tr style="color:var(--cp-gray-400);text-transform:uppercase;font-size:10px;border-bottom:1px solid var(--cp-gray-100)"><th style="padding:6px;text-align:left">Fecha</th><th style="padding:6px;text-align:left">Usuario</th><th style="padding:6px;text-align:left">Acción</th><th style="padding:6px;text-align:left">Detalle</th></tr>' +
       logs.map(l=>'<tr style="border-bottom:1px solid var(--cp-gray-50)"><td style="padding:6px;color:var(--cp-gray-500)">'+escHtml(l.fecha?new Date(l.fecha).toLocaleString('es-MX'):'—')+'</td><td style="padding:6px">'+escHtml(l.usuario_nombre||l.usuario_id||'—')+'</td><td style="padding:6px"><span class="badge" style="background:var(--cp-gray-100);font-size:10px">'+escHtml(l.accion)+'</span></td><td style="padding:6px;color:var(--cp-gray-600)">'+escHtml(l.detalle||'—')+'</td></tr>').join('') +
       '</table>' : '<p style="color:var(--cp-gray-400);font-size:13px">Sin registros aún.</p>') + '</div>';
+
+  // Migrado (14/8) desde la tarjeta suelta "Seguridad de acceso" que vivía al
+  // final de la vista — mismo contenido, ahora dentro de este tab en vez de
+  // duplicado aparte. doPasswordReset_me() sigue siendo su único caller.
+  el.innerHTML += '<div class="section-card" style="margin-top:16px"><div style="display:flex;flex-direction:column;gap:12px">' +
+    '<div style="padding:12px 14px;background:var(--cp-green-light);border-left:3px solid var(--cp-green);border-radius:var(--radius-sm)">' +
+      '<div style="font-size:13px;font-weight:600;color:#005c3a;margin-bottom:3px"><i class="ti ti-lock" style="margin-right:5px"></i>Autenticación cifrada activa</div>' +
+      '<div style="font-size:12px;color:#005c3a">Los accesos se gestionan con Supabase Auth. Las contraseñas se almacenan cifradas (bcrypt) — nunca en texto plano.</div>' +
+    '</div>' +
+    '<div style="padding:12px 14px;background:var(--cp-gray-50);border-radius:var(--radius-sm)">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">¿Cómo cambio mi contraseña?</div>' +
+      '<div style="font-size:12px;color:var(--cp-gray-600);margin-bottom:10px">Haz clic en el botón para recibir un enlace de restablecimiento en tu correo.</div>' +
+      '<button class="btn-sm btn-ghost" onclick="doPasswordReset_me()"><i class="ti ti-mail"></i> Enviar enlace de restablecimiento</button>' +
+    '</div>' +
+    '<div style="padding:12px 14px;background:var(--cp-gray-50);border-radius:var(--radius-sm)">' +
+      '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">¿Cómo agrego o elimino usuarios?</div>' +
+      '<div style="font-size:12px;color:var(--cp-gray-600)">Ve a la sección "Usuarios y permisos" en el tab General (solo visible para Admin), o directo en el dashboard de Supabase.</div>' +
+    '</div>' +
+  '</div></div>';
 }
 
 function setSessionTimeout(hours) {
@@ -8532,14 +8595,9 @@ async function setIvaPct(){
   toast('Tasa de IVA actualizada ✓');
 }
 
-async function showCfgDisenoSection() {
-  if(!guardAdmin('showCfgDisenoSection')) return;
-  document.querySelectorAll('.cfg-section').forEach(s=>s.style.display='none');
-  document.getElementById('cfg-diseno-section').style.display='block';
-  if(!disenoTipos||!disenoTipos.length) await loadDisenoTipos().catch(()=>{});
-  renderCfgDisenoSection();
-}
-
+// showCfgDisenoSection() — retirada (14/8): el tab "Diseño" se fusionó dentro
+// de CATÁLOGOS (ver showCfgCatalogosSection). renderCfgDisenoSection() sigue
+// viva, ahora la llama esa función en vez de tener su propio tab.
 function renderCfgDisenoSection() {
   const el = document.getElementById('cfg-diseno-section');
   if(!el) return;
@@ -8611,9 +8669,11 @@ const NOTIF_PREF_DEFS = [
   {key:'cumpleanos', label:'Cumpleaños del equipo', modulo:'empleados'},
 ];
 
-function showCfgNotifSection() {
+function showCfgNotifSection(btn) {
   document.querySelectorAll('.cfg-section').forEach(s=>s.style.display='none');
+  document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('cfg-notif-section').style.display='block';
+  if(btn)btn.classList.add('active');
   renderCfgNotif();
 }
 
@@ -8636,10 +8696,12 @@ function renderCfgNotif() {
 }
 
 // ── Información de la empresa (solo Admin) ──
-function showCfgEmpresaSection() {
+function showCfgEmpresaSection(btn) {
   if(!guardAdmin('showCfgEmpresaSection')) return;
   document.querySelectorAll('.cfg-section').forEach(s=>s.style.display='none');
+  document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('cfg-empresa-section').style.display='block';
+  if(btn)btn.classList.add('active');
   renderCfgEmpresa();
 }
 
