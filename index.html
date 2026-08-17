@@ -115,7 +115,13 @@
 html[data-theme="dark"]{
   --cp-bg:#0F1115;
   --cp-gray-50:#1C1F26;--cp-gray-100:#232733;--cp-gray-200:#2D323F;--cp-gray-300:#3A3F4D;
-  --cp-gray-400:#5A6275;--cp-gray-500:#7C8598;--cp-gray-600:#9AA3B8;--cp-gray-700:#C4CAD8;--cp-gray-800:#EDEFF3;--cp-gray-900:#F7F8FA;
+  /* --cp-gray-400 (17/8): #5A6275 original daba 2.4-2.7:1 como texto contra
+     cualquier superficie de la app — 460 de 462 usos del token en todo el
+     archivo son color: (texto/ícono), solo 1 es decoración (fondo de un
+     punto de estado). Se sube al mismo hex que --cp-gray-600 (#9AA3B8,
+     ~7.5:1 contra --cp-bg) — reutilizado tal cual, no es un color nuevo —
+     en vez de inventar un tono intermedio. */
+  --cp-gray-400:#9AA3B8;--cp-gray-500:#7C8598;--cp-gray-600:#9AA3B8;--cp-gray-700:#C4CAD8;--cp-gray-800:#EDEFF3;--cp-gray-900:#F7F8FA;
   --shadow-sm:0 1px 2px rgba(0,0,0,.30),0 1px 3px rgba(0,0,0,.40);--shadow-md:0 2px 8px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.45);--shadow-lg:0 4px 16px rgba(0,0,0,.40),0 16px 48px rgba(0,0,0,.55);
   --cp-blue-light:#2A1D4D;
   --cp-green-light:#0F3D30;
@@ -211,18 +217,11 @@ html[data-theme="dark"] .cfg-tab-btn.active,
 html[data-theme="dark"] .org-view-btn.active{
   background:var(--cp-gray-300);
 }
-/* Fase D — hallazgo puntual (17/8): .diseno-filters-group-label (labels
-   "Prioridad:"/"Estado:"/"Solicitante:"/"Asignado a:" en Diseño y GP, que
-   comparten esta clase) usa --cp-gray-400 — SÍ cambia de valor en oscuro
-   (no es el bug de --cp-navy), pero #5A6275 sobre cualquier superficie de
-   este archivo da ~2.7-3.1:1, por debajo de AA. Se sube a --cp-gray-600
-   solo en oscuro (≈5.9:1 contra --cp-gray-100) sin tocar la variable
-   --cp-gray-400 en sí — otros usos de gray-400 como texto no se auditaron
-   y podrían compartir el problema; no se tocan aquí, fuera de alcance de
-   este hallazgo puntual. */
-html[data-theme="dark"] .diseno-filters-group-label{
-  color:var(--cp-gray-600);
-}
+/* El override puntual de .diseno-filters-group-label (fix de contraste
+   individual, 17/8) se retiró: ya no hace falta con --cp-gray-400 subido en
+   su propia definición arriba — la clase vuelve a heredar el token base sin
+   necesitar su propia regla. Ver el comentario junto a --cp-gray-400 en el
+   bloque html[data-theme="dark"] de arriba. */
 /* Fase D, Lote 3d/3e (17/8) — el resto del barrido de background:white/#fff
    vive en JS, como style="" inline dentro de render*() (burbujas del
    Asistente IA, tarjetas de Soporte/Desarrollos/Evaluaciones, toolbars,
@@ -882,6 +881,12 @@ html[data-theme="dark"] .kanban-wrap{background:var(--cp-gray-50);}
 .prosp-pill-btn:hover{border-color:var(--cp-gray-300);}
 .prosp-pill-btn.active{background:var(--cp-blue-light);border-color:var(--cp-blue-light);color:var(--cp-blue);}
 .prosp-dropdown-panel{position:absolute;z-index:50;background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:10px;min-width:190px;flex-direction:column;gap:8px;}
+/* Filas del menú "···" del toolbar de Lista (17/8) — mismo espíritu que
+   .diseno-modulo .diseno-kebab-item (fila con ícono + hover gray-50) pero
+   sin heredar el scope ".diseno-modulo", que no envuelve a Prospectos. */
+.prosp-menu-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:var(--radius-sm);font-size:12px;color:var(--cp-navy);cursor:pointer;white-space:nowrap;}
+.prosp-menu-item:hover{background:var(--cp-gray-50);}
+.prosp-menu-item i{font-size:13px;color:var(--cp-gray-500);flex-shrink:0;width:14px;text-align:center;}
 
 /* ─── DESARROLLOS ───────────────────────────────── */
 .dev-stage-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;}
@@ -2288,6 +2293,8 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <div id="prosp-toolbar-filters" style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;align-items:center">
             <input type="text" id="prosp-search" placeholder="Buscar lead…" oninput="renderProspectos()" class="form-input" style="width:170px;padding:7px 10px;font-size:13px">
 
+            <div style="width:1px;height:22px;background:var(--cp-gray-200);margin:0 2px"></div>
+
             <!-- Filtros (Etapa/Vendedor/Canal) — misma lógica de siempre, ahora
                  agrupados en un panel flotante en vez de 3 selects en línea. -->
             <div id="prosp-filtros-wrap" style="position:relative">
@@ -2309,13 +2316,24 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
             <div style="width:1px;height:22px;background:var(--cp-gray-200);margin:0 2px"></div>
 
-            <!-- Importar / Columnas visibles / Exportar — agrupados como iconos -->
-            <button type="button" class="btn-sm btn-ghost" onclick="openProspImport()" title="Importar CSV"><i class="ti ti-upload"></i></button>
-            <div id="prosp-cols-toolbar-wrap" style="position:relative">
-              <button type="button" class="btn-sm btn-ghost" id="prosp-cols-toolbar-btn" onclick="toggleProspColsToolbarPanel()" title="Columnas visibles"><i class="ti ti-columns"></i></button>
+            <!-- Importar / Columnas visibles / Exportar — colapsados (17/8) en un
+                 solo "···" para no saturar la barra. "Columnas visibles" no
+                 ejecuta una acción directa: cierra este panel y re-dispara
+                 toggleProspColsToolbarPanel(), que reutiliza tal cual su propio
+                 checklist de siempre — #prosp-cols-toolbar-panel solo se movió de
+                 wrap (ahora cuelga de #prosp-toolbar-more-wrap) sin tocar su
+                 lógica. _prospToggleDropdown ya cierra cualquier otro
+                 .prosp-dropdown-panel abierto antes de abrir uno nuevo, así que no
+                 hace falta cerrar este "···" a mano al abrir el checklist. -->
+            <div id="prosp-toolbar-more-wrap" style="position:relative">
+              <button type="button" class="btn-sm btn-ghost" id="prosp-toolbar-more-btn" onclick="toggleProspToolbarMorePanel()" title="Más acciones"><i class="ti ti-dots-vertical"></i></button>
+              <div class="prosp-dropdown-panel" id="prosp-toolbar-more-panel" style="display:none;top:calc(100% + 6px);right:0;width:180px;gap:2px">
+                <div class="prosp-menu-item" onclick="prospToolbarMoreRun(openProspImport)"><i class="ti ti-upload"></i> Importar CSV</div>
+                <div class="prosp-menu-item" onclick="toggleProspColsToolbarPanel()"><i class="ti ti-columns"></i> Columnas visibles</div>
+                <div class="prosp-menu-item" onclick="prospToolbarMoreRun(prospExportCsv)"><i class="ti ti-download"></i> Exportar CSV</div>
+              </div>
               <div class="prosp-dropdown-panel" id="prosp-cols-toolbar-panel" style="display:none;top:calc(100% + 6px);right:0;width:210px;max-height:280px;overflow-y:auto"></div>
             </div>
-            <button type="button" class="btn-sm btn-ghost" onclick="prospExportCsv()" title="Exportar CSV"><i class="ti ti-download"></i></button>
 
             <button class="btn-sm btn-blue" id="btn-nuevo-prospecto" onclick="openAddProspecto()"><i class="ti ti-plus"></i> Nuevo lead</button>
           </div>
@@ -10685,6 +10703,24 @@ function _prospActividadBgColor(dias){
   if(dias<=7)return 'var(--cp-amber-light)';
   return 'var(--cp-red-light)';
 }
+// Íconos fijos de Temperatura por id (17/8) — mapeo en código, NO en
+// crm_temperatura: el catálogo (PROSP_CFG_CATALOGS) sigue siendo solo
+// nombre/color/activo, sin tocar su modelo ni su editor. Solo templado/
+// caliente traían color pedido explícitamente (ámbar/rojo); frio se queda
+// sin color fijo en este mapeo — NO se usó var(--cp-blue) porque en este
+// archivo ese token es el morado de marca (#7B2FF7, línea ~46, alias
+// heredado de antes de separar la paleta), no azul real, y no hay ningún
+// token de azul genuino definido en :root. frio conserva temp.color del
+// catálogo de siempre (fallback abajo), solo cambia su ícono. Si el
+// catálogo llega a tener un 4° id fuera de estos 3 (es editable desde la
+// UI), _prospTempIcon devuelve null y el llamador cae de vuelta al punto
+// de color de siempre con temp.color.
+const PROSP_TEMP_ICON_MAP={
+  frio:{icon:'ti-snowflake'},
+  templado:{icon:'ti-flame',color:'var(--cp-amber)'},
+  caliente:{icon:'ti-flame',color:'var(--cp-red)'}
+};
+function _prospTempIcon(id){return PROSP_TEMP_ICON_MAP[id]||null;}
 
 // ── VIEW TOGGLE ───────────────────────────────────
 // 'config' es un tercer modo (además de lista/pipeline) para la vista de
@@ -10752,7 +10788,16 @@ function _prospToggleDropdown(panelId,btnId,onOpen){
   },0);
 }
 function toggleProspFiltrosPanel(){ _prospToggleDropdown('prosp-filtros-panel','prosp-filtros-btn'); }
-function toggleProspColsToolbarPanel(){ _prospToggleDropdown('prosp-cols-toolbar-panel','prosp-cols-toolbar-btn',renderProspColPanel); }
+function toggleProspColsToolbarPanel(){ _prospToggleDropdown('prosp-cols-toolbar-panel','prosp-toolbar-more-btn',renderProspColPanel); }
+function toggleProspToolbarMorePanel(){ _prospToggleDropdown('prosp-toolbar-more-panel','prosp-toolbar-more-btn'); }
+// Importar/Exportar del menú "···" (17/8): ejecutan su acción de siempre y
+// cierran el panel — a diferencia de "Columnas visibles", que no corre nada
+// aquí, solo re-dispara su propio toggle (ver comentario en el HTML).
+function prospToolbarMoreRun(fn){
+  const panel=document.getElementById('prosp-toolbar-more-panel');
+  if(panel)panel.style.display='none';
+  fn();
+}
 function _prospFilteredData(){
   const q=(document.getElementById('prosp-search')?.value||'').toLowerCase();
   const vendF=document.getElementById('prosp-filter-vendedor')?.value||'';
@@ -10971,7 +11016,10 @@ function buildProspPipeCard(p){
   const vendIni=vend?((vend.display_name||vend.email||'?')[0].toUpperCase()):'';
   const canal=prospCanales.find(c=>c.id===p.canalEntrada);
   const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
-  const tempDotHtml=temp?'<span title="'+escHtml(temp.nombre)+'" style="position:absolute;top:7px;right:7px;width:9px;height:9px;border-radius:50%;background:'+temp.color+'"></span>':'';
+  const tempIcon=temp?_prospTempIcon(temp.id):null;
+  const tempDotHtml=tempIcon
+    ?'<i class="ti '+tempIcon.icon+'" title="'+escHtml(temp.nombre)+'" style="position:absolute;top:6px;right:6px;font-size:13px;color:'+(tempIcon.color||temp.color)+'"></i>'
+    :(temp?'<span title="'+escHtml(temp.nombre)+'" style="position:absolute;top:7px;right:7px;width:9px;height:9px;border-radius:50%;background:'+temp.color+'"></span>':'');
   const actDotHtml=p.diasSinActividad!=null?'<span title="'+p.diasSinActividad+' día(s) sin actividad" style="position:absolute;top:7px;left:7px;width:9px;height:9px;border-radius:50%;background:'+_prospActividadColor(p.diasSinActividad)+'"></span>':'';
   return '<div class="dev-pipe-card prosp-pipe-card" draggable="true" data-prosp-id="'+p.id+'" data-prosp-etapa="'+p.estado+'"'+
     ' onclick="openProspDetail(\''+p.id+'\')"'+
