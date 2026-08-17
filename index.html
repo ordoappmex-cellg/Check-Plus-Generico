@@ -130,6 +130,119 @@ html[data-theme="dark"]{
      un hex nuevo. */
   --cp-navy:#F7F8FA;
 }
+/* Fase D, Lote 3b/3c (17/8) — barrido de background:white/#fff fijo.
+   Tres niveles, elegidos para no aplanar jerarquías que ya existían en
+   claro (superficie vs. sub-panel inset vs. pill activo sobre su propio
+   track), reutilizando siempre tokens ya vetados arriba — ningún hex
+   nuevo:
+   - SUPERFICIE (--cp-gray-100): el caso por defecto, para cualquier
+     tarjeta/input/panel flotante/modal que en claro era blanco liso
+     sobre --cp-bg. No se usa --cp-gray-50 aquí a propósito: varias de
+     estas tarjetas ya contienen sub-paneles inset con
+     background:var(--cp-gray-50) (ej. .profile-stat, .doc-upload-zone,
+     hover de filas) — si la tarjeta también fuera gray-50, colapsaría
+     con su propio inset. gray-100 preserva "tarjeta más clara que su
+     hueco interno", igual que blanco-vs-gray-50 en claro.
+   - CANVAS (--cp-gray-50): para wraps que REEMPLAZAN el fondo de página
+     en una vista propia, no compiten con sub-paneles internos (mismo
+     criterio ya usado en .kanban-wrap, Lote 3a) — roadmap de Dirección.
+   - ACTIVO-SOBRE-TRACK (--cp-gray-300): .tab-btn.active y variantes
+     viven DENTRO de un track que ya es --cp-gray-100 (.detail-tabs, y el
+     equivalente inline de .org-view-btn) — si el pill activo también
+     fuera gray-100 quedaría invisible contra su propio track, así que
+     necesita un tercer escalón más claro. */
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .section-card,
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .vac-card,
+html[data-theme="dark"] .doc-card,
+html[data-theme="dark"] .seg-entry,
+html[data-theme="dark"] .bday-month,
+html[data-theme="dark"] .notif-card,
+html[data-theme="dark"] .tc-card,
+html[data-theme="dark"] .tc-msg-bubble,
+html[data-theme="dark"] .kanban-card,
+html[data-theme="dark"] .sp-table-wrap,
+html[data-theme="dark"] .sp-kpi,
+html[data-theme="dark"] .sp-chart-wrap,
+html[data-theme="dark"] .cargo-card,
+html[data-theme="dark"] .org-node,
+html[data-theme="dark"] .org-dept-card,
+html[data-theme="dark"] .dev-row,
+html[data-theme="dark"] .cliente-card,
+html[data-theme="dark"] .kb-sub-item,
+html[data-theme="dark"] .seg-cal-day,
+html[data-theme="dark"] .sp-mobile-card,
+html[data-theme="dark"] .crm-mobile-card,
+html[data-theme="dark"] .diseno-stat-pill,
+html[data-theme="dark"] .diseno-filters-accordion,
+html[data-theme="dark"] .diseno-modulo .diseno-card,
+html[data-theme="dark"] .modal,
+html[data-theme="dark"] .modal-header,
+html[data-theme="dark"] .form-input,
+html[data-theme="dark"] .search-input-wrap input,
+html[data-theme="dark"] .kb-sel,
+html[data-theme="dark"] .dev-score-btn,
+html[data-theme="dark"] .dev-score-btn-nl,
+html[data-theme="dark"] .sp-app-tog,
+html[data-theme="dark"] .dev-filter-chip,
+html[data-theme="dark"] .ucal-view-btn,
+html[data-theme="dark"] .repo-icon-opt,
+html[data-theme="dark"] .diseno-modulo .diseno-btn-outline,
+html[data-theme="dark"] .diseno-pub-popover .diseno-btn-outline,
+html[data-theme="dark"] .diseno-sub-toggle button,
+html[data-theme="dark"] .vac-status-menu,
+html[data-theme="dark"] .prosp-dropdown-panel,
+html[data-theme="dark"] .diseno-modulo .diseno-kebab-menu,
+html[data-theme="dark"] .diseno-pub-popover,
+html[data-theme="dark"] .diseno-pub-red-chip,
+html[data-theme="dark"] .topbar{
+  background:var(--cp-gray-100);
+}
+html[data-theme="dark"] .direccion-rm-wrap,
+html[data-theme="dark"] .direccion-rm-names-header,
+html[data-theme="dark"] .direccion-rm-scroll,
+html[data-theme="dark"] .direccion-rm-header,
+html[data-theme="dark"] body.direccion-presenting .main-content{
+  background:var(--cp-gray-50);
+}
+html[data-theme="dark"] .tab-btn.active,
+html[data-theme="dark"] .cfg-tab-btn.active,
+html[data-theme="dark"] .org-view-btn.active{
+  background:var(--cp-gray-300);
+}
+/* Fase D — hallazgo puntual (17/8): .diseno-filters-group-label (labels
+   "Prioridad:"/"Estado:"/"Solicitante:"/"Asignado a:" en Diseño y GP, que
+   comparten esta clase) usa --cp-gray-400 — SÍ cambia de valor en oscuro
+   (no es el bug de --cp-navy), pero #5A6275 sobre cualquier superficie de
+   este archivo da ~2.7-3.1:1, por debajo de AA. Se sube a --cp-gray-600
+   solo en oscuro (≈5.9:1 contra --cp-gray-100) sin tocar la variable
+   --cp-gray-400 en sí — otros usos de gray-400 como texto no se auditaron
+   y podrían compartir el problema; no se tocan aquí, fuera de alcance de
+   este hallazgo puntual. */
+html[data-theme="dark"] .diseno-filters-group-label{
+  color:var(--cp-gray-600);
+}
+/* Fase D, Lote 3d/3e (17/8) — el resto del barrido de background:white/#fff
+   vive en JS, como style="" inline dentro de render*() (burbujas del
+   Asistente IA, tarjetas de Soporte/Desarrollos/Evaluaciones, toolbars,
+   notif-panel, etc.) — la mayoría sin id/clase propia para engancharlos
+   con un selector normal. En vez de inventarles ids uno por uno, se usa
+   selector de atributo por CONTENIDO LITERAL del style="" (funciona igual
+   sobre HTML estático que sobre nodos insertados por innerHTML/cssText,
+   el atributo serializado es el mismo). !important es obligatorio: un
+   style="" inline siempre gana sobre cualquier selector externo por más
+   específico que sea, EXCEPTO contra !important.
+   Ámbito exacto = el mismo catálogo de 98 ocurrencias de la auditoría de
+   Lote 3 (grep "background:white|background:#fff"), ni una más: el burbuja
+   de USUARIO del chat IA arma su fondo como 'background:var(--cp-purple)'
+   (nunca la cadena literal "background:white"), así que esta regla no la
+   toca — sigue morada en ambos temas, como debe ser (--cp-accent es fijo
+   entre temas, decisión ya tomada en Fase A). */
+html[data-theme="dark"] [style*="background:white"],
+html[data-theme="dark"] [style*="background:#fff"]{
+  background:var(--cp-gray-100)!important;
+}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{zoom:var(--app-zoom);}
 body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-800);min-height:100vh;font-size:14px;line-height:1.5;}
