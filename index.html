@@ -27,6 +27,16 @@
      listas para usar — este script no duplica la lógica de mezcla de
      colores, solo las reaplica tal cual quedaron calculadas la última vez. -->
 <script>try{var pal=JSON.parse(localStorage.getItem('cp_last_palette')||'null');if(pal){var ps=document.documentElement.style;for(var pk in pal){ps.setProperty(pk,pal[pk]);}}}catch(e){}</script>
+<!-- Fase D (17/8) — anti-flash de modo oscuro/claro, mismo patrón que los 3
+     scripts de arriba: aplica data-theme en <html> ANTES del primer paint,
+     sin esperar a Supabase (el tema es preferencia de localStorage de ESTE
+     navegador, no de la instancia). Si el usuario ya eligió un tema, se
+     respeta tal cual; si nunca lo ha tocado, se usa prefers-color-scheme del
+     sistema SIN persistirlo — el default de sistema no se "fija" hasta que
+     el usuario use el toggle a mano. #login-screen/#recovery-screen no leen
+     este atributo (siguen con --cp-dark-surface estático), así que este
+     script solo tiene efecto visual en las pantallas post-login. -->
+<script>try{var ct=localStorage.getItem('cp_theme');if(ct==='dark'||ct==='light'){document.documentElement.setAttribute('data-theme',ct);}else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -71,13 +81,16 @@
      dinámica del sidebar (son conceptos distintos aunque compartan el valor hoy). */
   --cp-dark-surface:#0F0A1E;
   --cp-dark-surface-hover:#1a1040;
-  --cp-gray-50:#F9FAFB;--cp-gray-100:#F0F2F7;--cp-gray-200:#E1E6F0;
+  --cp-gray-50:#F9FAFB;--cp-gray-100:#F0F2F7;--cp-gray-200:#E1E6F0;--cp-gray-300:#D1D5DB;
   --cp-gray-400:#94A0BB;--cp-gray-500:#6B7688;--cp-gray-600:#56637E;--cp-gray-700:#3A4256;--cp-gray-800:#1E2637;--cp-gray-900:#14161D;
   --cp-green:#10C080;--cp-green-light:#E0FAF2;
   --cp-amber:#F5A623;--cp-amber-light:#FEF3D7;
   --cp-red:#EF4444;--cp-red-light:#FEE2E2;
   --cp-purple:#7C3AED;--cp-purple-light:#EDE9FE;
   --cp-pink:#EC4899;--cp-pink-light:#FCE7F3;
+  /* --cp-gray-300 (17/8): no existía en :root — se usaba como var() inválido
+     con fallback manual en .diseno-btn-outline:hover (antes
+     var(--cp-gray-300,#D1D5DB)). #D1D5DB es ese mismo valor, ahora real. */
   --font-display:'DM Sans',sans-serif;--font-body:'Inter',sans-serif;
   --shadow-sm:0 1px 2px rgba(16,17,25,.04),0 1px 3px rgba(16,17,25,.06);--shadow-md:0 2px 8px rgba(16,17,25,.05),0 8px 24px rgba(16,17,25,.07);--shadow-lg:0 4px 16px rgba(16,17,25,.08),0 16px 48px rgba(16,17,25,.12);
   --radius-sm:6px;--radius-md:10px;--radius-lg:16px;--radius-xl:22px;
@@ -90,6 +103,26 @@
      archivo (ver body.direccion-presenting #direccion-rm-scroll{zoom:1.2}
      más abajo). Ajusta este único valor para compactar/expandir toda la app. */
   --app-zoom:88%;
+}
+/* Fase D, Lote 1/2 (17/8) — modo oscuro. Solo redeclara superficie/texto,
+   sombras y los 6 -light semánticos, tal cual quedaron aprobados en
+   propuesta_fase_d_lote1.txt. --cp-accent y su familia NO cambian entre
+   temas (decisión de esa propuesta) — la marca es fija, el tema es del
+   chrome de la app. #login-screen/#recovery-screen quedan fuera a
+   propósito (usan --cp-dark-surface estático, no responden a paleta ni a
+   tema, igual que en Fase A). El atributo data-theme lo aplica el script
+   anti-flash del <head> antes del primer paint. */
+html[data-theme="dark"]{
+  --cp-bg:#0F1115;
+  --cp-gray-50:#1C1F26;--cp-gray-100:#232733;--cp-gray-200:#2D323F;--cp-gray-300:#3A3F4D;
+  --cp-gray-400:#5A6275;--cp-gray-500:#7C8598;--cp-gray-600:#9AA3B8;--cp-gray-700:#C4CAD8;--cp-gray-800:#EDEFF3;--cp-gray-900:#F7F8FA;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.30),0 1px 3px rgba(0,0,0,.40);--shadow-md:0 2px 8px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.45);--shadow-lg:0 4px 16px rgba(0,0,0,.40),0 16px 48px rgba(0,0,0,.55);
+  --cp-blue-light:#2A1D4D;
+  --cp-green-light:#0F3D30;
+  --cp-amber-light:#4A3312;
+  --cp-red-light:#4A1A1A;
+  --cp-purple-light:#2E2050;
+  --cp-pink-light:#4A1C38;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{zoom:var(--app-zoom);}
@@ -1030,7 +1063,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 .diseno-modulo .diseno-btn-primary.green{background:#10C080;}
 .diseno-modulo .diseno-btn-primary.green:hover{background:#0BA070;}
 .diseno-modulo .diseno-btn-outline{background:#fff;color:var(--cp-gray-600);border:1px solid var(--cp-gray-200);}
-.diseno-modulo .diseno-btn-outline:hover{background:var(--cp-gray-50);border-color:var(--cp-gray-300,#D1D5DB);}
+.diseno-modulo .diseno-btn-outline:hover{background:var(--cp-gray-50);border-color:var(--cp-gray-300);}
 .diseno-modulo .diseno-btn-outline.danger{color:var(--cp-red);}
 .diseno-modulo .diseno-btn-outline.danger:hover{background:var(--cp-red-light);}
 .diseno-modulo .diseno-btn-text{background:none;border:none;color:var(--cp-purple);font-size:12px;font-weight:600;cursor:pointer;padding:4px 0;display:inline-flex;align-items:center;gap:4px;}
@@ -1187,6 +1220,9 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
   <nav class="sidebar" id="main-sidebar">
     <div class="sidebar-brand">
       <div id="sidebar-brand-content" style="flex:1;min-width:0;overflow:hidden"><span class="brand-frost" style="padding:8px 14px"><img src="/assets/logo.png" alt="Diamante" style="max-height:52px;width:auto;max-width:100%;flex-shrink:0"></span></div>
+      <button class="sb-toggle-btn" id="sb-theme-toggle-btn" onclick="toggleColorTheme()" title="Cambiar tema">
+        <i class="ti ti-moon" id="sb-theme-toggle-icon"></i>
+      </button>
       <button class="sb-toggle-btn" id="sb-toggle-btn" onclick="cycleSidebar()" title="Colapsar menú">
         <i class="ti ti-layout-sidebar-left-collapse" id="sb-toggle-icon"></i>
       </button>
@@ -6299,7 +6335,7 @@ function renderDashSectionCalendario(el){
       '</div>'+
     '</div>'+
     '<div style="'+SC+'">'+
-      '<div style="font-size:16px;font-weight:700;color:var(--cp-navy);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--cp-gray-100)"><i class="ti ti-cake" style="margin-right:8px;color:#EC4899"></i>Cumpleaños · próximos 3 meses</div>'+
+      '<div style="font-size:16px;font-weight:700;color:var(--cp-navy);margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--cp-gray-100)"><i class="ti ti-cake" style="margin-right:8px;color:var(--cp-pink)"></i>Cumpleaños · próximos 3 meses</div>'+
       '<div class="bday-calendar" id="dash-bday-cal"></div>'+
     '</div>';
   renderBdayCal();
@@ -7623,7 +7659,7 @@ async function doLogin(){
     state.readonlyMode=role==='viewer';
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
-    applyRolePermissions();renderSidebarNav();initSidebarState();
+    applyRolePermissions();renderSidebarNav();initSidebarState();initColorTheme();
     resetActivityTimer();
     auditLog('login', 'auth', user.id, 'Login: ' + email, session?.access_token);
     await dbLoad();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
@@ -7671,7 +7707,7 @@ async function checkExistingSession(){
     state.readonlyMode=role==='viewer';
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
-    applyRolePermissions();renderSidebarNav();initSidebarState();
+    applyRolePermissions();renderSidebarNav();initSidebarState();initColorTheme();
     await dbLoad();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
     startRealtime();
     ensureNotifPermission();
@@ -19984,6 +20020,26 @@ function initSidebarState(){
   let saved=null;
   try{saved=localStorage.getItem(SB_STATE_KEY);}catch(e){}
   setSbState((saved==='expanded'||saved==='icon'||saved==='hidden')?saved:'icon');
+}
+// Fase D (17/8) — alterna claro/oscuro y persiste la preferencia. El script
+// anti-flash del <head> ya aplicó data-theme antes del primer paint; esta
+// función solo cambia el atributo en caliente + guarda la elección. El
+// icono se sincroniza aquí y en initColorTheme() (llamado junto a
+// initSidebarState() al entrar a la app), nunca se asume su estado inicial.
+function toggleColorTheme(){
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  const next=isDark?'light':'dark';
+  document.documentElement.setAttribute('data-theme',next);
+  try{localStorage.setItem('cp_theme',next);}catch(e){}
+  _syncColorThemeIcon(next);
+}
+function initColorTheme(){
+  const current=document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
+  _syncColorThemeIcon(current);
+}
+function _syncColorThemeIcon(theme){
+  const icon=document.getElementById('sb-theme-toggle-icon');
+  if(icon)icon.className=theme==='dark'?'ti ti-sun':'ti ti-moon';
 }
 function setSbState(state){
   _sbState=state;
