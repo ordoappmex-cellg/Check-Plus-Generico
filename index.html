@@ -382,9 +382,26 @@ body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-80
 .sb-hamburger{position:fixed;top:14px;left:12px;z-index:300;background:var(--sidebar-bg);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.6);width:36px;height:36px;border-radius:var(--radius-sm);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:18px;transition:all .15s;box-shadow:0 2px 8px rgba(0,0,0,.3);}
 .sb-hamburger:hover{color:white;background:var(--sidebar-bg-hover);}
 .sb-hamburger.visible{display:flex;}
-.topbar{background:white;border-bottom:1px solid var(--cp-gray-200);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
-.page-title{font-family:var(--font-display);font-weight:600;font-size:19px;color:var(--cp-navy);}
-.topbar-actions{display:flex;align-items:center;gap:10px;}
+/* Tanda 2 (17/8): grid de 3 columnas, "1fr auto 1fr" y NO "auto 1fr auto"
+   a propósito — con auto/1fr/auto, la columna del título solo se centra
+   dentro del espacio sobrante DESPUÉS de #topbar-actions (que pesa mucho
+   más que #mobile-menu-btn), quedando descentrado respecto al ancho total
+   de la barra. Con 1fr en ambos extremos, las dos columnas flanco se
+   reparten el espacio sobrante EN PARTES IGUALES sin importar cuánto
+   contenido real tenga cada una (#mobile-menu-btn vacío en escritorio,
+   #topbar-actions siempre con contenido) — eso es lo que garantiza que
+   #page-title, solo en su columna auto del medio, quede centrado de
+   verdad. Mismo mecanismo funciona sin cambios en el breakpoint móvil
+   (línea ~1016), donde las 3 columnas sí tienen contenido visible: si el
+   contenido de alguna columna no cabe en su mitad del espacio sobrante,
+   el grid le da prioridad a no desbordar antes que a la simetría exacta
+   (degradación aceptable, no rotura). min-width:0 en las columnas flanco
+   es necesario para que el truncado con ellipsis del badge de usuario siga
+   funcionando dentro de un grid item (si no, su min-width:auto por
+   defecto lo impediría). */
+.topbar{background:white;border-bottom:1px solid var(--cp-gray-200);padding:14px 28px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;position:sticky;top:0;z-index:50;}
+.page-title{font-family:var(--font-display);font-weight:600;font-size:19px;color:var(--cp-navy);justify-self:center;text-align:center;}
+.topbar-actions{display:flex;align-items:center;gap:10px;justify-self:end;min-width:0;}
 .btn-sm{padding:7px 13px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border:none;font-family:var(--font-body);display:inline-flex;align-items:center;gap:6px;}
 .btn-blue{background:linear-gradient(135deg,var(--cp-accent),var(--cp-accent-gradient-end));color:white;border:none;}.btn-blue:hover{background:linear-gradient(135deg,var(--cp-accent-dark),var(--cp-accent-gradient-end-dark));}
 .btn-ghost{background:var(--cp-gray-100);color:var(--cp-gray-800);border:1px solid var(--cp-gray-200);}.btn-ghost:hover{background:var(--cp-gray-200);}
@@ -985,7 +1002,7 @@ html[data-theme="dark"] .kanban-wrap{background:var(--cp-gray-50);}
 .dash-mistareas-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
 
 /* ══════════════ MOBILE RESPONSIVE ══════════════ */
-#mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--cp-navy);flex-shrink:0;}
+#mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--cp-navy);flex-shrink:0;justify-self:start;}
 .mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199;}
 .mobile-overlay.active{display:block;}
 .sp-mobile-cards{display:none;flex-direction:column;gap:8px;}
@@ -7812,7 +7829,7 @@ async function doLogin(){
     applyRolePermissions();renderSidebarNav();initSidebarState();initColorTheme();
     resetActivityTimer();
     auditLog('login', 'auth', user.id, 'Login: ' + email, session?.access_token);
-    await dbLoad();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
+    await dbLoad();refreshTopbarAvatar();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
     toast('Bienvenido, '+displayName);
     startRealtime();
     ensureNotifPermission();
@@ -7835,10 +7852,34 @@ function applyRolePermissions(){
   const existing=document.getElementById('user-role-badge');if(existing)existing.remove();
   const badge=document.createElement('div');badge.id='user-role-badge';
   badge.style.cssText='display:flex;align-items:center;gap:6px;font-size:12px;margin-right:6px';
-  badge.innerHTML='<span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(user.displayName||user.email)+'</span>';
+  // Avatar (17/8): placeholder de iniciales aquí mismo — en este punto
+  // state.employees todavía está vacío (dbLoad() no ha corrido), así que
+  // nunca hay match real todavía. refreshTopbarAvatar(), llamada aparte
+  // después de cada await dbLoad(), lo reemplaza por la foto real si
+  // existe. Iniciales salen de user.displayName/email (lo único que ya
+  // existe en este punto), no del registro de empleados.
+  const initial=escHtml(((user.displayName||user.email||'?')[0]||'?').toUpperCase());
+  badge.innerHTML='<div id="topbar-user-avatar" style="width:26px;height:26px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;overflow:hidden">'+initial+'</div><span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(user.displayName||user.email)+'</span>';
   const ta=document.querySelector('.topbar-actions');if(ta)ta.prepend(badge);
 }
 function applyReadonlyMode(){applyRolePermissions();}
+// Paso 2 del avatar del topbar (17/8): se llama aparte, después de cada
+// await dbLoad() (login fresco y restaurar sesión), nunca dentro de
+// applyRolePermissions() — ahí arriba state.employees ya está poblado.
+// Reutiliza misPendMyEmpId() (mismo match por email de siempre), no
+// duplica esa lógica. Si no hay match o el empleado no tiene foto_url,
+// deja el placeholder de iniciales tal cual lo dejó applyRolePermissions()
+// — nunca un hueco vacío.
+function refreshTopbarAvatar(){
+  const el=document.getElementById('topbar-user-avatar');if(!el)return;
+  const empId=misPendMyEmpId();
+  const emp=empId?state.employees.find(function(e){return e.id===empId;}):null;
+  if(emp&&emp.fotoUrl){
+    el.innerHTML='<img src="'+escHtml(emp.fotoUrl)+'" style="width:100%;height:100%;object-fit:cover">';
+  }else if(emp){
+    el.textContent=((emp.nombre||'?')[0]||'?').toUpperCase();
+  }
+}
 
 async function checkExistingSession(){
   try{
@@ -7858,7 +7899,7 @@ async function checkExistingSession(){
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
     applyRolePermissions();renderSidebarNav();initSidebarState();initColorTheme();
-    await dbLoad();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
+    await dbLoad();refreshTopbarAvatar();await ensurePersonalBoard();await ensureSharedBoard();renderDashboard();checkBdayNotification();setTimeout(showNotifPopup,800);
     startRealtime();
     ensureNotifPermission();
     loadAiKeyFromSB().then(k=>{ GEMINI_API_KEY=k||null; }).catch(()=>{});
