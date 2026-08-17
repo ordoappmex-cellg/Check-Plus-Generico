@@ -400,6 +400,11 @@ body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-80
    funcionando dentro de un grid item (si no, su min-width:auto por
    defecto lo impediría). */
 .topbar{background:white;border-bottom:1px solid var(--cp-gray-200);padding:14px 28px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;position:sticky;top:0;z-index:50;}
+/* Columna 1 del grid (17/8) — #mobile-menu-btn ya no es item directo del
+   grid, ahora es hijo de este wrapper junto con la identidad; el
+   justify-self:start que tenía se mueve aquí. */
+.topbar-left{display:flex;align-items:center;gap:10px;justify-self:start;min-width:0;}
+.topbar-identity{display:flex;align-items:center;min-width:0;}
 .page-title{font-family:var(--font-display);font-weight:600;font-size:19px;color:var(--cp-navy);justify-self:center;text-align:center;}
 .topbar-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;justify-self:end;min-width:0;}
 .btn-sm{padding:7px 13px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border:none;font-family:var(--font-body);display:inline-flex;align-items:center;gap:6px;}
@@ -1002,7 +1007,7 @@ html[data-theme="dark"] .kanban-wrap{background:var(--cp-gray-50);}
 .dash-mistareas-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
 
 /* ══════════════ MOBILE RESPONSIVE ══════════════ */
-#mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--cp-navy);flex-shrink:0;justify-self:start;}
+#mobile-menu-btn{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--cp-navy);flex-shrink:0;}
 .mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199;}
 .mobile-overlay.active{display:block;}
 .sp-mobile-cards{display:none;flex-direction:column;gap:8px;}
@@ -1033,6 +1038,13 @@ html[data-theme="dark"] .kanban-wrap{background:var(--cp-gray-50);}
   .topbar{padding:8px 12px;}
   .page-title{font-size:15px;}
   #ai-btn-label{display:none;}
+  /* Identidad completa oculta en móvil (17/8), no solo el nombre: el
+     espacio ya está peleado entre hamburguesa + título + Asistente
+     IA(ícono)+campana, y a diferencia de esos tres la identidad es
+     puramente informativa — el usuario ya sabe quién es, acaba de hacer
+     login. Mismo criterio que #ai-btn-label arriba (recortar texto/chrome
+     secundario en móvil, no forzarlo a caber). */
+  .topbar-identity{display:none;}
 
   /* 1d. General responsive utilities */
   [style*="grid-template-columns"]{grid-template-columns:1fr 1fr!important;}
@@ -1395,9 +1407,18 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
   <div class="main-content" id="main-content">
     <div class="topbar">
-      <button id="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Menú">
-        <i class="ti ti-menu-2" style="font-size:22px"></i>
-      </button>
+      <div class="topbar-left" id="topbar-left">
+        <button id="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Menú">
+          <i class="ti ti-menu-2" style="font-size:22px"></i>
+        </button>
+        <!-- Identidad (avatar + badge de rol/nombre) — antes vivía dentro de
+             #topbar-actions (prepend), movida aquí (17/8) para no competir por
+             espacio con Asistente IA/campana en la columna derecha del grid.
+             La arma applyRolePermissions() (login) y la completa
+             refreshTopbarAvatar() (foto real, después de dbLoad()) — ver esas
+             2 funciones, ninguna otra cosa escribe aquí. -->
+        <div class="topbar-identity" id="topbar-identity"></div>
+      </div>
       <div class="page-title" id="page-title">Dashboard</div>
       <div class="topbar-actions" id="topbar-actions" style="display:flex;align-items:center;gap:6px">
         <!-- AI ASSISTANT PANEL -->
@@ -7859,8 +7880,10 @@ function applyRolePermissions(){
   // existe. Iniciales salen de user.displayName/email (lo único que ya
   // existe en este punto), no del registro de empleados.
   const initial=escHtml(((user.displayName||user.email||'?')[0]||'?').toUpperCase());
-  badge.innerHTML='<div id="topbar-user-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;overflow:hidden">'+initial+'</div><span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(user.displayName||user.email)+'</span>';
-  const ta=document.querySelector('.topbar-actions');if(ta)ta.prepend(badge);
+  badge.innerHTML='<div id="topbar-user-avatar" style="width:36px;height:36px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;overflow:hidden">'+initial+'</div><span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(user.displayName||user.email)+'</span>';
+  // 17/8: se movió de #topbar-actions a #topbar-identity (columna 1 del
+  // grid del topbar) — ver comentario junto al HTML de #topbar-identity.
+  const ta=document.getElementById('topbar-identity');if(ta)ta.prepend(badge);
 }
 function applyReadonlyMode(){applyRolePermissions();}
 // Paso 2 del avatar del topbar (17/8): se llama aparte, después de cada
