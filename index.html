@@ -56,6 +56,8 @@
   --cp-accent-gradient-end:#C83CB4;--cp-accent-gradient-end-rgb:200,60,180;
   --cp-accent-gradient-end-dark:#A82A96;
   --cp-accent-text-active:#C07EFF;
+  --cp-accent-active:#5a1fd1;
+  --cp-accent-active-end:#a020a0;
   --sidebar-bg:#0F0A1E;
   --sidebar-fg:rgba(255,255,255,.5);
   --sidebar-fg-hover:rgba(255,255,255,.8);
@@ -68,6 +70,7 @@
      #0F0A1E del fondo de login/splash, pero no debe responder a la paleta
      dinámica del sidebar (son conceptos distintos aunque compartan el valor hoy). */
   --cp-dark-surface:#0F0A1E;
+  --cp-dark-surface-hover:#1a1040;
   --cp-gray-50:#F9FAFB;--cp-gray-100:#F0F2F7;--cp-gray-200:#E1E6F0;
   --cp-gray-400:#94A0BB;--cp-gray-500:#6B7688;--cp-gray-600:#56637E;--cp-gray-700:#3A4256;--cp-gray-800:#1E2637;--cp-gray-900:#14161D;
   --cp-green:#10C080;--cp-green-light:#E0FAF2;
@@ -568,7 +571,7 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 .kanban-card-due.ok{background:var(--cp-gray-100);color:var(--cp-gray-600);}
 .kanban-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--cp-gray-100);}
 .kanban-progress{height:4px;background:var(--cp-gray-100);border-radius:2px;margin:5px 0 2px;}
-.kanban-progress-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,#7B2FF7,#C83CB4);transition:width .3s;}
+.kanban-progress-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--cp-accent),var(--cp-accent-gradient-end));transition:width .3s;}
 .kanban-card-move-btn{padding:3px 8px;border-radius:var(--radius-sm);font-size:10px;font-weight:500;cursor:pointer;border:1px solid var(--cp-gray-200);background:var(--cp-gray-50);color:var(--cp-gray-600);transition:all .12s;font-family:var(--font-body);}
 .kanban-card-move-btn:hover{background:var(--cp-blue-light);border-color:var(--cp-blue);color:var(--cp-blue);}
 .kanban-archive-btn{padding:3px 8px;border-radius:var(--radius-sm);font-size:10px;cursor:pointer;border:none;background:var(--cp-green-light);color:#005c3a;font-family:var(--font-body);}
@@ -4264,7 +4267,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <!-- NOTIFICATION POPUP (on login) -->
 <div class="modal-overlay" id="modal-notif-popup" style="z-index:9999">
   <div class="modal" style="width:560px;max-height:85vh;overflow-y:auto">
-    <div class="modal-header" style="background:linear-gradient(135deg,#0F0A1E,#1a1040);border-radius:var(--radius-lg) var(--radius-lg) 0 0">
+    <div class="modal-header" style="background:linear-gradient(135deg,var(--cp-dark-surface),var(--cp-dark-surface-hover));border-radius:var(--radius-lg) var(--radius-lg) 0 0">
       <div style="display:flex;align-items:center;gap:10px">
         <div style="width:36px;height:36px;border-radius:50%;background:var(--cp-purple-light);display:flex;align-items:center;justify-content:center"><i class="ti ti-bell" style="color:var(--cp-purple);font-size:18px"></i></div>
         <div>
@@ -5210,7 +5213,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 <!-- BIRTHDAY NOTIFICATION -->
 <div id="bday-notification" style="display:none;position:fixed;inset:0;background:rgba(15,10,30,.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center;">
   <div style="background:white;border-radius:var(--radius-xl);width:480px;max-width:95vw;box-shadow:var(--shadow-lg);overflow:hidden">
-    <div style="background:linear-gradient(135deg,#7B2FF7,#C83CB4);padding:28px;text-align:center">
+    <div style="background:linear-gradient(135deg,var(--cp-accent),var(--cp-accent-gradient-end));padding:28px;text-align:center">
       <div style="font-size:52px;margin-bottom:8px">🎂</div>
       <div style="font-family:var(--font-display);font-weight:700;font-size:20px;color:white">¡Cumpleaños próximos!</div>
       <div style="font-size:13px;color:rgba(255,255,255,.75);margin-top:4px">Recuerda felicitar a tu equipo</div>
@@ -7640,12 +7643,13 @@ function applyRolePermissions(){
   const user=state.currentUser;if(!user)return;
   const role=user.role;
   if(role==='viewer'){if(!document.getElementById('ro-badge')){const b=document.createElement('div');b.id='ro-badge';b.className='readonly-badge';b.innerHTML='<i class="ti ti-eye"></i> Solo lectura';document.body.appendChild(b);}}
-  const colors={admin:'#7B2FF7',editor:'#3B6BF5',viewer:'#10C080'};
+  const colors={admin:'var(--cp-accent)',editor:'#3B6BF5',viewer:'#10C080'};
+  const colorsBg={admin:'rgba(var(--cp-accent-rgb),.09)',editor:'#3B6BF518',viewer:'#10C08018'};
   const labels={admin:'Admin',editor:'Editor',viewer:'Viewer'};
   const existing=document.getElementById('user-role-badge');if(existing)existing.remove();
   const badge=document.createElement('div');badge.id='user-role-badge';
   badge.style.cssText='display:flex;align-items:center;gap:6px;font-size:12px;margin-right:6px';
-  badge.innerHTML='<span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colors[role]||'#94A0BB')+'18;padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(user.displayName||user.email)+'</span>';
+  badge.innerHTML='<span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(user.displayName||user.email)+'</span>';
   const ta=document.querySelector('.topbar-actions');if(ta)ta.prepend(badge);
 }
 function applyReadonlyMode(){applyRolePermissions();}
@@ -9047,17 +9051,18 @@ async function renderUsersList(){
     const{data:profiles,error}=await sb.from('user_profiles').select('*').order('created_at',{ascending:true});
     if(error)throw error;
     if(!profiles||!profiles.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--cp-gray-400)">No hay perfiles configurados.<br><small>Crea un usuario en Supabase y asignale rol aqui.</small></div>';return;}
-    const rc={admin:'#7B2FF7',editor:'#3B6BF5',viewer:'#10C080'};
+    const rc={admin:'var(--cp-accent)',editor:'#3B6BF5',viewer:'#10C080'};
+    const rcBg={admin:'rgba(var(--cp-accent-rgb),.09)',editor:'#3B6BF518',viewer:'#10C08018'};
     const rl={admin:'Admin',editor:'Editor',viewer:'Viewer'};
     const ri={admin:'ti-user-shield',editor:'ti-edit',viewer:'ti-eye'};
     let html='<div style="display:flex;flex-direction:column;gap:8px">';
     profiles.forEach(p=>{
-      const col=rc[p.role]||'#94A0BB';const lbl=rl[p.role]||p.role;const icn=ri[p.role]||'ti-user';
+      const col=rc[p.role]||'#94A0BB';const colBg=rcBg[p.role]||'#94A0BB18';const lbl=rl[p.role]||p.role;const icn=ri[p.role]||'ti-user';
       const mods=(p.modules_allowed||[]).length;
       html+='<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:white;border:1px solid var(--cp-gray-200);border-radius:var(--radius-md)">'+
-        '<div style="width:36px;height:36px;border-radius:50%;background:'+col+'18;color:'+col+';display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+icn+'" style="font-size:16px"></i></div>'+
+        '<div style="width:36px;height:36px;border-radius:50%;background:'+colBg+';color:'+col+';display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti '+icn+'" style="font-size:16px"></i></div>'+
         '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--cp-navy)">'+(p.display_name||'Sin nombre')+'</div><div style="font-size:11px;color:var(--cp-gray-500)">'+(p.email||p.user_id)+'</div></div>'+
-        '<span style="font-size:11px;font-weight:600;color:'+col+';background:'+col+'18;padding:3px 10px;border-radius:99px">'+lbl+'</span>'+
+        '<span style="font-size:11px;font-weight:600;color:'+col+';background:'+colBg+';padding:3px 10px;border-radius:99px">'+lbl+'</span>'+
         '<span style="font-size:11px;color:var(--cp-gray-500)">'+mods+' mod.</span>'+
         '<button data-uid="'+p.user_id+'" onclick="openEditUser(this.dataset.uid)" class="btn-sm btn-ghost" style="flex-shrink:0"><i class="ti ti-edit"></i></button>'+
       '</div>';
@@ -9236,7 +9241,7 @@ function showBdayBanner(upcoming) {
   }
   const banner = document.createElement('div');
   banner.id = 'bday-banner';
-  banner.style.cssText = 'background:linear-gradient(135deg,#7B2FF7,#C83CB4);color:white;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:12px;';
+  banner.style.cssText = 'background:linear-gradient(135deg,var(--cp-accent),var(--cp-accent-gradient-end));color:white;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:12px;';
   banner.innerHTML = `<span>${msg}</span><div style="display:flex;gap:8px"><button onclick="document.getElementById('bday-notification').style.display='flex'" style="background:rgba(255,255,255,.2);border:none;color:white;padding:4px 12px;border-radius:99px;cursor:pointer;font-size:12px">Ver detalles</button><button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:18px">×</button></div>`;
   // Insert after topbar
   const topbar = document.querySelector('.topbar');
@@ -9260,7 +9265,7 @@ function renderAccesoBtn(emp) {
   } else if (hasAccess) {
     wrap.innerHTML = `<button class="btn-sm btn-ghost" onclick="openAccesoModal()" style="width:100%;justify-content:center;border-color:var(--cp-green);color:var(--cp-green)"><i class="ti ti-user-check"></i> Acceso activo · Gestionar</button>`;
   } else {
-    wrap.innerHTML = `<button class="btn-sm btn-blue" onclick="openAccesoModal()" style="width:100%;justify-content:center;background:linear-gradient(135deg,#7B2FF7,#C83CB4)"><i class="ti ti-user-plus"></i> Activar acceso colaborador</button>`;
+    wrap.innerHTML = `<button class="btn-sm btn-blue" onclick="openAccesoModal()" style="width:100%;justify-content:center;background:linear-gradient(135deg,var(--cp-accent),var(--cp-accent-gradient-end))"><i class="ti ti-user-plus"></i> Activar acceso colaborador</button>`;
   }
 }
 // Indicador de solo lectura — cruza el email del colaborador (case-insensitive)
@@ -13845,7 +13850,7 @@ function renderCliChart() {
   }
   // Bars
   const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
-  grad.addColorStop(0, '#7B2FF7'); grad.addColorStop(1, '#C83CB4');
+  grad.addColorStop(0, cpAccentHex()); grad.addColorStop(1, '#C83CB4');
   data.forEach((val, i) => {
     const x = pad.left + i * (chartW / data.length) + (chartW / data.length - barW) / 2;
     const barH2 = (val / maxVal) * chartH;
@@ -13859,7 +13864,7 @@ function renderCliChart() {
     ctx.fillText(labels[i] || '', x + barW / 2, H - 8);
     // Value on top
     if (val > 0) {
-      ctx.fillStyle = '#7B2FF7'; ctx.font = 'bold 10px Inter,sans-serif';
+      ctx.fillStyle = cpAccentHex(); ctx.font = 'bold 10px Inter,sans-serif';
       ctx.fillText('$' + (val >= 1000 ? (val/1000).toFixed(0)+'k' : val), x + barW/2, y - 4);
     }
   });
@@ -13931,7 +13936,7 @@ function renderFactHistChart(c) {
   grad.addColorStop(0,'rgba(123,47,247,0.2)');grad.addColorStop(1,'rgba(123,47,247,0)');
   ctx.fillStyle=grad;ctx.fill();
   // MRR line
-  ctx.beginPath();ctx.strokeStyle='#7B2FF7';ctx.lineWidth=2;
+  ctx.beginPath();ctx.strokeStyle=cpAccentHex();ctx.lineWidth=2;
   facts.forEach((f,i)=>{
     const x=pad.left+(i/(n-1||1))*cW;
     const y=pad.top+cH-(mrrData[i]/maxMrr)*cH;
@@ -13951,7 +13956,7 @@ function renderFactHistChart(c) {
     const x=pad.left+(i/(n-1||1))*cW;
     // MRR dot
     const yMrr=pad.top+cH-(mrrData[i]/maxMrr)*cH;
-    ctx.beginPath();ctx.arc(x,yMrr,4,0,Math.PI*2);ctx.fillStyle='#7B2FF7';ctx.fill();
+    ctx.beginPath();ctx.arc(x,yMrr,4,0,Math.PI*2);ctx.fillStyle=cpAccentHex();ctx.fill();
     // Lic dot
     const yLic=pad.top+cH-(licData[i]/maxLic)*cH;
     ctx.beginPath();ctx.arc(x,yLic,4,0,Math.PI*2);ctx.fillStyle='#3B6BF5';ctx.fill();
@@ -13967,7 +13972,7 @@ function renderFactHistChart(c) {
     ctx.fillText('$'+(val>=1000?(val/1000).toFixed(0)+'k':val.toFixed(0)),pad.left-4,pad.top+(cH/2)*i+4);
   }
   // Legend
-  ctx.fillStyle='#7B2FF7';ctx.fillRect(pad.left,4,12,8);
+  ctx.fillStyle=cpAccentHex();ctx.fillRect(pad.left,4,12,8);
   ctx.fillStyle='#56637E';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';ctx.fillText('MRR facturado',pad.left+16,12);
   ctx.strokeStyle='#3B6BF5';ctx.lineWidth=2;ctx.setLineDash([4,3]);
   ctx.beginPath();ctx.moveTo(pad.left+90,8);ctx.lineTo(pad.left+102,8);ctx.stroke();ctx.setLineDash([]);
@@ -16728,7 +16733,7 @@ document.addEventListener('click', (e)=>{
     const p = document.getElementById('ai-topbar-panel');
     if(p) p.style.display = 'none';
     const b = document.getElementById('ai-topbar-btn');
-    if(b) b.style.background = 'linear-gradient(135deg,#7B2FF7,#C83CB4)';
+    if(b) b.style.background = 'linear-gradient(135deg,var(--cp-accent),var(--cp-accent-gradient-end))';
   }
 });
 
@@ -17991,8 +17996,8 @@ function toggleAIPanel(){
   panel.style.flexDirection = 'column';
   if(btn){
     btn.style.background = aiPanelOpen
-      ? 'linear-gradient(135deg,#5a1fd1,#a020a0)'
-      : 'linear-gradient(135deg,#7B2FF7,#C83CB4)';
+      ? 'linear-gradient(135deg,var(--cp-accent-active),var(--cp-accent-active-end))'
+      : 'linear-gradient(135deg,var(--cp-accent),var(--cp-accent-gradient-end))';
   }
   if(aiPanelOpen && notifPanelOpen) toggleNotifPanel();
   if(aiPanelOpen){
@@ -18011,7 +18016,7 @@ document.addEventListener('click', (e)=>{
     const p = document.getElementById('ai-topbar-panel');
     if(p) p.style.display = 'none';
     const b = document.getElementById('ai-topbar-btn');
-    if(b) b.style.background = 'linear-gradient(135deg,#7B2FF7,#C83CB4)';
+    if(b) b.style.background = 'linear-gradient(135deg,var(--cp-accent),var(--cp-accent-gradient-end))';
   }
 });
 
@@ -19865,6 +19870,14 @@ function _hexToRgbString(hex){
   if(hex.length===3)hex=hex.split('').map(function(c){return c+c;}).join('');
   return parseInt(hex.substr(0,2),16)+','+parseInt(hex.substr(2,2),16)+','+parseInt(hex.substr(4,2),16);
 }
+// Fase C, Lote 3 (17/8) — puente para los pocos lugares que NO pueden usar
+// var(--cp-accent) directo: <canvas> 2D (ctx.fillStyle/strokeStyle no resuelven
+// variables CSS) y disenoChip()/disenoChipEl() (concatenan el hex con un sufijo
+// de alpha tipo '1A', que rompe si en vez de hex les llega un var()). Lee el
+// valor YA resuelto de --cp-accent del DOM en el momento de renderizar.
+function cpAccentHex(){
+  return getComputedStyle(document.documentElement).getPropertyValue('--cp-accent').trim() || '#7B2FF7';
+}
 // Fórmula de luminancia relativa SIMPLE (percepción de brillo, sin
 // linearizar sRGB — a propósito, se pidió "simple", no la fórmula WCAG
 // completa). >127.5 = fondo claro → texto oscuro; si no, fondo oscuro → texto claro.
@@ -19890,6 +19903,14 @@ function applyPalette(config){
   const accentDark=config?.accentColorDark||_paletteMix(accent,.25,false);
   const gradientEndDark=_paletteMix(gradientEnd,.25,false);
   const textActive=_paletteMix(accent,.45,true);
+  // Botón Asistente IA, estado "panel abierto" (17/8) — oscurecido mayor que
+  // accentDark (.25), pensado para un estado más "presionado"/saturado que el
+  // hover normal. EXCEPCIÓN para Morado, mismo criterio que --sidebar-bg-hover:
+  // #5a1fd1/#a020a0 son los valores históricos hardcodeados, no un derivado
+  // matemático de #7B2FF7/#C83CB4 — se preservan literales para cero cambio
+  // visual en el default; cualquier otro accent usa la fórmula (.35 oscuro).
+  const accentActive=accent.toUpperCase()==='#7B2FF7'?'#5a1fd1':_paletteMix(accent,.35,false);
+  const accentActiveEnd=accent.toUpperCase()==='#7B2FF7'?'#a020a0':_paletteMix(gradientEnd,.35,false);
   const sidebarBg=config?.sidebarBg||'#0F0A1E';
   const luminance=_colorLuminance(sidebarBg);
   const light=luminance>127.5;
@@ -19909,6 +19930,8 @@ function applyPalette(config){
     '--cp-accent-gradient-end-rgb':_hexToRgbString(gradientEnd),
     '--cp-accent-gradient-end-dark':gradientEndDark,
     '--cp-accent-text-active':textActive,
+    '--cp-accent-active':accentActive,
+    '--cp-accent-active-end':accentActiveEnd,
     '--sidebar-bg':sidebarBg,
     '--sidebar-fg':light?'rgba(0,0,0,.6)':'rgba(255,255,255,'+boost(.5)+')',
     '--sidebar-fg-hover':light?'rgba(0,0,0,.85)':'rgba(255,255,255,'+boost(.8)+')',
@@ -22211,7 +22234,7 @@ function buildDisenoHistRow(p,canEditDiseno){
     '<td>'+escHtml(solicitanteLabel)+'</td>'+
     '<td>'+escHtml(disenadorLabel)+'</td>'+
     '<td>'+(p.fechaEntrega?fmtDateShort(p.fechaEntrega.slice(0,10)):'—')+'</td>'+
-    '<td>'+(p.tipoTrabajo?disenoChip(escHtml(p.tipoTrabajo),'#7B2FF7'):'—')+'</td>'+
+    '<td>'+(p.tipoTrabajo?disenoChip(escHtml(p.tipoTrabajo),cpAccentHex()):'—')+'</td>'+
     '<td onclick="event.stopPropagation()">'+
       '<button type="button" class="diseno-btn-text" onclick="toggleDisenoHistTareaExpand(\''+p.id+'\')"><i class="ti ti-eye"></i>Ver</button>'+
       (canEditDiseno?'<button type="button" class="diseno-btn-text" style="color:var(--cp-red)" onclick="deleteDisenoHistProy(\''+p.id+'\')"><i class="ti ti-trash"></i></button>':'')+
@@ -22379,11 +22402,11 @@ function buildDisenoProyCard(p,canEditDiseno){
   row.appendChild(colEstado);
 
   const colProducto=document.createElement('div');
-  if(aplic)colProducto.appendChild(disenoChipEl(aplic.nombre,aplic.color||'#7B2FF7'));
+  if(aplic)colProducto.appendChild(disenoChipEl(aplic.nombre,aplic.color||cpAccentHex()));
   row.appendChild(colProducto);
 
   const colCategoria=document.createElement('div');
-  if(p.tipoTrabajo)colCategoria.appendChild(disenoChipEl(p.tipoTrabajo,'#7B2FF7'));
+  if(p.tipoTrabajo)colCategoria.appendChild(disenoChipEl(p.tipoTrabajo,cpAccentHex()));
   row.appendChild(colCategoria);
 
   const colProgreso=document.createElement('div');
@@ -24888,14 +24911,14 @@ const TAREA_ROW_MODS={
           '<input type="text" id="diseno-inline-comment-'+t.id+'" placeholder="Agregar comentario…" class="form-input" style="flex:1;font-size:12px;padding:5px 8px" onkeydown="if(event.key===\'Enter\')addDisenoComentarioInline(\''+t.id+'\')">'+
           '<button type="button" class="diseno-btn diseno-btn-outline" onclick="addDisenoComentarioInline(\''+t.id+'\')">Guardar</button>'+
         '</div>';
-        if(t.tipoTrabajo)h='<div style="margin-bottom:8px">'+disenoChip(escHtml(t.tipoTrabajo),'#7B2FF7')+'</div>'+h;
+        if(t.tipoTrabajo)h='<div style="margin-bottom:8px">'+disenoChip(escHtml(t.tipoTrabajo),cpAccentHex())+'</div>'+h;
         h+='<div style="margin-top:10px">'+
           '<select class="form-input" style="font-size:11px;padding:4px 8px;width:auto" onchange="quickChangeDisenoTareaEstado(\''+t.id+'\',this.value)">'+
             ['pendiente','en_proceso','revision','completada'].map(s=>'<option value="'+s+'"'+(t.estado===s?' selected':'')+'>'+(DISENO_TAREA_ESTADO_LABELS[s]||s)+'</option>').join('')+
           '</select>'+
         '</div>';
       } else if(t.tipoTrabajo){
-        h='<div style="margin-bottom:8px">'+disenoChip(escHtml(t.tipoTrabajo),'#7B2FF7')+'</div>'+h;
+        h='<div style="margin-bottom:8px">'+disenoChip(escHtml(t.tipoTrabajo),cpAccentHex())+'</div>'+h;
       }
       return h;
     },
@@ -27209,7 +27232,7 @@ function renderEmpKanban(){
       <div id="ekb-${idx}" style="display:none;padding:0 18px 14px 36px;background:var(--cp-gray-50)">
         ${c.desc?`<div style="font-size:13px;color:var(--cp-gray-700);line-height:1.6;margin-bottom:10px;white-space:pre-wrap">${escHtml(c.desc)}</div>`:''}
         ${subs.length?`<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:var(--cp-gray-400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Subtareas (${subDone}/${subs.length})</div>
-          <div style="background:var(--cp-gray-100);height:4px;border-radius:2px;margin-bottom:8px"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#7B2FF7,#C83CB4);border-radius:2px;transition:width .3s"></div></div>
+          <div style="background:var(--cp-gray-100);height:4px;border-radius:2px;margin-bottom:8px"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--cp-accent),var(--cp-accent-gradient-end));border-radius:2px;transition:width .3s"></div></div>
           ${subsHTML}</div>`:''}
         ${!isRO&&!c._archived?`<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
           ${kbData.cols.filter(col=>col.id!==c.colId).map(col=>`<button class="btn-sm btn-ghost" style="font-size:11px" onclick="moveCardFromEmp('${c.id}','${col.id}')">→ ${escHtml(col.name)}</button>`).join('')}
@@ -27491,12 +27514,12 @@ function _buildEvalChartArea(jScores,aScores,pilares,jefeEval,autoEval,jefeEvalI
   h+='</div>';
   if(!sep&&jefeEval&&jScores.some(s=>s!=null)){
     h+='<div style="max-width:440px;margin:0 auto 20px">';
-    h+=renderSpiderChartOverlay('overlay-chart',jScores,'#7B2FF7','Líder',aScores&&aScores.some(s=>s!=null)?aScores:null,'#3B6BF5','Auto',pilarNames);
+    h+=renderSpiderChartOverlay('overlay-chart',jScores,'var(--cp-accent)','Líder',aScores&&aScores.some(s=>s!=null)?aScores:null,'#3B6BF5','Auto',pilarNames);
     h+='</div>';
   } else {
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">';
     h+='<div class="section-card" style="padding:14px;text-align:center"><div style="font-size:11px;font-weight:700;color:var(--cp-gray-500);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Evaluación del líder</div>';
-    if(jefeEval&&jScores.some(s=>s!=null))h+=renderSpiderChart('jefe-chart',jScores,'#7B2FF7','Promedio líder',pilarNames);
+    if(jefeEval&&jScores.some(s=>s!=null))h+=renderSpiderChart('jefe-chart',jScores,'var(--cp-accent)','Promedio líder',pilarNames);
     else h+='<div style="padding:30px 0;color:var(--cp-gray-300)"><i class="ti ti-chart-radar" style="font-size:36px;display:block;margin-bottom:6px"></i><div style="font-size:12px">Sin datos</div></div>';
     h+='</div>';
     h+='<div class="section-card" style="padding:14px;text-align:center"><div style="font-size:11px;font-weight:700;color:var(--cp-gray-500);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">Autoevaluación</div>';
@@ -28373,7 +28396,7 @@ function renderEvalTeamResults(){
   if(_evalTeamFilters.viewMode==='equipo'){
     html+='<div class="section-card" style="margin-bottom:16px"><div class="section-header"><div class="section-title"><i class="ti ti-chart-radar" style="color:var(--cp-purple)"></i> Promedio del equipo · '+data.employees.length+' colaboradores</div></div>';
     html+='<div class="section-body" style="display:flex;justify-content:center"><div style="max-width:380px;width:100%">';
-    html+=renderSpiderChart('team-avg-chart',data.teamAverage,'#7B2FF7','Promedio equipo',pilarNames);
+    html+=renderSpiderChart('team-avg-chart',data.teamAverage,'var(--cp-accent)','Promedio equipo',pilarNames);
     html+='</div></div></div>';
   } else {
     html+='<div class="section-card" style="margin-bottom:16px"><div class="section-header"><div class="section-title"><i class="ti ti-users" style="color:var(--cp-purple)"></i> Individual · '+data.employees.length+' colaboradores</div></div>';
@@ -28386,7 +28409,7 @@ function renderEvalTeamResults(){
       else html+='<div style="width:44px;height:44px;border-radius:50%;background:'+(c?.bg||'#EDE9FE')+';color:'+(c?.text||'#7B2FF7')+';display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;margin:0 auto 6px">'+ini+'</div>';
       html+='<div style="font-size:12px;font-weight:700;color:var(--cp-navy);margin-bottom:2px">'+escHtml(emp.nombre)+'</div>';
       html+='<div style="font-size:10px;color:var(--cp-gray-400);margin-bottom:8px">'+escHtml(emp.depto)+'</div>';
-      html+=renderSpiderChart('team-emp-'+emp.id,emp.pilarScores,'#7B2FF7',emp.nombre.split(' ')[0],pilarNames);
+      html+=renderSpiderChart('team-emp-'+emp.id,emp.pilarScores,'var(--cp-accent)',emp.nombre.split(' ')[0],pilarNames);
       html+='</div>';
     });
     html+='</div></div></div>';
