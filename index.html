@@ -123,6 +123,12 @@ html[data-theme="dark"]{
   --cp-red-light:#4A1A1A;
   --cp-purple-light:#2E2050;
   --cp-pink-light:#4A1C38;
+  /* Fase D, Lote 3a (17/8): --cp-navy no es identidad de marca, es el token
+     de texto de mayor énfasis (títulos/encabezados/nombres en tablas) — se
+     le da el mismo valor que --cp-gray-900, el token más brillante ya
+     vetado arriba para ese rol (ver #prosp-table td), en vez de inventar
+     un hex nuevo. */
+  --cp-navy:#F7F8FA;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{zoom:var(--app-zoom);}
@@ -541,6 +547,13 @@ select.form-input{appearance:none;background-image:url("data:image/svg+xml,%3Csv
 
 /* ─── KANBAN ─────────────────────────────────────── */
 .kanban-wrap{background:linear-gradient(135deg,#0F0A1E 0%,#1a1040 100%);border-radius:var(--radius-lg);padding:20px;min-height:65vh;}
+/* Fase D, Lote 3a (17/8): en claro el gradiente morado fijo es el acento
+   original (intacto). En oscuro --cp-bg ya es oscuro — apilar el gradiente
+   encima genera el velo morado parejo reportado en la auditoría. Se
+   reemplaza por --cp-gray-50 (superficie sutil ya vetada, un paso arriba de
+   --cp-bg) en vez de quitar el fondo del todo, para conservar el "lienzo"
+   delimitado que separa el tablero del resto de la vista. */
+html[data-theme="dark"] .kanban-wrap{background:var(--cp-gray-50);}
 .kanban-board{display:flex;gap:14px;overflow-x:auto;padding-bottom:20px;align-items:flex-start;min-height:50vh;}
 .kanban-board::-webkit-scrollbar{height:6px;}.kanban-board::-webkit-scrollbar-track{background:rgba(255,255,255,.05);border-radius:3px;}.kanban-board::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:3px;}
 .kanban-col{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:var(--radius-lg);width:272px;flex-shrink:0;display:flex;flex-direction:column;max-height:calc(100vh-240px);}
