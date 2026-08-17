@@ -705,6 +705,12 @@ html[data-theme="dark"] .kanban-wrap{background:var(--cp-gray-50);}
    que tenía antes. */
 .prosp-pipe-card{box-shadow:var(--shadow-sm);transition:box-shadow .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);}
 .prosp-pipe-card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);}
+/* Grip hover-only (17/8) — solo Prospectos, misma razón que arriba: el
+   ícono en Desarrollos (buildDevPipeCard) es HTML/estilo inline duplicado
+   sin clase propia, así que una clase nueva aquí no le llega ni cambia su
+   comportamiento siempre-visible. */
+.prosp-pipe-grip{opacity:0;transition:opacity .15s;}
+.prosp-pipe-card:hover .prosp-pipe-grip{opacity:1;}
 .dev-pipe-col-body.dev-drag-over{background:rgba(123,47,247,.08)!important;border-color:var(--cp-purple)!important;outline:2px dashed var(--cp-purple);outline-offset:-2px;}
 .dev-pipe-col-body.dev-drag-over-reject{background:rgba(239,68,68,.05)!important;outline:2px dashed #EF4444;outline-offset:-2px;}
 /* Prospectos — timeline de seguimiento (mismo look que direccion-bitacora-entry/diseno-chip, sin depender de sus wrappers .direccion-modulo/.diseno-modulo) */
@@ -10670,6 +10676,15 @@ function _prospActividadColor(dias){
   if(dias<=7)return 'var(--cp-amber)';
   return 'var(--cp-red)';
 }
+// Fondo de pastilla para la columna Actividad de Lista — mismos 3 umbrales
+// de _prospActividadColor (no se tocan), pareja "-light" ya existente de
+// cada color semántico en vez de un alpha-hex nuevo, para que responda a
+// oscuro solo (los 3 colores base son fijos entre temas, ver Fase C).
+function _prospActividadBgColor(dias){
+  if(dias<3)return 'var(--cp-green-light)';
+  if(dias<=7)return 'var(--cp-amber-light)';
+  return 'var(--cp-red-light)';
+}
 
 // ── VIEW TOGGLE ───────────────────────────────────
 // 'config' es un tercer modo (además de lista/pipeline) para la vista de
@@ -10863,7 +10878,7 @@ function _prospCellHtml(p,key){
     case'creado':return '<td style="font-size:12px;color:var(--cp-gray-600)">'+prospFmtCreatedAt(p.createdAt)+'</td>';
     case'actividad':{
       if(p.diasSinActividad==null)return '<td>—</td>';
-      return '<td><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--cp-gray-600)"><span style="width:8px;height:8px;border-radius:50%;background:'+_prospActividadColor(p.diasSinActividad)+';flex-shrink:0"></span>'+p.diasSinActividad+'d</span></td>';
+      return '<td><span class="badge" style="background:'+_prospActividadBgColor(p.diasSinActividad)+';color:'+_prospActividadColor(p.diasSinActividad)+'">'+p.diasSinActividad+'d</span></td>';
     }
     default:return '<td></td>';
   }
@@ -10963,13 +10978,15 @@ function buildProspPipeCard(p){
     ' style="position:relative;background:white;border-radius:var(--radius-lg);padding:9px;cursor:pointer">'+
     tempDotHtml+actDotHtml+
     '<div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:5px">'+
-      '<i class="ti ti-grip-vertical" style="font-size:12px;color:var(--cp-gray-300);flex-shrink:0;margin-top:2px"></i>'+
+      '<i class="ti ti-grip-vertical prosp-pipe-grip" style="font-size:12px;color:var(--cp-gray-300);flex-shrink:0;margin-top:2px"></i>'+
       '<div style="font-size:12px;font-weight:600;color:var(--cp-navy);line-height:1.4;flex:1">'+_prospDupIconHtml(p)+escHtml(p.nombre)+'</div>'+
     '</div>'+
     (canal?'<div style="font-size:10px;color:var(--cp-gray-400);margin-bottom:5px;padding-left:17px">'+escHtml(canal.nombre)+'</div>':'')+
     '<div style="display:flex;align-items:center;gap:4px;padding-left:17px">'+
       (p.valorEstimado!=null?'<span style="font-size:10px;color:var(--cp-green);font-weight:700">$'+Number(p.valorEstimado).toLocaleString('es-MX')+'</span>':'')+
-      (vendIni?'<div style="width:18px;height:18px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-left:auto">'+vendIni+'</div>':'')+
+      (vendIni
+        ?'<div style="width:18px;height:18px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-left:auto">'+vendIni+'</div>'
+        :'<div title="Sin vendedor asignado" style="width:18px;height:18px;border-radius:50%;background:var(--cp-gray-200);color:var(--cp-gray-500);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:auto"><i class="ti ti-user-question" style="font-size:10px"></i></div>')+
     '</div>'+
   '</div>';
 }
