@@ -14,7 +14,17 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Diamante">
+<meta name="apple-mobile-web-app-title" content="Grupo Limen">
+<!-- manifest.json (17/8): name/short_name/description ya no dicen "Diamante"
+     (herencia del fork). background_color/theme_color siguen fijos en
+     #0F0A1E a propósito — es un archivo estático que el navegador pide
+     directo, sin pasar por JS, así que NO puede leer la paleta dinámica por
+     instancia de app_config (ver renderSidebarBranding()/companyInfo, que sí
+     aplican en tiempo real dentro de la app). Clonar a otro cliente requiere
+     editar este JSON a mano — no hay forma de resolverlo con el mecanismo
+     de branding dinámico actual sin un paso de build por cliente, que este
+     proyecto no tiene (deploy es "Add file → Upload files" en GitHub, ver
+     CLAUDE.md sección 1). -->
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="/assets/icono.png">
 <link rel="apple-touch-icon" href="/assets/icono.png">
@@ -3027,6 +3037,25 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <!-- SISTEMA: Backup y datos + Configurar menú lateral + Módulos activos —
              las tres son "cómo se comporta esta instancia completa" -->
         <div id="cfg-sistema-section" class="cfg-section" style="margin-bottom:18px;display:none">
+          <!-- Instalar app (17/8) — antes era un botón que se inyectaba solo
+               en #topbar-actions vía setTimeout tras beforeinstallprompt.
+               Ahora es permanente aquí; renderPwaInstallBtn() decide su
+               display:none/'' según si hay prompt disponible y si la app no
+               está ya corriendo instalada (isAppStandalone()). -->
+          <div class="section-card" style="margin-bottom:18px" id="cfg-pwa-section">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-device-mobile-down" style="margin-right:7px;color:var(--cp-purple)"></i>Aplicación instalable</div>
+            </div>
+            <div class="section-body">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+                <div>
+                  <div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:3px">Instalar como aplicación</div>
+                  <div style="font-size:12px;color:var(--cp-gray-500)">Instálala en tu computadora o celular — abre más rápido, con su propio ícono, sin la barra del navegador.</div>
+                </div>
+                <button class="btn-sm btn-blue" id="cfg-pwa-install-btn" onclick="installPwa()" style="display:none;flex-shrink:0"><i class="ti ti-device-mobile-down"></i> Instalar aplicación</button>
+              </div>
+            </div>
+          </div>
           <div class="section-card" style="margin-bottom:18px">
             <div class="section-header">
               <div class="section-title"><i class="ti ti-database-export" style="margin-right:7px;color:var(--cp-green)"></i>Backup y datos</div>
@@ -8004,39 +8033,51 @@ async function checkExistingSession(){
 }
 window.addEventListener('load',()=>setTimeout(checkExistingSession,150));
 
-// ── PWA INSTALL PROMPT ────────────────────────────
+// ── SERVICE WORKER ────────────────────────────────
+// ?v=APP_VERSION en la URL de registro (no un fetch/postMessage aparte):
+// sw.js lee self.location.search para nombrar su caché — un solo punto de
+// verdad para la versión, sin duplicar la constante dentro de sw.js. Nunca
+// debe poder romper la carga de la app si falla (navegador viejo, sw.js no
+// se pudo servir, etc.) — todo en try/catch, solo console.warn.
+window.addEventListener('load', () => {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    navigator.serviceWorker.register('/sw.js?v=' + APP_VERSION)
+      .catch(e => console.warn('No se pudo registrar el service worker:', e));
+  } catch (e) {
+    console.warn('No se pudo registrar el service worker:', e);
+  }
+});
+
+// ── PWA INSTALL PROMPT (17/8) ─────────────────────
+// Botón permanente en Configuración → Sistema (#cfg-pwa-install-btn), ya no
+// uno que se inyectaba solo en #topbar-actions con un setTimeout de 2s tras
+// beforeinstallprompt. isAppStandalone() es nueva — antes no existía
+// ninguna detección de que la app ya corriera instalada.
+function isAppStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+}
 let _pwaInstallPrompt = null;
+function renderPwaInstallBtn(){
+  const btn=document.getElementById('cfg-pwa-install-btn');if(!btn)return;
+  btn.style.display=(_pwaInstallPrompt&&!isAppStandalone())?'':'none';
+}
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _pwaInstallPrompt = e;
-  // Show install button in topbar after login
-  setTimeout(()=>{
-    const ta = document.querySelector('.topbar-actions');
-    if(ta && !document.getElementById('pwa-install-btn')) {
-      const btn = document.createElement('button');
-      btn.id = 'pwa-install-btn';
-      btn.className = 'btn-sm btn-ghost';
-      btn.title = 'Instalar '+(companyInfo?.nombre||'la app')+' como app';
-      btn.innerHTML = '<i class="ti ti-device-mobile-down"></i>';
-      btn.style.cssText = 'color:var(--cp-purple);border-color:var(--cp-purple)';
-      btn.onclick = async () => {
-        if(!_pwaInstallPrompt) return;
-        _pwaInstallPrompt.prompt();
-        const { outcome } = await _pwaInstallPrompt.userChoice;
-        if(outcome === 'accepted') {
-          btn.remove();
-          toast((companyInfo?.nombre||'App')+' instalada ✓');
-        }
-        _pwaInstallPrompt = null;
-      };
-      ta.prepend(btn);
-    }
-  }, 2000);
+  renderPwaInstallBtn();
 });
-
-window.addEventListener('appinstalled', () => {
-  document.getElementById('pwa-install-btn')?.remove();
+async function installPwa(){
+  if(!_pwaInstallPrompt)return;
+  _pwaInstallPrompt.prompt();
+  const { outcome } = await _pwaInstallPrompt.userChoice;
+  if(outcome === 'accepted') toast((companyInfo?.nombre||'App')+' instalada ✓');
   _pwaInstallPrompt = null;
+  renderPwaInstallBtn();
+}
+window.addEventListener('appinstalled', () => {
+  _pwaInstallPrompt = null;
+  renderPwaInstallBtn();
   toast((companyInfo?.nombre||'App')+' instalada como app ✓');
 });
 
@@ -8808,6 +8849,7 @@ function showCfgSistemaSection(btn){
   if(btn)btn.classList.add('active');
   renderNavConfigEditor();
   renderInstanceModulesConfig();
+  renderPwaInstallBtn();
 }
 async function showCfgCatalogosSection(btn){
   if(!guardAdmin('showCfgCatalogosSection'))return;
