@@ -373,7 +373,19 @@ body{font-family:var(--font-body);background:var(--cp-bg);color:var(--cp-gray-80
 .sidebar.sb-icon .nav-item-label,.sidebar.sb-icon .nav-badge{display:none;}
 .sidebar.sb-icon .sb-version-label{display:none;}
 .sidebar.sb-icon .nav-item i{font-size:18px;}
-.sidebar.sb-icon .sb-group-items.closed{max-height:9999px!important;opacity:1;pointer-events:auto;}
+/* Group-collapse indicator, icon-only mode (18/8) — antes esta regla forzaba
+   max-height:9999px!important sobre .sb-group-items.closed, es decir: una
+   sección colapsada en modo expandido volvía a mostrar todos sus íconos al
+   pasar a modo ícono. Se quita el override: ahora .closed se comporta igual
+   en ambos modos (la regla base de la línea ~345 ya oculta el contenido). El
+   header (label+flecha) se oculta arriba (línea ~369) porque no hay espacio
+   para texto, así que aquí se sustituye por un separador compacto vía ::after
+   — reutiliza el MISMO .sb-group-header (data-gid/onclick=toggleSbGroup ya
+   presentes, sin mecanismo paralelo) y el mismo data-tip que ya leen los
+   listeners de mouseover/mouseout de abajo. */
+.sidebar.sb-icon .sb-group-header{padding:6px 0 8px;cursor:pointer;}
+.sidebar.sb-icon .sb-group-header::after{content:'';display:block;width:18px;height:2px;border-radius:2px;background:rgba(255,255,255,.15);transition:background .15s;}
+.sidebar.sb-icon .sb-group-header:hover::after{background:rgba(255,255,255,.45);}
 /* Icon-mode hover: enlarge the icon a touch + let it escape the item's own
    overflow:hidden (needed for label-truncation in expanded mode, irrelevant
    here since labels are hidden). The label tooltip itself is a JS-positioned
@@ -9265,7 +9277,7 @@ async function persistCompanyInfo(patch){
 
 async function saveCompanyInfo(){
   if(!guardAdmin('saveCompanyInfo')) return;
-  const nombre=sanitizeInput(document.getElementById('cfg-empresa-nombre')?.value,100)||'Diamante';
+  const nombre=sanitizeInput(document.getElementById('cfg-empresa-nombre')?.value,100)||'Panel';
   const ciudad=sanitizeInput(document.getElementById('cfg-empresa-ciudad')?.value,100);
   const descripcion=sanitizeInput(document.getElementById('cfg-empresa-desc')?.value,300)||'plataforma de gestión operativa';
   const ok=await persistCompanyInfo({nombre,ciudad,descripcion});
@@ -9788,7 +9800,7 @@ let factEditId = null;
 let factDocData = null;
 let cliDocData = null;
 let ivaPct = 16; // % — loaded from app_config (id:'facturacion_config') in dbLoad(); default 16
-let companyInfo = {nombre:'Diamante', ciudad:'', descripcion:'plataforma de gestión operativa', logoDataUrl:null, faviconDataUrl:null}; // loaded from app_config (id:'company_info') in dbLoad()
+let companyInfo = {nombre:'Panel', ciudad:'', descripcion:'plataforma de gestión operativa', logoDataUrl:null, faviconDataUrl:null}; // loaded from app_config (id:'company_info') in dbLoad()
 let menuOrderConfig = null; // (v74) {groups:[...]} | null — loaded from app_config (id:'menu_order') in dbLoad(); null = no admin-defined order saved yet, loadNavConfig() falls back to navConfigDefaults()
 // "Módulos activos de esta instancia" (14/8) — array de ids de ALL_MODULES
 // ocultos/inaccesibles para TODOS los usuarios, incluido admin. Loaded from
@@ -20067,7 +20079,7 @@ const ALL_MODULES = [
   {id:'clientes',label:'Clientes',icon:'ti-building-store',badge:'clientes-count'},
   {id:'proveedores',label:'Proveedores',icon:'ti-truck',badge:null},
   {id:'prospectos',label:'Prospectos',icon:'ti-user-search',badge:'prosp-overdue-badge',badgeUrgent:true},
-  {id:'marketing',label:'Marketing',icon:'ti-forms',badge:null},
+  {id:'marketing',label:'Marketing',icon:'ti-speakerphone',badge:null},
   {id:'desarrollos',label:'Desarrollos',icon:'ti-code',badge:'dev-count'},
   {id:'configuracion',label:'Configuración',icon:'ti-settings',badge:null,always:true},
   {id:'ai-chat',label:'Asistente IA',icon:'ti-sparkles',badge:null,always:true},
@@ -20174,11 +20186,12 @@ function renderSidebarNav(){
     const visItems=group.items.filter(id=>canView(id));
     if(!visItems.length)return;
     const gid='sbg-'+group.id;
+    const isClosed=_sbGroupsClosedGet().includes(gid);
     html+='<div class="sidebar-section">';
-    html+='<div class="sb-group-header" data-gid="'+gid+'" onclick="toggleSbGroup(this.dataset.gid)" title="'+group.label+'">';
+    html+='<div class="sb-group-header" data-gid="'+gid+'" data-tip="'+group.label+'" onclick="toggleSbGroup(this.dataset.gid)" title="'+group.label+'">';
     html+='<div class="sidebar-label">'+group.label+'</div>';
-    html+='<i class="ti ti-chevron-down sb-group-arrow" id="'+gid+'-arrow"></i></div>';
-    html+='<div class="sb-group-items" id="'+gid+'-items">';
+    html+='<i class="ti ti-chevron-down sb-group-arrow'+(isClosed?' closed':'')+'" id="'+gid+'-arrow"></i></div>';
+    html+='<div class="sb-group-items'+(isClosed?' closed':'')+'" id="'+gid+'-items">';
     visItems.forEach(modId=>{
       const mod=ALL_MODULES.find(m=>m.id===modId);
       if(!mod)return;
@@ -20248,9 +20261,9 @@ async function saveInstanceModulesConfig(){
 // session, so if it's later removed (removeCompanyLogo) we still revert the
 // live DOM back to the static logo instead of leaving the old one stuck.
 function renderSidebarBranding(){
-  const name = companyInfo?.nombre || 'Diamante';
+  const name = companyInfo?.nombre || 'Panel';
   document.title = name; // (v75) dynamic from companyInfo — replaces the old static "· Equipo vNN" title
-  // Cachea el último nombre REAL recibido (no el fallback 'Diamante') para que
+  // Cachea el último nombre REAL recibido (no el fallback 'Panel') para que
   // el script inline del <head> pueda pintar el título correcto de inmediato
   // en la siguiente carga, antes de que Supabase responda — ver <head>.
   if(companyInfo?.nombre){try{localStorage.setItem('cp_last_company_name',companyInfo.nombre);}catch(e){}}
@@ -20499,12 +20512,12 @@ function _sbIconTipHide(){
 }
 document.addEventListener('mouseover',function(e){
   if(_sbState!=='icon')return;
-  const item=e.target.closest('#sidebar-nav-container .nav-item');
+  const item=e.target.closest('#sidebar-nav-container .nav-item, #sidebar-nav-container .sb-group-header');
   if(item)_sbIconTipShow(item);
 });
 document.addEventListener('mouseout',function(e){
   if(_sbState!=='icon')return;
-  const item=e.target.closest('#sidebar-nav-container .nav-item');
+  const item=e.target.closest('#sidebar-nav-container .nav-item, #sidebar-nav-container .sb-group-header');
   if(item&&!item.contains(e.relatedTarget))_sbIconTipHide();
 });
 document.getElementById('sidebar-nav-container')?.addEventListener('scroll',_sbIconTipHide);
@@ -20522,14 +20535,27 @@ function closeMobileSidebar(){
   if(sb)sb.classList.remove('mobile-open');
   if(ov)ov.classList.remove('active');
 }
+// Persistencia del colapso de secciones del sidebar (18/8) — antes vivía solo
+// en el DOM (classList), se perdía en cada renderSidebarNav() y en cada F5.
+// Guarda la lista de gid's colapsados; funciona igual en modo expandido e
+// ícono porque ambos comparten el mismo .sb-group-items/.closed.
+const SB_GROUPS_KEY='cp_sidebar_groups';
+function _sbGroupsClosedGet(){
+  try{const v=JSON.parse(localStorage.getItem(SB_GROUPS_KEY));return Array.isArray(v)?v:[];}catch(e){return [];}
+}
+function _sbGroupsClosedSave(list){
+  try{localStorage.setItem(SB_GROUPS_KEY,JSON.stringify(list));}catch(e){}
+}
 function toggleSbGroup(gid){
   const items=document.getElementById(gid+'-items');
   const arrow=document.getElementById(gid+'-arrow');
   if(!items)return;
+  const closedList=_sbGroupsClosedGet();
   if(items.classList.contains('closed')){
     items.style.maxHeight=items.scrollHeight+200+'px';
     items.classList.remove('closed');
     if(arrow)arrow.classList.remove('closed');
+    _sbGroupsClosedSave(closedList.filter(id=>id!==gid));
   } else {
     items.style.maxHeight=items.scrollHeight+'px';
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
@@ -20537,6 +20563,8 @@ function toggleSbGroup(gid){
       items.classList.add('closed');
       if(arrow)arrow.classList.add('closed');
     }));
+    if(!closedList.includes(gid))closedList.push(gid);
+    _sbGroupsClosedSave(closedList);
   }
 }
 
