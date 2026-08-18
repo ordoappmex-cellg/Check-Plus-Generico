@@ -7946,18 +7946,14 @@ function applyRolePermissions(){
   // existe. Iniciales salen de user.displayName/email (lo único que ya
   // existe en este punto), no del registro de empleados.
   const initial=escHtml(((user.displayName||user.email||'?')[0]||'?').toUpperCase());
-  // Tamaño (17/8) calculado, no a ojo: la campana de notificaciones
-  // (#notif-bell-btn, sin line-height propio) hereda el 1.5 unitless de
-  // body y lo recalcula contra el font-size:20px de su ícono -> caja de
-  // línea de 30px + 6px de padding arriba/abajo = 42px, más alta que
-  // .page-title (1.5x19=28.5px) o el botón de IA (36px) — es el contenido
-  // más alto real de .topbar hoy, no el título. .topbar no tiene altura
-  // fija (auto, solo padding), así que el techo real del avatar es no
-  // superar esos 42px — si lo superara, el avatar mismo pasaría a ser el
-  // elemento más alto y la barra crecería más allá de sus 70px actuales
-  // (14+42+14), invalidando el cálculo de aire. En 42px sobra aire (14px
-  // arriba/abajo, más que el mínimo de 8-10px pedido) en vez de apurarlo.
-  badge.innerHTML='<div id="topbar-user-avatar" style="width:42px;height:42px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;overflow:hidden">'+initial+'</div><span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(user.displayName||user.email)+'</span>';
+  // Tamaño (17/8): 48px/16px, mismo valor que .org-node-avatar (avatar de
+  // persona en el árbol de Organigrama — el precedente más parecido de la
+  // app a "avatar de identidad en contexto compacto", ni el ícono genérico
+  // de 36px ni el hero de 76px de la ficha). 48>42 (la campana, que hasta
+  // ahora definía la altura de .topbar) a propósito: el avatar pasa a ser
+  // el elemento más alto de la fila y .topbar (auto-height, solo padding)
+  // crece sola a 14+48+14=76px, sin tocar su padding a mano.
+  badge.innerHTML='<div id="topbar-user-avatar" style="width:48px;height:48px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;overflow:hidden">'+initial+'</div><span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(user.displayName||user.email)+'</span>';
   // 17/8: se movió de #topbar-actions a #topbar-identity (columna 1 del
   // grid del topbar) — ver comentario junto al HTML de #topbar-identity.
   const ta=document.getElementById('topbar-identity');if(ta)ta.prepend(badge);
