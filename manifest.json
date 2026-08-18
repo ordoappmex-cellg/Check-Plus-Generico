@@ -1,6 +1,6 @@
 {
-  "name": "Grupo Limen",
-  "short_name": "Limen",
+  "name": "Panel",
+  "short_name": "Panel",
   "description": "Plataforma de gestión operativa de Grupo Limen",
   "start_url": "/",
   "display": "standalone",
