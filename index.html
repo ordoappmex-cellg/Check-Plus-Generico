@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Diamante</title>
+<title>Panel</title>
 <!-- Pinta el título con el último nombre de compañía visto en ESTE navegador
      (cacheado por renderSidebarBranding) antes de que Supabase responda —
      evita el flash de "Diamante" en clientes ya personalizados. Inline y
@@ -26,7 +26,7 @@
      proyecto no tiene (deploy es "Add file → Upload files" en GitHub, ver
      CLAUDE.md sección 1). -->
 <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="/assets/icono.png">
+<link rel="icon" type="image/png" href="/assets/icono-192.png">
 <link rel="apple-touch-icon" href="/assets/icono.png">
 <!-- Mismo mecanismo que cp_last_company_name arriba: pinta el favicon cacheado
      de ESTE navegador antes de que Supabase responda (ver renderSidebarBranding). -->
@@ -20276,9 +20276,10 @@ function renderSidebarBranding(){
   // HTML-authored static markup untouched (the fix for the flicker).
 
   // Favicon: same per-client override as the logo above, but targeting the
-  // <head> <link> tags instead of an innerHTML container. Nota: el archivo
-  // real en /assets es "icono.png" (con "o") — usarlo como fallback, no
-  // "icon.png" (ese nombre no existe en el repo).
+  // <head> <link> tags instead of an innerHTML container. Fallback es
+  // icono-192.png (símbolo C+, ver <head>) — MISMO archivo que el
+  // <link rel="icon"> estático, para que quitar un favicon custom no
+  // revierta a un default distinto (icono.png, el rombo viejo de Diamante).
   const iconLink = document.querySelector('link[rel="icon"]');
   const appleLink = document.querySelector('link[rel="apple-touch-icon"]');
   if(companyInfo?.faviconDataUrl){
@@ -20287,8 +20288,8 @@ function renderSidebarBranding(){
     try{ localStorage.setItem('cp_last_favicon', companyInfo.faviconDataUrl); }catch(e){}
     _brandingHasCustomFavicon = true;
   } else if(_brandingHasCustomFavicon){
-    if(iconLink) iconLink.href = '/assets/icono.png';
-    if(appleLink) appleLink.href = '/assets/icono.png';
+    if(iconLink) iconLink.href = '/assets/icono-192.png';
+    if(appleLink) appleLink.href = '/assets/icono-192.png';
     try{ localStorage.removeItem('cp_last_favicon'); }catch(e){}
     _brandingHasCustomFavicon = false;
   }
