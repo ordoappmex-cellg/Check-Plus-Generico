@@ -1177,7 +1177,6 @@ body.direccion-presenting .topbar{display:none !important;}
 body.direccion-presenting .sb-hamburger{display:none !important;}
 body.direccion-presenting .sidebar{display:none !important;}
 body.direccion-presenting .main-content{background:#fff;margin-left:0 !important;}
-body.direccion-presenting #direccion-page-title{display:none !important;}
 body.direccion-presenting .direccion-rm-present-header{display:block;}
 body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
@@ -1528,7 +1527,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
       <!-- MIS PENDIENTES VIEW (v1.8 — visible a todos los roles) -->
       <div id="view-mis-pendientes" class="view">
-        <div class="section-title" style="margin-bottom:14px">Mis Pendientes</div>
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
           <div style="display:flex;gap:0;border-bottom:2px solid var(--cp-gray-100)">
             <button class="mis-pend-chip mkt-tab-btn active" data-view="asignado" onclick="switchMisPendView('asignado')">Asignado a mí</button>
@@ -1702,8 +1700,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
       <!-- DIRECCIÓN VIEW (v1.3 — admin-only) -->
       <div id="view-direccion" class="view direccion-modulo diseno-modulo">
-        <div class="section-title" id="direccion-page-title" style="margin-bottom:14px">Dirección</div>
-
         <div id="direccion-tabs-bar" style="display:flex;gap:0;border-bottom:2px solid var(--cp-gray-100);margin-bottom:18px">
           <button class="mkt-tab-btn active" id="direccion-tab-proyectos" onclick="switchDireccionTab('proyectos')"><i class="ti ti-clipboard-list"></i> Proyectos</button>
           <button class="mkt-tab-btn" id="direccion-tab-roadmap" onclick="switchDireccionTab('roadmap')"><i class="ti ti-timeline"></i> Roadmap</button>
@@ -1796,8 +1792,6 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
       <!-- GESTIÓN DE PROYECTOS VIEW (v1.7 — abierto a todos los roles) -->
       <div id="view-gestion-proyectos" class="view gp-modulo diseno-modulo">
-        <div class="section-title" style="margin-bottom:14px">Gestión de Proyectos</div>
-
         <div id="gp-efemeride-wrap"></div>
 
         <div id="gp-tabs-bar" style="display:flex;gap:0;border-bottom:2px solid var(--cp-gray-100);margin-bottom:18px">
@@ -2219,7 +2213,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <!-- Kanban header -->
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="font-family:var(--font-display);font-weight:700;font-size:18px;color:var(--cp-navy);display:flex;align-items:center;gap:8px">
-            <i class="ti ti-layout-kanban" style="color:var(--cp-purple)"></i> Tableros Kanban
+            <i class="ti ti-layout-kanban" style="color:var(--cp-purple)"></i>
           </div>
         </div>
         <!-- Board selector (2 fixed tabs) -->
@@ -2510,7 +2504,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
               <button class="btn-sm btn-ghost" onclick="resetProspCols()"><i class="ti ti-refresh"></i> Restablecer</button>
             </div>
             <div class="section-body">
-              <div style="font-size:12px;color:var(--cp-gray-400);margin-bottom:10px">Elige qué columnas ves en la lista de Prospectos. Es una preferencia personal de este navegador, no afecta a otros usuarios.</div>
+              <div style="font-size:12px;color:var(--cp-gray-400);margin-bottom:10px">Elige qué columnas ves en la lista de Contactos. Es una preferencia personal de este navegador, no afecta a otros usuarios.</div>
               <div id="prosp-cfg-cols-panel"></div>
             </div>
           </div>
@@ -2611,7 +2605,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
       <!-- MARKETING VIEW (captación de leads — formularios embebibles) -->
       <div id="view-marketing" class="view">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-          <div style="font-size:12px;color:var(--cp-gray-400)">Formularios embebibles que capturan leads directo a Prospectos.</div>
+          <div style="font-size:12px;color:var(--cp-gray-400)">Formularios embebibles que capturan leads directo a Contactos.</div>
           <button class="btn-sm btn-blue" id="btn-nuevo-mkt-form" style="margin-left:auto" onclick="openAddMktForm()"><i class="ti ti-plus"></i> Nuevo formulario</button>
         </div>
         <table class="emp-table" id="mkt-form-table">
@@ -4060,7 +4054,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <div class="form-field full">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--cp-navy);cursor:pointer">
             <input type="checkbox" id="uf-vendedor-crm" style="width:16px;height:16px;cursor:pointer">
-            Es vendedor CRM <span style="color:var(--cp-gray-400);font-weight:400">(aparece en el selector "Vendedor asignado" de Prospectos)</span>
+            Es vendedor CRM <span style="color:var(--cp-gray-400);font-weight:400">(aparece en el selector "Vendedor asignado" de Contactos)</span>
           </label>
         </div>
         <div class="form-field full">
@@ -4083,7 +4077,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">OKRs</span><div style="text-align:center"><input type="radio" name="uf-mod-okrs" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-okrs" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-okrs" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Diseño</span><div style="text-align:center"><input type="radio" name="uf-mod-diseno" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-diseno" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-diseno" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Marketing</span><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="oculto"></div></div>
-            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Prospectos</span><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="oculto"></div></div>
+            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Contactos</span><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Proveedores</span><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;align-items:center"><span style="font-size:12px">Gestión de Proyectos</span><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="oculto"></div></div>
           </div>
@@ -6242,7 +6236,7 @@ async function nav(view){
   if(view==='clientes'){renderClientes();document.getElementById('page-title').textContent='Gestión de Clientes y Facturación';}
   if(view==='proveedores'){renderProveedores();document.getElementById('page-title').textContent='Proveedores';}
   if(view==='prospectos'){
-    document.getElementById('page-title').textContent='Prospectos';
+    document.getElementById('page-title').textContent='Contactos';
     if(!_moduleLoaded['prospectos'])showModuleSkeleton('prosp-tbody');
     await loadModuleData('prospectos');
     renderProspectos();
@@ -8433,7 +8427,7 @@ const MIS_PEND_ORIGEN_META={
   diseno:{label:'Diseño',color:'#7B2FF7',icon:'ti-brush',modulo:'diseno'},
   kanban:{label:'Kanban',color:'#10C080',icon:'ti-layout-kanban',modulo:'kanban'},
   soporte:{label:'Soporte',color:'#F5A623',icon:'ti-headset',modulo:'soporte'},
-  crm:{label:'Prospectos',color:'#EC4899',icon:'ti-user-search',modulo:'prospectos'}
+  crm:{label:'Contactos',color:'#EC4899',icon:'ti-user-search',modulo:'prospectos'}
 };
 function misPendMyEmpId(){
   const myEmail=(state.currentUser?.email||'').toLowerCase();
@@ -12043,7 +12037,7 @@ function prospExportCsv(){
   const today=new Date();
   const pad=function(n){return String(n).padStart(2,'0');};
   a.href=url;
-  a.download='prospectos_'+today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate())+'.csv';
+  a.download='contactos_'+today.getFullYear()+'-'+pad(today.getMonth()+1)+'-'+pad(today.getDate())+'.csv';
   document.body.appendChild(a);a.click();document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
@@ -20078,7 +20072,7 @@ const ALL_MODULES = [
   {id:'organigrama',label:'Organigrama',icon:'ti-hierarchy',badge:null},
   {id:'clientes',label:'Clientes',icon:'ti-building-store',badge:'clientes-count'},
   {id:'proveedores',label:'Proveedores',icon:'ti-truck',badge:null},
-  {id:'prospectos',label:'Prospectos',icon:'ti-user-search',badge:'prosp-overdue-badge',badgeUrgent:true},
+  {id:'prospectos',label:'Contactos',icon:'ti-user-search',badge:'prosp-overdue-badge',badgeUrgent:true},
   {id:'marketing',label:'Marketing',icon:'ti-speakerphone',badge:null},
   {id:'desarrollos',label:'Desarrollos',icon:'ti-code',badge:'dev-count'},
   {id:'configuracion',label:'Configuración',icon:'ti-settings',badge:null,always:true},
