@@ -1913,6 +1913,12 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                 <button class="btn-sm btn-purple" onclick="openAddSeguimiento()"><i class="ti ti-clipboard-check"></i> Nuevo seguimiento</button>
                 <button class="btn-sm btn-ghost" onclick="openAddDoc()"><i class="ti ti-paperclip"></i> Adjuntar documento</button>
                 <button class="btn-sm btn-ghost" onclick="openAddPermiso()"><i class="ti ti-clipboard-plus"></i> Nueva solicitud</button>
+                <!-- "Dar de baja" (17/8) — visibilidad la controla openDetail(), mismo
+                     lugar donde ya se controla emp-delete-btn-wrap. Reversible: solo
+                     cambia estado, no borra nada (ver darDeBajaColaborador()). -->
+                <div id="emp-baja-btn-wrap" style="display:none">
+                  <button class="btn-sm btn-ghost" style="color:var(--cp-red);width:100%;justify-content:center" onclick="openBajaColaboradorModal()" title="Dar de baja"><i class="ti ti-user-x"></i> Dar de baja</button>
+                </div>
                 <div id="acceso-btn-wrap" style="margin-top:4px;border-top:1px solid var(--cp-gray-100);padding-top:10px"></div>
                 <div id="emp-vendedor-crm-indicator" style="font-size:11px;color:var(--cp-gray-500);text-align:center"></div>
                 <div style="text-align:center;margin-top:6px;display:none" id="emp-delete-btn-wrap">
@@ -5404,25 +5410,29 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
       <button class="modal-close" onclick="closeModal('modal-acceso')"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
+      <!-- 17/8: se quitó el campo de contraseña — activarAcceso()/
+           desactivarAcceso() solo pueden escribir el boolean acceso_activo
+           en 'empleados' desde el navegador (publishable key). Crear/resetear
+           una cuenta real de Supabase Authentication para otra persona
+           requiere la service_role key, que este proyecto nunca expone en
+           el HTML (ver CLAUDE.md sección 2) — no existe una función de
+           servidor (Edge Function) que lo haga hoy. El campo de contraseña
+           prometía algo que el código nunca pudo cumplir; se reemplaza por
+           texto honesto sobre qué hace y qué no hace este toggle. -->
       <div id="acceso-modal-body">
         <div style="background:var(--cp-blue-light);border-radius:var(--radius-md);padding:14px;margin-bottom:16px;font-size:13px;color:var(--cp-gray-800)">
           <i class="ti ti-info-circle" style="color:var(--cp-blue);margin-right:6px"></i>
-          El colaborador podrá ingresar con su correo registrado y la contraseña que definas abajo.
-        </div>
-        <div class="form-field" style="margin-bottom:14px">
-          <label class="form-label">Correo del colaborador</label>
-          <input class="form-input" id="acceso-email" readonly style="background:var(--cp-gray-50);color:var(--cp-gray-400)">
+          Esta bandera solo indica si el colaborador tiene acceso habilitado — <strong>no crea ni cambia su cuenta de login</strong>. La cuenta (usuario y contraseña) se crea en Supabase Authentication; su rol y permisos se editan en Configuración → Usuarios.
         </div>
         <div class="form-field">
-          <label class="form-label">Contraseña inicial</label>
-          <input type="text" class="form-input" id="acceso-pwd" placeholder="Mínimo 8 caracteres">
-          <div style="font-size:11px;color:var(--cp-gray-400);margin-top:4px">Comunica esta contraseña al colaborador por WhatsApp o correo.</div>
+          <label class="form-label">Correo del colaborador</label>
+          <input class="form-input" id="acceso-email" readonly style="background:var(--cp-gray-50);color:var(--cp-gray-400)">
         </div>
       </div>
       <div id="acceso-modal-desactivar" style="display:none">
         <div style="background:var(--cp-red-light);border-radius:var(--radius-md);padding:14px;font-size:13px;color:#7f1d1d">
           <i class="ti ti-alert-triangle" style="margin-right:6px"></i>
-          Al desactivar, el colaborador no podrá ingresar al sistema. Sus datos se conservan.
+          Esto solo desmarca la bandera — <strong>no elimina ni bloquea su cuenta real</strong> de Supabase Authentication. Eso se hace aparte.
         </div>
       </div>
     </div>
@@ -5430,6 +5440,31 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
       <button class="btn-sm btn-red" id="acceso-desactivar-btn" onclick="desactivarAcceso()" style="display:none;margin-right:auto"><i class="ti ti-user-off"></i> Desactivar acceso</button>
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-acceso')">Cancelar</button>
       <button class="btn-sm btn-green" id="acceso-save-btn" onclick="activarAcceso()"><i class="ti ti-user-check"></i> Activar acceso</button>
+    </div>
+  </div>
+</div>
+
+<!-- DAR DE BAJA MODAL (17/8) -->
+<div class="modal-overlay" id="modal-baja-colaborador">
+  <div class="modal" style="width:440px">
+    <div class="modal-header">
+      <div class="modal-title">Dar de baja a <span id="baja-colab-nombre"></span></div>
+      <button class="modal-close" onclick="closeModal('modal-baja-colaborador')"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--cp-amber-light);border-radius:var(--radius-md);padding:14px;font-size:13px;color:var(--cp-gray-800)">
+        <i class="ti ti-info-circle" style="color:var(--cp-amber);margin-right:6px"></i>
+        Esto es <strong>reversible</strong> — puedes volver a marcarlo como Activo cuando quieras desde el formulario de edición. Al dar de baja:
+        <ul style="margin:8px 0 0 20px;padding:0">
+          <li>Desaparece de los selectores de asignación (tareas, tableros, etc.) en toda la app.</li>
+          <li>Sigue visible en la lista de Colaboradores, con una pastilla roja "Baja".</li>
+          <li>No se borra ningún dato — vacaciones, documentos, seguimientos y evaluaciones se conservan intactos.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-baja-colaborador')">Cancelar</button>
+      <button class="btn-sm btn-red" onclick="darDeBajaColaborador()"><i class="ti ti-user-x"></i> Dar de baja</button>
     </div>
   </div>
 </div>
@@ -6888,6 +6923,8 @@ function openDetail(id){
   renderEmpVendedorCrmIndicator(e);
   const delBtnWrap=document.getElementById('emp-delete-btn-wrap');
   if(delBtnWrap)delBtnWrap.style.display=(state.currentUser?.role==='admin'&&e.estado==='baja')?'':'none';
+  const bajaBtnWrap=document.getElementById('emp-baja-btn-wrap');
+  if(bajaBtnWrap)bajaBtnWrap.style.display=e.estado==='activo'?'':'none';
 }
 
 function switchTab(n){
@@ -7162,6 +7199,28 @@ async function deleteEmpDocFile(url){
   }catch(e){console.warn('deleteEmpDocFile storage error:',e);}
 }
 
+// ── Dar de baja (17/8) — reversible, mismo campo/mecanismo que el <select>
+// #ef-estado del formulario de edición (saveEmployee escribe ese mismo
+// campo 'estado' en la misma tabla): sbUpsert parcial sobre 'empleados',
+// no una función de guardado nueva. openDetail() controla la visibilidad
+// del botón (solo si estado==='activo').
+function openBajaColaboradorModal(){
+  const e=state.employees.find(function(x){return x.id===state.currentEmpId;});if(!e)return;
+  document.getElementById('baja-colab-nombre').textContent=e.nombre+' '+e.apellidos;
+  openModal('modal-baja-colaborador');
+}
+async function darDeBajaColaborador(){
+  const id=state.currentEmpId;
+  const emp=state.employees.find(function(x){return x.id===id;});if(!emp)return;
+  const ok=await sbUpsert('empleados',{id:id,estado:'baja'});
+  if(!ok)return; // sbUpsert ya mostró su propio toast de error
+  emp.estado='baja';
+  auditLog('editar','empleados',id,'Colaborador dado de baja: '+emp.nombre+' '+emp.apellidos);
+  closeModal('modal-baja-colaborador');
+  openDetail(id);
+  toast('Colaborador dado de baja.','info');
+}
+
 // ── Borrado físico de colaborador (admin, solo estado==='baja') ──
 // Confirmado en producción (pg_constraint) que vacaciones/documentos/
 // solicitudes/seguimientos(+seg_tareas) tienen ON DELETE CASCADE hacia
@@ -7178,8 +7237,15 @@ async function confirmDeleteColaborador(id){
   const {count,error:evalErr}=await sb.from('eval_evaluaciones').select('id',{count:'exact',head:true}).eq('empleado_id',id);
   if(evalErr){toast('Error al verificar evaluaciones del colaborador.','error');return;}
   if(count>0){toast('No se puede eliminar: tiene '+count+' evaluación(es) registradas.','error');return;}
-  // 2. Confirmación
-  if(!confirm('¿Eliminar permanentemente a '+emp.nombre+' '+emp.apellidos+'? Esta acción no se puede deshacer.'))return;
+  // 2. Confirmación — texto explícito (17/8) sobre qué se pierde; la lógica
+  // de borrado/cascada de abajo no cambió, solo el mensaje.
+  if(!confirm(
+    'Eliminar permanentemente a '+emp.nombre+' '+emp.apellidos+'.\n\n'+
+    'Esta acción NO se puede deshacer. Se borrarán junto con el colaborador:\n'+
+    '• Vacaciones\n• Documentos adjuntos\n• Solicitudes\n• Seguimientos y sus tareas\n\n'+
+    '(Ya se verificó que no tiene evaluaciones registradas — si las tuviera, el borrado se habría bloqueado antes de este mensaje.)\n\n'+
+    '¿Continuar?'
+  ))return;
   // 3. Storage a mano ANTES del delete (documentos.doc_url + vacaciones.doc_url,
   // mismo bucket 'documentos-empleados') — reutiliza deleteEmpDocFile(), que
   // ya hace try/catch+console.warn internamente, un huérfano ahí es aceptable.
@@ -7880,7 +7946,18 @@ function applyRolePermissions(){
   // existe. Iniciales salen de user.displayName/email (lo único que ya
   // existe en este punto), no del registro de empleados.
   const initial=escHtml(((user.displayName||user.email||'?')[0]||'?').toUpperCase());
-  badge.innerHTML='<div id="topbar-user-avatar" style="width:36px;height:36px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;overflow:hidden">'+initial+'</div><span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(user.displayName||user.email)+'</span>';
+  // Tamaño (17/8) calculado, no a ojo: la campana de notificaciones
+  // (#notif-bell-btn, sin line-height propio) hereda el 1.5 unitless de
+  // body y lo recalcula contra el font-size:20px de su ícono -> caja de
+  // línea de 30px + 6px de padding arriba/abajo = 42px, más alta que
+  // .page-title (1.5x19=28.5px) o el botón de IA (36px) — es el contenido
+  // más alto real de .topbar hoy, no el título. .topbar no tiene altura
+  // fija (auto, solo padding), así que el techo real del avatar es no
+  // superar esos 42px — si lo superara, el avatar mismo pasaría a ser el
+  // elemento más alto y la barra crecería más allá de sus 70px actuales
+  // (14+42+14), invalidando el cálculo de aire. En 42px sobra aire (14px
+  // arriba/abajo, más que el mínimo de 8-10px pedido) en vez de apurarlo.
+  badge.innerHTML='<div id="topbar-user-avatar" style="width:42px;height:42px;border-radius:50%;background:var(--cp-purple-light);color:var(--cp-purple);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;overflow:hidden">'+initial+'</div><span style="font-size:11px;font-weight:600;color:'+(colors[role]||'#94A0BB')+';background:'+(colorsBg[role]||'#94A0BB18')+';padding:2px 8px;border-radius:99px">'+(labels[role]||role)+'</span><span style="color:var(--cp-gray-500);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(user.displayName||user.email)+'</span>';
   // 17/8: se movió de #topbar-actions a #topbar-identity (columna 1 del
   // grid del topbar) — ver comentario junto al HTML de #topbar-identity.
   const ta=document.getElementById('topbar-identity');if(ta)ta.prepend(badge);
@@ -9517,6 +9594,45 @@ function renderAccesoBtn(emp) {
   } else {
     wrap.innerHTML = `<button class="btn-sm btn-blue" onclick="openAccesoModal()" style="width:100%;justify-content:center;background:linear-gradient(135deg,var(--cp-accent),var(--cp-accent-gradient-end))"><i class="ti ti-user-plus"></i> Activar acceso colaborador</button>`;
   }
+}
+// ── Modal #modal-acceso (17/8) — antes roto (openAccesoModal/activarAcceso/
+// desactivarAcceso no existían, ReferenceError al clic). Alcance real: solo
+// pueden tocar el boolean acceso_activo en 'empleados' vía sbUpsert — NO
+// pueden crear ni resetear una cuenta de Supabase Authentication desde el
+// navegador (requeriría service_role, ver comentario junto al HTML del
+// modal). Por eso el campo de contraseña que tenía el modal se quitó en vez
+// de fingir que hacía algo.
+function openAccesoModal(){
+  const emp=state.employees.find(function(x){return x.id===state.currentEmpId;});if(!emp)return;
+  document.getElementById('acceso-email').value=emp.email||'';
+  const hasAccess=!!emp.acceso_activo;
+  document.getElementById('acceso-modal-title').textContent=hasAccess?'Gestionar acceso':'Activar acceso colaborador';
+  document.getElementById('acceso-modal-desactivar').style.display=hasAccess?'':'none';
+  document.getElementById('acceso-desactivar-btn').style.display=hasAccess?'':'none';
+  document.getElementById('acceso-save-btn').style.display=hasAccess?'none':'';
+  openModal('modal-acceso');
+}
+async function activarAcceso(){
+  const id=state.currentEmpId;
+  const emp=state.employees.find(function(x){return x.id===id;});if(!emp)return;
+  const ok=await sbUpsert('empleados',{id:id,acceso_activo:true});
+  if(!ok)return;
+  emp.acceso_activo=true;
+  auditLog('editar','empleados',id,'Acceso marcado como activo: '+emp.nombre+' '+emp.apellidos);
+  closeModal('modal-acceso');
+  renderAccesoBtn(emp);
+  toast('Acceso marcado como activo.','info');
+}
+async function desactivarAcceso(){
+  const id=state.currentEmpId;
+  const emp=state.employees.find(function(x){return x.id===id;});if(!emp)return;
+  const ok=await sbUpsert('empleados',{id:id,acceso_activo:false});
+  if(!ok)return;
+  emp.acceso_activo=false;
+  auditLog('editar','empleados',id,'Acceso marcado como inactivo: '+emp.nombre+' '+emp.apellidos);
+  closeModal('modal-acceso');
+  renderAccesoBtn(emp);
+  toast('Acceso marcado como inactivo.','info');
 }
 // Indicador de solo lectura — cruza el email del colaborador (case-insensitive)
 // contra _userProfilesCache para mostrar si tiene cuenta y si es vendedor CRM.
