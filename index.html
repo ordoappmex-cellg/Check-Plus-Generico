@@ -2626,16 +2626,68 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
               </div>
             </div>
           </div>
-          <!-- CENTRO: bitácora de seguimiento (protagonista) -->
+          <!-- CENTRO: Bitácora + Cotización, como tabs — conviven, la
+               cotización NO reemplaza la bitácora. Tabs scoped a
+               #view-prosp-detail (switchProspCentroTab), mismo patrón que
+               switchCliTab en view-cliente-detail. -->
           <div>
-            <div class="section-card">
-              <div class="section-header">
-                <div class="section-title"><i class="ti ti-history" style="margin-right:6px;color:var(--cp-purple)"></i>Bitácora de seguimiento</div>
-                <button class="btn-sm btn-purple" id="prosp-det-add-seg-btn" onclick="openAddProspSeg()"><i class="ti ti-clipboard-check"></i> Registrar seguimiento</button>
+            <div class="detail-tabs">
+              <button class="tab-btn active" onclick="switchProspCentroTab('bitacora')"><i class="ti ti-history"></i> Bitácora</button>
+              <button class="tab-btn" onclick="switchProspCentroTab('cotizacion')"><i class="ti ti-file-invoice"></i> Cotización</button>
+            </div>
+            <div id="prosp-det-tab-bitacora" class="tab-panel active">
+              <div class="section-card">
+                <div class="section-header">
+                  <div class="section-title"><i class="ti ti-history" style="margin-right:6px;color:var(--cp-purple)"></i>Bitácora de seguimiento</div>
+                  <button class="btn-sm btn-purple" id="prosp-det-add-seg-btn" onclick="openAddProspSeg()"><i class="ti ti-clipboard-check"></i> Registrar seguimiento</button>
+                </div>
+                <div class="section-body">
+                  <div id="prosp-seg-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+                  <div id="prosp-seg-timeline"></div>
+                </div>
               </div>
-              <div class="section-body">
-                <div id="prosp-seg-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
-                <div id="prosp-seg-timeline"></div>
+            </div>
+            <!-- Cotización estructurada (hb_crm_cotizaciones/lineas) — namespace
+                 crmCotiz*, distinto de prosp*/hbcli* y del prospCotiz* viejo
+                 (archivo suelto, tarjeta de la derecha, ver arriba). -->
+            <div id="prosp-det-tab-cotizacion" class="tab-panel">
+              <div class="section-card">
+                <div class="section-header">
+                  <div class="section-title"><i class="ti ti-file-invoice" style="margin-right:6px;color:var(--cp-green)"></i>Cotización</div>
+                  <div style="display:flex;gap:8px" id="crmcotiz-actions-wrap">
+                    <button class="btn-sm btn-ghost" id="crmcotiz-pdf-btn" onclick="crmCotizExportPdf()"><i class="ti ti-file-type-pdf"></i> Descargar PDF</button>
+                    <button class="btn-sm btn-purple" id="crmcotiz-save-btn" onclick="crmCotizSave()"><i class="ti ti-check"></i> Guardar</button>
+                  </div>
+                </div>
+                <div class="section-body">
+                  <div class="form-grid" style="margin-bottom:14px">
+                    <div class="form-field"><label class="form-label">Folio</label><input class="form-input" id="crmcotizf-folio" placeholder="Ej. COT-0001"></div>
+                    <div class="form-field"><label class="form-label">Vigencia (días)</label><input type="number" min="1" class="form-input" id="crmcotizf-vigencia" value="15"></div>
+                    <div class="form-field"><label class="form-label">Moneda</label>
+                      <select class="form-input" id="crmcotizf-moneda" onchange="crmCotizOnHeaderMonedaChange()">
+                        <option value="MXN">MXN</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                      </select>
+                    </div>
+                    <div class="form-field" id="crmcotizf-tc-wrap" style="display:none"><label class="form-label">TC aplicado</label><input type="number" step="0.0001" min="0" class="form-input" id="crmcotizf-tc" value="1"></div>
+                    <div class="form-field"><label class="form-label">Estado</label>
+                      <select class="form-input" id="crmcotizf-estado">
+                        <option value="borrador">Borrador</option>
+                        <option value="enviada">Enviada</option>
+                        <option value="aceptada">Aceptada</option>
+                        <option value="rechazada">Rechazada</option>
+                      </select>
+                    </div>
+                    <div class="form-field full"><label class="form-label">Condiciones</label><textarea class="form-input" id="crmcotizf-condiciones" rows="2" placeholder="Condiciones de pago, políticas de cancelación, etc."></textarea></div>
+                  </div>
+                  <div style="overflow-x:auto">
+                    <table class="emp-table" id="crmcotiz-lineas-table">
+                      <thead><tr><th>Tipo de servicio</th><th>Descripción</th><th style="width:70px">Cant.</th><th style="width:110px">P. unitario</th><th style="width:80px">Moneda</th><th style="width:90px">TC</th><th style="width:120px">Importe MXN</th><th></th></tr></thead>
+                      <tbody id="crmcotiz-lineas-tbody"></tbody>
+                    </table>
+                  </div>
+                  <button type="button" class="btn-sm btn-ghost" id="crmcotiz-addlinea-btn" onclick="crmCotizAddLinea()" style="margin-top:8px"><i class="ti ti-plus"></i> Agregar línea</button>
+                  <div style="text-align:right;margin-top:12px;font-size:14px;font-weight:700;color:var(--cp-navy)">Total: <span id="crmcotiz-total" style="color:var(--cp-green)">$0.00</span></div>
+                </div>
               </div>
             </div>
           </div>
@@ -2650,7 +2702,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                  de tarjetas. -->
             <div class="section-card" style="background:var(--cp-green-light)">
               <div class="section-header" style="border-bottom-color:transparent">
-                <div class="section-title"><i class="ti ti-file-invoice" style="margin-right:6px;color:var(--cp-green)"></i>Cotización</div>
+                <div class="section-title"><i class="ti ti-file-invoice" style="margin-right:6px;color:var(--cp-green)"></i>Archivo de cotización</div>
               </div>
               <div class="section-body" style="padding-top:0">
                 <div id="prosp-cotizacion-body"></div>
@@ -12243,8 +12295,10 @@ async function openProspDetail(id){
   const p=prospData.find(x=>x.id===id);if(!p)return;
   prospCurrentId=id;
   prospSegFilterTipo=null;
+  _crmCotizLoadedForLead=null;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-prosp-detail').classList.add('active');
+  switchProspCentroTab('bitacora');
   document.getElementById('page-title').textContent=p.nombre;
   renderProspDetailHeader(p);
   document.getElementById('prosp-seg-filter').innerHTML='';
@@ -13103,6 +13157,192 @@ async function prospMarkCotizacion(id){
   prospDocsData=await prospDocsLoad(prospCurrentId);
   renderProspDocsList();renderProspCotizacion();
   toast('Cotización actualizada ✓');
+}
+
+// ── COTIZACIÓN ESTRUCTURADA (crmCotiz* — hb_crm_cotizaciones/
+// hb_crm_cotizacion_lineas) — cabecera + líneas editables en la tab
+// "Cotización" del CENTRO de la ficha del lead. Namespace distinto de
+// prosp*/hbcli* y del prospCotiz* viejo (archivo suelto, sigue vivo en la
+// tarjeta "Archivo de cotización" de la derecha) — son dos features
+// distintas que conviven a propósito.
+let crmCotizCurrentId=null;
+let crmCotizLineas=[];
+let crmCotizTiposServicio=[];
+let _crmCotizLoadedForLead=null;
+// Redondeo en UN solo lugar de este subsistema (regla del proyecto).
+function _crmCotizRound2(n){return Math.round((n||0)*100)/100;}
+async function _crmCotizEnsureTiposServicio(){
+  if(crmCotizTiposServicio.length)return;
+  const cfgRows=await sbGetAll('hb_config');
+  const row=cfgRows.find(function(r){return r.clave==='tipos_servicio';});
+  crmCotizTiposServicio=(row&&row.valor)||[];
+}
+function switchProspCentroTab(tab){
+  document.querySelectorAll('#view-prosp-detail .tab-panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('#view-prosp-detail .detail-tabs .tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('prosp-det-tab-'+tab)?.classList.add('active');
+  const m={bitacora:0,cotizacion:1};
+  document.querySelectorAll('#view-prosp-detail .detail-tabs .tab-btn')[m[tab]??0]?.classList.add('active');
+  if(tab==='cotizacion'&&_crmCotizLoadedForLead!==prospCurrentId){
+    _crmCotizLoadedForLead=prospCurrentId;
+    crmCotizLoad(prospCurrentId);
+  }
+}
+async function crmCotizLoad(prospectoId){
+  await _crmCotizEnsureTiposServicio();
+  const canEditP=canEdit('prospectos');
+  const actionsWrap=document.getElementById('crmcotiz-actions-wrap');if(actionsWrap)actionsWrap.style.display=canEditP?'':'none';
+  const addBtn=document.getElementById('crmcotiz-addlinea-btn');if(addBtn)addBtn.style.display=canEditP?'':'none';
+  const {data,error}=await sb.from('hb_crm_cotizaciones').select('*').eq('prospecto_id',prospectoId).eq('activo',true).order('created_at',{ascending:false}).limit(1);
+  if(error){console.error('crmCotizLoad',error);toast('Error al cargar la cotización.','error');return;}
+  const row=(data&&data[0])||null;
+  if(row){
+    crmCotizCurrentId=row.id;
+    document.getElementById('crmcotizf-folio').value=row.folio||'';
+    document.getElementById('crmcotizf-vigencia').value=row.vigencia_dias!=null?row.vigencia_dias:15;
+    document.getElementById('crmcotizf-condiciones').value=row.condiciones||'';
+    document.getElementById('crmcotizf-moneda').value=row.moneda||'MXN';
+    document.getElementById('crmcotizf-tc').value=row.tc_aplicado!=null?row.tc_aplicado:1;
+    document.getElementById('crmcotizf-estado').value=row.estado||'borrador';
+    const {data:lineasRaw,error:errL}=await sb.from('hb_crm_cotizacion_lineas').select('*').eq('cotizacion_id',row.id).order('orden');
+    if(errL){console.error('crmCotizLoad lineas',errL);crmCotizLineas=[];}
+    else crmCotizLineas=(lineasRaw||[]).map(function(l){return {id:l.id,orden:l.orden,tipoServicio:l.tipo_servicio,descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precio_unitario,monedaOriginal:l.moneda_original,tcAplicado:l.tc_aplicado,importeMxn:l.importe_mxn,datosExtra:l.datos_extra||{}};});
+  }else{
+    crmCotizCurrentId=null;
+    document.getElementById('crmcotizf-folio').value='';
+    document.getElementById('crmcotizf-vigencia').value=15;
+    document.getElementById('crmcotizf-condiciones').value='';
+    document.getElementById('crmcotizf-moneda').value='MXN';
+    document.getElementById('crmcotizf-tc').value=1;
+    document.getElementById('crmcotizf-estado').value='borrador';
+    crmCotizLineas=[];
+  }
+  crmCotizOnHeaderMonedaChange();
+  renderCrmCotizLineas();
+}
+function crmCotizOnHeaderMonedaChange(){
+  const moneda=document.getElementById('crmcotizf-moneda')?.value;
+  const wrap=document.getElementById('crmcotizf-tc-wrap');
+  if(wrap)wrap.style.display=moneda==='MXN'?'none':'';
+  if(moneda==='MXN'){const tc=document.getElementById('crmcotizf-tc');if(tc)tc.value=1;}
+}
+function _crmCotizTipoOptions(selectedId){
+  return '<option value="">—</option>'+crmCotizTiposServicio.filter(function(t){return t.activo!==false;}).map(function(t){
+    return '<option value="'+t.id+'"'+(selectedId===t.id?' selected':'')+'>'+escHtml(t.nombre)+'</option>';
+  }).join('');
+}
+function _crmCotizMonedaOptions(selected){
+  return ['MXN','USD','EUR'].map(function(m){return '<option value="'+m+'"'+(selected===m?' selected':'')+'>'+m+'</option>';}).join('');
+}
+function _crmCotizCalcImporte(line){
+  const esMxn=line.monedaOriginal==='MXN'||!line.monedaOriginal;
+  const tc=esMxn?1:(line.tcAplicado||0);
+  return _crmCotizRound2((line.cantidad||0)*(line.precioUnitario||0)*tc);
+}
+function _crmCotizLineaRowHtml(line,idx){
+  const esMxn=line.monedaOriginal==='MXN'||!line.monedaOriginal;
+  const canEditP=canEdit('prospectos');
+  return '<tr data-idx="'+idx+'">'+
+    '<td><select class="form-input" style="padding:5px 6px;font-size:12px" onchange="crmCotizLineaSetField('+idx+',\'tipoServicio\',this.value)" '+(canEditP?'':'disabled')+'>'+_crmCotizTipoOptions(line.tipoServicio)+'</select></td>'+
+    '<td><input type="text" class="form-input" style="padding:5px 6px;font-size:12px" value="'+escHtml(line.descripcion||'')+'" oninput="crmCotizLineaSetField('+idx+',\'descripcion\',this.value)" '+(canEditP?'':'disabled')+'></td>'+
+    '<td><input type="number" min="0" step="0.01" class="form-input" style="padding:5px 6px;font-size:12px" value="'+(line.cantidad||0)+'" oninput="crmCotizLineaSetField('+idx+',\'cantidad\',this.value)" '+(canEditP?'':'disabled')+'></td>'+
+    '<td><input type="number" min="0" step="0.01" class="form-input" style="padding:5px 6px;font-size:12px" value="'+(line.precioUnitario||0)+'" oninput="crmCotizLineaSetField('+idx+',\'precioUnitario\',this.value)" '+(canEditP?'':'disabled')+'></td>'+
+    '<td><select class="form-input" style="padding:5px 6px;font-size:12px" onchange="crmCotizLineaSetField('+idx+',\'monedaOriginal\',this.value)" '+(canEditP?'':'disabled')+'>'+_crmCotizMonedaOptions(line.monedaOriginal||'MXN')+'</select></td>'+
+    '<td><input type="number" step="0.0001" min="0" class="form-input" style="padding:5px 6px;font-size:12px" value="'+(line.tcAplicado!=null?line.tcAplicado:1)+'" oninput="crmCotizLineaSetField('+idx+',\'tcAplicado\',this.value)" '+(esMxn||!canEditP?'disabled':'')+'></td>'+
+    '<td class="crmcotiz-importe-cell" style="text-align:right;font-weight:600">$'+(line.importeMxn||0).toLocaleString('es-MX',{minimumFractionDigits:2})+'</td>'+
+    '<td>'+(canEditP?'<button type="button" class="btn-sm btn-ghost" style="color:var(--cp-red)" onclick="crmCotizRemoveLinea('+idx+')" title="Quitar línea"><i class="ti ti-trash"></i></button>':'')+'</td>'+
+  '</tr>';
+}
+function renderCrmCotizLineas(){
+  const tbody=document.getElementById('crmcotiz-lineas-tbody');if(!tbody)return;
+  if(!crmCotizLineas.length){
+    tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-file-invoice"></i><p>Sin líneas — agrega la primera con "Agregar línea".</p></div></td></tr>';
+  }else{
+    tbody.innerHTML=crmCotizLineas.map(function(l,i){return _crmCotizLineaRowHtml(l,i);}).join('');
+  }
+  crmCotizRecalcTotal();
+}
+function crmCotizAddLinea(){
+  if(!canEdit('prospectos'))return;
+  crmCotizLineas.push({id:null,orden:crmCotizLineas.length,tipoServicio:'',descripcion:'',cantidad:1,precioUnitario:0,monedaOriginal:'MXN',tcAplicado:1,importeMxn:0,datosExtra:{}});
+  renderCrmCotizLineas();
+}
+function crmCotizLineaSetField(idx,field,rawValue){
+  const line=crmCotizLineas[idx];if(!line)return;
+  if(field==='cantidad'||field==='precioUnitario'||field==='tcAplicado'){
+    line[field]=parseFloat(rawValue)||0;
+  }else{
+    line[field]=rawValue;
+  }
+  if(field==='monedaOriginal'&&rawValue==='MXN')line.tcAplicado=1;
+  line.importeMxn=_crmCotizCalcImporte(line);
+  if(field==='monedaOriginal'){
+    // El input de TC cambia de habilitado/solo-lectura según la moneda —
+    // repinta la fila completa. Es un <select>, no tecleo continuo, así que
+    // perder el foco aquí no afecta la experiencia como sí lo haría en
+    // cantidad/precio (esos SOLO tocan la celda de importe, ver abajo).
+    renderCrmCotizLineas();
+    return;
+  }
+  const cell=document.querySelector('#crmcotiz-lineas-tbody tr[data-idx="'+idx+'"] .crmcotiz-importe-cell');
+  if(cell)cell.textContent='$'+line.importeMxn.toLocaleString('es-MX',{minimumFractionDigits:2});
+  crmCotizRecalcTotal();
+}
+function crmCotizRecalcTotal(){
+  const total=_crmCotizRound2(crmCotizLineas.reduce(function(s,l){return s+(l.importeMxn||0);},0));
+  const el=document.getElementById('crmcotiz-total');
+  if(el)el.textContent='$'+total.toLocaleString('es-MX',{minimumFractionDigits:2});
+}
+// Excepción documentada (a diferencia del resto de tablas hb_*, ver
+// CLAUDE.md §2): una línea de cotización SÍ permite hard-delete — es detalle
+// editable de un borrador, no un registro de negocio en firme.
+async function crmCotizRemoveLinea(idx){
+  if(!canEdit('prospectos'))return;
+  const line=crmCotizLineas[idx];if(!line)return;
+  if(line.id){
+    const ok=await sbDelete('hb_crm_cotizacion_lineas',line.id);
+    if(!ok){toast('Error al eliminar la línea.','error');return;}
+  }
+  crmCotizLineas.splice(idx,1);
+  renderCrmCotizLineas();
+}
+async function crmCotizSave(){
+  if(!canEdit('prospectos'))return;
+  const p=prospData.find(function(x){return x.id===prospCurrentId;});if(!p)return;
+  const wasExisting=!!crmCotizCurrentId;
+  const folio=sanitizeInput(document.getElementById('crmcotizf-folio').value,60)||('COT-'+Date.now());
+  const vigenciaDias=parseInt(document.getElementById('crmcotizf-vigencia').value)||15;
+  const condiciones=sanitizeInput(document.getElementById('crmcotizf-condiciones').value,2000);
+  const moneda=document.getElementById('crmcotizf-moneda').value||'MXN';
+  const tcAplicado=moneda==='MXN'?1:(parseFloat(document.getElementById('crmcotizf-tc').value)||1);
+  const estado=document.getElementById('crmcotizf-estado').value||'borrador';
+  const totalMxn=_crmCotizRound2(crmCotizLineas.reduce(function(s,l){return s+(l.importeMxn||0);},0));
+  const headerId=crmCotizCurrentId||uid9();
+  const headerRow={
+    id:headerId, prospecto_id:prospCurrentId, folio, vigencia_dias:vigenciaDias,
+    condiciones, moneda, tc_aplicado:tcAplicado, total_mxn:totalMxn, estado,
+    vendedor_id:p.vendedorId||state.currentUser?.id||null, activo:true
+  };
+  const ok=await sbUpsert('hb_crm_cotizaciones',headerRow);
+  if(!ok){toast('Error al guardar la cotización.','error');return;}
+  crmCotizCurrentId=headerId;
+  for(let i=0;i<crmCotizLineas.length;i++){
+    const l=crmCotizLineas[i];
+    const lineId=l.id||uid9();
+    const lineRow={
+      id:lineId, cotizacion_id:headerId, orden:i,
+      tipo_servicio:l.tipoServicio||null, descripcion:l.descripcion||'',
+      cantidad:l.cantidad||0, precio_unitario:l.precioUnitario||0,
+      moneda_original:l.monedaOriginal||'MXN',
+      tc_aplicado:l.monedaOriginal==='MXN'?1:(l.tcAplicado||1),
+      importe_mxn:l.importeMxn||0, datos_extra:l.datosExtra||{}
+    };
+    const okLine=await sbUpsert('hb_crm_cotizacion_lineas',lineRow);
+    if(!okLine){toast('Error al guardar una línea de la cotización.','error');return;}
+    l.id=lineId;
+  }
+  auditLog(wasExisting?'editar':'crear','hb_crm_cotizaciones',headerId,'Cotización '+folio+' — '+p.nombre);
+  toast('Cotización guardada ✓');
 }
 
 // ── DASHBOARD DEL CRM (vista 'dashboard' dentro de Prospectos) ──
