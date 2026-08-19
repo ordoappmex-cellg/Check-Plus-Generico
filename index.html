@@ -2677,7 +2677,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                         <option value="rechazada">Rechazada</option>
                       </select>
                     </div>
-                    <div class="form-field full"><label class="form-label">Condiciones</label><textarea class="form-input" id="crmcotizf-condiciones" rows="2" placeholder="Condiciones de pago, políticas de cancelación, etc."></textarea></div>
+                    <div class="form-field full"><label class="form-label">Observaciones</label><textarea class="form-input" id="crmcotizf-condiciones" rows="2" placeholder="Condiciones de pago, políticas de cancelación, etc."></textarea></div>
                   </div>
                   <div style="overflow-x:auto">
                     <table class="emp-table" id="crmcotiz-lineas-table">
@@ -13176,8 +13176,16 @@ let crmCotizCurrentId=null;
 let crmCotizLineas=[];
 let crmCotizTiposServicio=[];
 let _crmCotizLoadedForLead=null;
+// Coerción numérica defensiva — PostgREST devuelve las columnas `numeric`
+// de Supabase como STRING en el JSON (evita pérdida de precisión), así que
+// una línea recién cargada de una cotización YA GUARDADA trae
+// cantidad/precio_unitario/tc_aplicado/importe_mxn como texto, no número.
+// Con solo `x||0`, un string sigue siendo string y el `+` de la suma del
+// total hace CONCATENACIÓN en vez de sumar — bug real, no solo hipotético.
+// Todo valor numérico de este subsistema pasa por aquí antes de operarse.
+function _crmCotizNum(v){const n=typeof v==='number'?v:parseFloat(v);return isNaN(n)?0:n;}
 // Redondeo en UN solo lugar de este subsistema (regla del proyecto).
-function _crmCotizRound2(n){return Math.round((n||0)*100)/100;}
+function _crmCotizRound2(n){return Math.round(_crmCotizNum(n)*100)/100;}
 async function _crmCotizEnsureTiposServicio(){
   if(crmCotizTiposServicio.length)return;
   const cfgRows=await sbGetAll('hb_config');
@@ -13213,7 +13221,7 @@ async function crmCotizLoad(prospectoId){
     document.getElementById('crmcotizf-estado').value=row.estado||'borrador';
     const {data:lineasRaw,error:errL}=await sb.from('hb_crm_cotizacion_lineas').select('*').eq('cotizacion_id',row.id).order('orden');
     if(errL){console.error('crmCotizLoad lineas',errL);crmCotizLineas=[];}
-    else crmCotizLineas=(lineasRaw||[]).map(function(l){return {id:l.id,orden:l.orden,tipoServicio:l.tipo_servicio,tipoServicioNuevo:'',_modoNuevoTipo:false,descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precio_unitario,monedaOriginal:l.moneda_original,tcAplicado:l.tc_aplicado,importeMxn:l.importe_mxn,datosExtra:l.datos_extra||{}};});
+    else crmCotizLineas=(lineasRaw||[]).map(function(l){return {id:l.id,orden:l.orden,tipoServicio:l.tipo_servicio,tipoServicioNuevo:'',_modoNuevoTipo:false,descripcion:l.descripcion,cantidad:_crmCotizNum(l.cantidad),precioUnitario:_crmCotizNum(l.precio_unitario),monedaOriginal:l.moneda_original,tcAplicado:_crmCotizNum(l.tc_aplicado),importeMxn:_crmCotizNum(l.importe_mxn),datosExtra:l.datos_extra||{}};});
   }else{
     crmCotizCurrentId=null;
     document.getElementById('crmcotizf-folio').value='';
@@ -13241,10 +13249,16 @@ function _crmCotizTipoOptions(selectedId){
 function _crmCotizMonedaOptions(selected){
   return ['MXN','USD','EUR'].map(function(m){return '<option value="'+m+'"'+(selected===m?' selected':'')+'>'+m+'</option>';}).join('');
 }
+// Único lugar que suma el total — las 3 llamadas (recalc en vivo, guardado,
+// PDF) pasan por aquí, así quedan garantizadas la misma fuente y la misma
+// coerción numérica (ver _crmCotizNum) en los tres.
+function _crmCotizComputeTotal(){
+  return _crmCotizRound2(crmCotizLineas.reduce(function(s,l){return s+_crmCotizNum(l.importeMxn);},0));
+}
 function _crmCotizCalcImporte(line){
   const esMxn=line.monedaOriginal==='MXN'||!line.monedaOriginal;
-  const tc=esMxn?1:(line.tcAplicado||0);
-  return _crmCotizRound2((line.cantidad||0)*(line.precioUnitario||0)*tc);
+  const tc=esMxn?1:_crmCotizNum(line.tcAplicado);
+  return _crmCotizRound2(_crmCotizNum(line.cantidad)*_crmCotizNum(line.precioUnitario)*tc);
 }
 function _crmCotizLineaRowHtml(line,idx){
   const esMxn=line.monedaOriginal==='MXN'||!line.monedaOriginal;
@@ -13319,7 +13333,7 @@ function crmCotizLineaSetField(idx,field,rawValue){
   crmCotizRecalcTotal();
 }
 function crmCotizRecalcTotal(){
-  const total=_crmCotizRound2(crmCotizLineas.reduce(function(s,l){return s+(l.importeMxn||0);},0));
+  const total=_crmCotizComputeTotal();
   const el=document.getElementById('crmcotiz-total');
   if(el)el.textContent='$'+total.toLocaleString('es-MX',{minimumFractionDigits:2});
 }
@@ -13372,7 +13386,7 @@ async function crmCotizSave(){
   const moneda=document.getElementById('crmcotizf-moneda').value||'MXN';
   const tcAplicado=moneda==='MXN'?1:(parseFloat(document.getElementById('crmcotizf-tc').value)||1);
   const estado=document.getElementById('crmcotizf-estado').value||'borrador';
-  const totalMxn=_crmCotizRound2(crmCotizLineas.reduce(function(s,l){return s+(l.importeMxn||0);},0));
+  const totalMxn=_crmCotizComputeTotal();
   const headerId=crmCotizCurrentId||uid9();
   const headerRow={
     id:headerId, prospecto_id:prospCurrentId, folio, vigencia_dias:vigenciaDias,
@@ -13420,7 +13434,7 @@ async function crmCotizExportPdf(){
   const condiciones=document.getElementById('crmcotizf-condiciones').value||'';
   const moneda=document.getElementById('crmcotizf-moneda').value||'MXN';
   const estado=document.getElementById('crmcotizf-estado').value||'borrador';
-  const total=_crmCotizRound2(crmCotizLineas.reduce(function(s,l){return s+(l.importeMxn||0);},0));
+  const total=_crmCotizComputeTotal();
 
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'letter'});
@@ -13429,15 +13443,35 @@ async function crmCotizExportPdf(){
 
   // Membrete — mismo dato que renderSidebarBranding (companyInfo.logoDataUrl/
   // nombre/ciudad, ya en app_config vía dbLoad). El logo es cortesía visual:
-  // si addImage falla por formato inesperado, se ignora sin romper el PDF.
+  // si algo falla, se ignora sin romper el PDF. No pude inspeccionar el
+  // archivo real (sin acceso a Supabase/navegador en esta sesión), así que
+  // este bloque cubre las DOS causas posibles que se señalaron sin asumir
+  // cuál es la real: (1) transparencia — fondo blanco sólido detrás del
+  // logo en vez de dejar que jsPDF componga el alfa contra el lienzo, más
+  // compresión 'NONE' en vez de 'FAST'; (2) escalado — en vez de forzar
+  // 22×22 fijo (deformaba cualquier logo no cuadrado), se lee el tamaño
+  // real vía doc.getImageProperties() y se ajusta manteniendo aspect ratio
+  // dentro de una caja máxima de 22mm.
   let hasLogo=false;
+  const LOGO_BOX=22;
   if(companyInfo.logoDataUrl){
-    let fmt='PNG';
-    const m=/^data:image\/(\w+);base64,/.exec(companyInfo.logoDataUrl);
-    if(m)fmt=(m[1].toUpperCase()==='JPG'?'JPEG':m[1].toUpperCase());
-    try{doc.addImage(companyInfo.logoDataUrl,fmt,marginX,y-6,22,22,undefined,'FAST');hasLogo=true;}catch(e){console.warn('crmCotizExportPdf logo',e);}
+    try{
+      const props=doc.getImageProperties(companyInfo.logoDataUrl);
+      let w=LOGO_BOX,h=LOGO_BOX;
+      if(props&&props.width&&props.height){
+        const ratio=props.width/props.height;
+        if(ratio>=1)h=LOGO_BOX/ratio;else w=LOGO_BOX*ratio;
+      }
+      let fmt='PNG';
+      const m=/^data:image\/(\w+);base64,/.exec(companyInfo.logoDataUrl);
+      if(m)fmt=(m[1].toUpperCase()==='JPG'?'JPEG':m[1].toUpperCase());
+      doc.setFillColor(255,255,255);
+      doc.rect(marginX,y-6,LOGO_BOX,LOGO_BOX,'F');
+      doc.addImage(companyInfo.logoDataUrl,fmt,marginX+(LOGO_BOX-w)/2,y-6+(LOGO_BOX-h)/2,w,h,undefined,'NONE');
+      hasLogo=true;
+    }catch(e){console.warn('crmCotizExportPdf logo',e);}
   }
-  const textX=hasLogo?marginX+26:marginX;
+  const textX=hasLogo?marginX+LOGO_BOX+4:marginX;
   doc.setFontSize(14);doc.setFont('helvetica','bold');
   doc.text(companyInfo.nombre||'Cotización',textX,y);y+=6;
   doc.setFontSize(10);doc.setFont('helvetica','normal');
@@ -13465,10 +13499,10 @@ async function crmCotizExportPdf(){
     return [
       tipoMap[l.tipoServicio]||l.tipoServicio||'—',
       l.descripcion||'',
-      String(l.cantidad||0),
-      (l.precioUnitario||0).toLocaleString('es-MX',{minimumFractionDigits:2}),
+      String(_crmCotizNum(l.cantidad)),
+      _crmCotizNum(l.precioUnitario).toLocaleString('es-MX',{minimumFractionDigits:2}),
       l.monedaOriginal||'MXN',
-      '$'+(l.importeMxn||0).toLocaleString('es-MX',{minimumFractionDigits:2}),
+      '$'+_crmCotizNum(l.importeMxn).toLocaleString('es-MX',{minimumFractionDigits:2}),
     ];
   });
   doc.autoTable({
@@ -13482,7 +13516,7 @@ async function crmCotizExportPdf(){
   y=doc.lastAutoTable.finalY+8;
 
   if(condiciones){
-    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Condiciones',marginX,y);y+=5;
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Observaciones',marginX,y);y+=5;
     doc.setFont('helvetica','normal');
     const split=doc.splitTextToSize(condiciones,182);
     doc.text(split,marginX,y);y+=split.length*5+4;
