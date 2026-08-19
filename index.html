@@ -5913,6 +5913,13 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
      Sin key, tiles de OpenStreetMap gratis. -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9/dist/leaflet.js"></script>
+<!-- jsPDF (Fase 1, sub-tarea 2A) — primer generador de documentos del
+     proyecto (no había precedente real de Word/PDF pese al contexto dado).
+     UMD build expone window.jspdf.jsPDF. autoTable se carga después y se
+     engancha solo a jsPDF.API — usado por crmCotizExportPdf para la tabla
+     de líneas. -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf-autotable.min.js"></script>
 <script>
 // Early declarations to prevent reference errors
 let segModalDocs = [];
@@ -13206,7 +13213,7 @@ async function crmCotizLoad(prospectoId){
     document.getElementById('crmcotizf-estado').value=row.estado||'borrador';
     const {data:lineasRaw,error:errL}=await sb.from('hb_crm_cotizacion_lineas').select('*').eq('cotizacion_id',row.id).order('orden');
     if(errL){console.error('crmCotizLoad lineas',errL);crmCotizLineas=[];}
-    else crmCotizLineas=(lineasRaw||[]).map(function(l){return {id:l.id,orden:l.orden,tipoServicio:l.tipo_servicio,descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precio_unitario,monedaOriginal:l.moneda_original,tcAplicado:l.tc_aplicado,importeMxn:l.importe_mxn,datosExtra:l.datos_extra||{}};});
+    else crmCotizLineas=(lineasRaw||[]).map(function(l){return {id:l.id,orden:l.orden,tipoServicio:l.tipo_servicio,tipoServicioNuevo:'',_modoNuevoTipo:false,descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precio_unitario,monedaOriginal:l.moneda_original,tcAplicado:l.tc_aplicado,importeMxn:l.importe_mxn,datosExtra:l.datos_extra||{}};});
   }else{
     crmCotizCurrentId=null;
     document.getElementById('crmcotizf-folio').value='';
@@ -13229,7 +13236,7 @@ function crmCotizOnHeaderMonedaChange(){
 function _crmCotizTipoOptions(selectedId){
   return '<option value="">—</option>'+crmCotizTiposServicio.filter(function(t){return t.activo!==false;}).map(function(t){
     return '<option value="'+t.id+'"'+(selectedId===t.id?' selected':'')+'>'+escHtml(t.nombre)+'</option>';
-  }).join('');
+  }).join('')+'<option value="__nuevo__">+ Otro (escribir nuevo)</option>';
 }
 function _crmCotizMonedaOptions(selected){
   return ['MXN','USD','EUR'].map(function(m){return '<option value="'+m+'"'+(selected===m?' selected':'')+'>'+m+'</option>';}).join('');
@@ -13242,8 +13249,18 @@ function _crmCotizCalcImporte(line){
 function _crmCotizLineaRowHtml(line,idx){
   const esMxn=line.monedaOriginal==='MXN'||!line.monedaOriginal;
   const canEditP=canEdit('prospectos');
+  // "+ Otro (escribir nuevo)" en el select revela este input en su lugar
+  // (modo _modoNuevoTipo) en vez de crear el tipo al vuelo — el catálogo
+  // solo se toca al Guardar (crmCotizSave → _crmCotizFindOrCreateTipoServicio),
+  // nunca con cada tecla.
+  const tipoCell=line._modoNuevoTipo
+    ?'<div style="display:flex;gap:2px;align-items:center">'+
+      '<input type="text" class="form-input" style="padding:5px 6px;font-size:12px" placeholder="Nuevo tipo de servicio…" value="'+escHtml(line.tipoServicioNuevo||'')+'" oninput="crmCotizLineaSetField('+idx+',\'tipoServicioNuevo\',this.value)" '+(canEditP?'':'disabled')+'>'+
+      (canEditP?'<button type="button" title="Volver a elegir de la lista" style="background:none;border:none;color:var(--cp-gray-400);cursor:pointer;padding:2px;flex-shrink:0" onclick="crmCotizLineaCancelNuevoTipo('+idx+')"><i class="ti ti-x"></i></button>':'')+
+    '</div>'
+    :'<select class="form-input" style="padding:5px 6px;font-size:12px" onchange="crmCotizLineaSetField('+idx+',\'tipoServicio\',this.value)" '+(canEditP?'':'disabled')+'>'+_crmCotizTipoOptions(line.tipoServicio)+'</select>';
   return '<tr data-idx="'+idx+'">'+
-    '<td><select class="form-input" style="padding:5px 6px;font-size:12px" onchange="crmCotizLineaSetField('+idx+',\'tipoServicio\',this.value)" '+(canEditP?'':'disabled')+'>'+_crmCotizTipoOptions(line.tipoServicio)+'</select></td>'+
+    '<td>'+tipoCell+'</td>'+
     '<td><input type="text" class="form-input" style="padding:5px 6px;font-size:12px" value="'+escHtml(line.descripcion||'')+'" oninput="crmCotizLineaSetField('+idx+',\'descripcion\',this.value)" '+(canEditP?'':'disabled')+'></td>'+
     '<td><input type="number" min="0" step="0.01" class="form-input" style="padding:5px 6px;font-size:12px" value="'+(line.cantidad||0)+'" oninput="crmCotizLineaSetField('+idx+',\'cantidad\',this.value)" '+(canEditP?'':'disabled')+'></td>'+
     '<td><input type="number" min="0" step="0.01" class="form-input" style="padding:5px 6px;font-size:12px" value="'+(line.precioUnitario||0)+'" oninput="crmCotizLineaSetField('+idx+',\'precioUnitario\',this.value)" '+(canEditP?'':'disabled')+'></td>'+
@@ -13264,11 +13281,24 @@ function renderCrmCotizLineas(){
 }
 function crmCotizAddLinea(){
   if(!canEdit('prospectos'))return;
-  crmCotizLineas.push({id:null,orden:crmCotizLineas.length,tipoServicio:'',descripcion:'',cantidad:1,precioUnitario:0,monedaOriginal:'MXN',tcAplicado:1,importeMxn:0,datosExtra:{}});
+  crmCotizLineas.push({id:null,orden:crmCotizLineas.length,tipoServicio:'',tipoServicioNuevo:'',_modoNuevoTipo:false,descripcion:'',cantidad:1,precioUnitario:0,monedaOriginal:'MXN',tcAplicado:1,importeMxn:0,datosExtra:{}});
+  renderCrmCotizLineas();
+}
+function crmCotizLineaCancelNuevoTipo(idx){
+  const line=crmCotizLineas[idx];if(!line)return;
+  line._modoNuevoTipo=false;
+  line.tipoServicioNuevo='';
   renderCrmCotizLineas();
 }
 function crmCotizLineaSetField(idx,field,rawValue){
   const line=crmCotizLineas[idx];if(!line)return;
+  if(field==='tipoServicio'&&rawValue==='__nuevo__'){
+    line._modoNuevoTipo=true;
+    line.tipoServicio='';
+    line.tipoServicioNuevo='';
+    renderCrmCotizLineas();
+    return;
+  }
   if(field==='cantidad'||field==='precioUnitario'||field==='tcAplicado'){
     line[field]=parseFloat(rawValue)||0;
   }else{
@@ -13306,6 +13336,32 @@ async function crmCotizRemoveLinea(idx){
   crmCotizLineas.splice(idx,1);
   renderCrmCotizLineas();
 }
+// Find-or-create sobre hb_config.tipos_servicio — mismo espíritu que
+// crmFindOrCreateEmpresa (normaliza, busca, si no existe lo agrega al
+// catálogo y hace upsert de la CLAVE COMPLETA, que es como se guardan los
+// catálogos de hb_config). Actualiza crmCotizTiposServicio in-place, así la
+// próxima línea de la MISMA cotización ya lo ve como opción normal del
+// select, sin recargar nada.
+async function _crmCotizFindOrCreateTipoServicio(nombreRaw){
+  const nombre=(nombreRaw||'').trim();
+  if(!nombre)return null;
+  const norm=nombre.toLowerCase();
+  const existing=crmCotizTiposServicio.find(function(t){return (t.nombre||'').trim().toLowerCase()===norm;});
+  if(existing)return existing.id;
+  // Id estable tipo slug (en vez de uid9()) para que el catálogo sea legible
+  // si se inspecciona hb_config a mano — con desempate si el slug choca.
+  let slug=norm.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  if(!slug)slug=uid9();
+  let finalId=slug,n=2;
+  while(crmCotizTiposServicio.some(function(t){return t.id===finalId;})){finalId=slug+'_'+n;n++;}
+  const item={id:finalId,nombre,activo:true,campos:[]};
+  const updated=crmCotizTiposServicio.concat([item]);
+  const {error}=await sb.from('hb_config').upsert({clave:'tipos_servicio',valor:updated});
+  if(error){console.error('_crmCotizFindOrCreateTipoServicio',error);return null;}
+  sbInvalidate('hb_config');
+  crmCotizTiposServicio=updated;
+  return item.id;
+}
 async function crmCotizSave(){
   if(!canEdit('prospectos'))return;
   const p=prospData.find(function(x){return x.id===prospCurrentId;});if(!p)return;
@@ -13328,6 +13384,13 @@ async function crmCotizSave(){
   crmCotizCurrentId=headerId;
   for(let i=0;i<crmCotizLineas.length;i++){
     const l=crmCotizLineas[i];
+    // "+ Otro (escribir nuevo)" resuelto ANTES de guardar la línea — el
+    // catálogo se toca aquí, no en cada tecla del input.
+    if(l._modoNuevoTipo&&(l.tipoServicioNuevo||'').trim()){
+      const newTipoId=await _crmCotizFindOrCreateTipoServicio(l.tipoServicioNuevo);
+      if(!newTipoId){toast('Error al crear el tipo de servicio "'+l.tipoServicioNuevo+'".','error');return;}
+      l.tipoServicio=newTipoId;l._modoNuevoTipo=false;l.tipoServicioNuevo='';
+    }
     const lineId=l.id||uid9();
     const lineRow={
       id:lineId, cotizacion_id:headerId, orden:i,
@@ -13342,7 +13405,93 @@ async function crmCotizSave(){
     l.id=lineId;
   }
   auditLog(wasExisting?'editar':'crear','hb_crm_cotizaciones',headerId,'Cotización '+folio+' — '+p.nombre);
+  renderCrmCotizLineas(); // refleja tipos "+ Otro" ya resueltos a su select normal
   toast('Cotización guardada ✓');
+}
+// Genera SIEMPRE a partir del estado actual en pantalla (crmCotizLineas +
+// valores de los inputs de cabecera) — nunca de un archivo pre-guardado ni
+// de un round-trip a la base, así el PDF nunca queda desfasado de lo que se
+// ve. No sube a Storage (Fase 1) — descarga directa vía doc.save().
+async function crmCotizExportPdf(){
+  const p=prospData.find(function(x){return x.id===prospCurrentId;});if(!p)return;
+  const folioEl=document.getElementById('crmcotizf-folio');if(!folioEl)return;
+  const folio=folioEl.value||'(sin folio)';
+  const vigenciaDias=document.getElementById('crmcotizf-vigencia').value||15;
+  const condiciones=document.getElementById('crmcotizf-condiciones').value||'';
+  const moneda=document.getElementById('crmcotizf-moneda').value||'MXN';
+  const estado=document.getElementById('crmcotizf-estado').value||'borrador';
+  const total=_crmCotizRound2(crmCotizLineas.reduce(function(s,l){return s+(l.importeMxn||0);},0));
+
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'letter'});
+  const marginX=14;
+  let y=16;
+
+  // Membrete — mismo dato que renderSidebarBranding (companyInfo.logoDataUrl/
+  // nombre/ciudad, ya en app_config vía dbLoad). El logo es cortesía visual:
+  // si addImage falla por formato inesperado, se ignora sin romper el PDF.
+  let hasLogo=false;
+  if(companyInfo.logoDataUrl){
+    let fmt='PNG';
+    const m=/^data:image\/(\w+);base64,/.exec(companyInfo.logoDataUrl);
+    if(m)fmt=(m[1].toUpperCase()==='JPG'?'JPEG':m[1].toUpperCase());
+    try{doc.addImage(companyInfo.logoDataUrl,fmt,marginX,y-6,22,22,undefined,'FAST');hasLogo=true;}catch(e){console.warn('crmCotizExportPdf logo',e);}
+  }
+  const textX=hasLogo?marginX+26:marginX;
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text(companyInfo.nombre||'Cotización',textX,y);y+=6;
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  if(companyInfo.ciudad){doc.text(companyInfo.ciudad,textX,y);y+=6;}
+  if(hasLogo&&y<28)y=28;
+
+  doc.setDrawColor(200);doc.line(marginX,y,196,y);y+=8;
+
+  doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('Cotización '+folio,marginX,y);y+=8;
+
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  [
+    'Cliente/lead: '+(p.nombre||'—')+(p.empresa?' · '+p.empresa:''),
+    'Fecha: '+new Date().toLocaleDateString('es-MX'),
+    'Vigencia: '+vigenciaDias+' días',
+    'Estado: '+estado,
+    'Moneda: '+moneda,
+  ].forEach(function(line){doc.text(line,marginX,y);y+=5;});
+  y+=3;
+
+  const tipoMap={};
+  crmCotizTiposServicio.forEach(function(t){tipoMap[t.id]=t.nombre;});
+  const body=crmCotizLineas.map(function(l){
+    return [
+      tipoMap[l.tipoServicio]||l.tipoServicio||'—',
+      l.descripcion||'',
+      String(l.cantidad||0),
+      (l.precioUnitario||0).toLocaleString('es-MX',{minimumFractionDigits:2}),
+      l.monedaOriginal||'MXN',
+      '$'+(l.importeMxn||0).toLocaleString('es-MX',{minimumFractionDigits:2}),
+    ];
+  });
+  doc.autoTable({
+    startY:y,
+    head:[['Tipo de servicio','Descripción','Cant.','P. unitario','Moneda','Importe MXN']],
+    body:body.length?body:[['—','Sin líneas capturadas','','','','']],
+    margin:{left:marginX,right:14},
+    styles:{fontSize:9,cellPadding:2.5},
+    headStyles:{fillColor:[123,47,247]},
+  });
+  y=doc.lastAutoTable.finalY+8;
+
+  if(condiciones){
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text('Condiciones',marginX,y);y+=5;
+    doc.setFont('helvetica','normal');
+    const split=doc.splitTextToSize(condiciones,182);
+    doc.text(split,marginX,y);y+=split.length*5+4;
+  }
+
+  doc.setFontSize(12);doc.setFont('helvetica','bold');
+  doc.text('Total: $'+total.toLocaleString('es-MX',{minimumFractionDigits:2})+' MXN',196,y,{align:'right'});
+
+  doc.save('Cotizacion_'+folio.replace(/[^a-z0-9_-]+/gi,'_')+'.pdf');
 }
 
 // ── DASHBOARD DEL CRM (vista 'dashboard' dentro de Prospectos) ──
