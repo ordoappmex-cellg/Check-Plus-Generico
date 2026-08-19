@@ -11160,7 +11160,7 @@ async function saveHbCli(){
     esPersonaFisica:esPF,
     modalidad:document.getElementById('hbclif-modalidad').value,
     condicionPago,
-    diasCredito:condicionPago==='credito'?(parseInt(document.getElementById('hbclif-dias-credito').value)||0):null,
+    diasCredito:condicionPago==='credito'?(parseInt(document.getElementById('hbclif-dias-credito').value)||0):0,
     limiteCreditoMxn:condicionPago==='credito'?(parseFloat(document.getElementById('hbclif-limite-credito').value)||null):null,
     fechaAlta:existing?existing.fechaAlta:new Date().toISOString(),
     notas:sanitizeInput(document.getElementById('hbclif-notas').value,1000)
