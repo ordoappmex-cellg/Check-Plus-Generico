@@ -2342,6 +2342,80 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         </div>
       </div>
 
+      <!-- CLIENTES VIEW (hb_clientes — cuentas de hospitalidad, cuelgan de
+           hb_crm_empresas vía empresa_id. NO confundir con "Suscripciones",
+           el módulo legacy de licencias/MRR de Check Plus.) -->
+      <div id="view-hbcli-lista" class="view">
+        <div class="section-card">
+          <div class="section-body">
+            <div class="search-bar">
+              <div class="search-input-wrap">
+                <i class="ti ti-search search-icon"></i>
+                <input type="text" id="hbcli-search" placeholder="Buscar cliente por cuenta o RFC…" oninput="renderHbCliLista()">
+              </div>
+              <select class="form-input" id="hbcli-filter-modalidad" onchange="renderHbCliLista()" style="width:170px">
+                <option value="">Todas las modalidades</option>
+                <option value="transaccional">Transaccional</option>
+                <option value="recurrente">Recurrente</option>
+                <option value="mixta">Mixta</option>
+              </select>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cp-gray-600);cursor:pointer;white-space:nowrap">
+                <input type="checkbox" id="hbcli-show-inactivos" onchange="renderHbCliLista()"> Ver inactivos
+              </label>
+              <button class="btn-sm btn-blue" id="btn-nuevo-hbcli" onclick="openAddHbCli()"><i class="ti ti-plus"></i> Nuevo cliente</button>
+            </div>
+            <table class="emp-table">
+              <thead><tr><th>Cuenta</th><th>RFC</th><th>Modalidad</th><th>Condición de pago</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="hbcli-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLIENTE DETAIL VIEW (hb_clientes — ficha 360, Fase 1). Mismo grid
+           280px/1fr/300px y mismas clases .profile-card/.section-card que
+           view-prosp-detail, pero con funciones propias hbCli* atadas a
+           hbCliCurrentId — NO comparte render con Prospectos. -->
+      <div id="view-hbcli-detail" class="view">
+        <button class="btn-sm btn-ghost" onclick="nav('hbcli')" style="margin-bottom:16px"><i class="ti ti-arrow-left"></i> Regresar</button>
+        <div style="display:grid;grid-template-columns:280px 1fr 300px;gap:18px;align-items:start">
+          <!-- IZQUIERDA: identidad de la cuenta -->
+          <div>
+            <div class="profile-card">
+              <div id="hbcli-det-icon" style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;margin:0 auto 12px;background:var(--cp-blue-light);color:var(--cp-blue);overflow:hidden"></div>
+              <div class="profile-name" id="hbcli-det-name"></div>
+              <div class="profile-role" id="hbcli-det-rfc" style="margin-bottom:2px"></div>
+              <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-bottom:12px" id="hbcli-det-chips"></div>
+              <div id="hbcli-det-info-body" style="text-align:left;margin-top:10px"></div>
+              <div class="profile-action-btns">
+                <button class="btn-sm btn-blue" onclick="openEditHbCli(hbCliCurrentId)"><i class="ti ti-edit"></i> Editar cliente</button>
+              </div>
+            </div>
+          </div>
+          <!-- CENTRO: operaciones — placeholder hasta hb_operaciones (Fase 2) -->
+          <div>
+            <div class="section-card">
+              <div class="section-header">
+                <div class="section-title"><i class="ti ti-briefcase" style="margin-right:6px;color:var(--cp-purple)"></i>Operaciones</div>
+              </div>
+              <div class="section-body">
+                <div id="hbcli-det-operaciones-body"></div>
+              </div>
+            </div>
+          </div>
+          <!-- DERECHA: leads de esta cuenta — mismo dataset/filtro que
+               openEmpresaFicha, embebido como sección en vez de modal. -->
+          <div>
+            <div class="section-card">
+              <div class="section-header"><div class="section-title"><i class="ti ti-user-search" style="margin-right:6px;color:var(--cp-blue)"></i>Leads de esta cuenta</div></div>
+              <div class="section-body">
+                <div id="hbcli-det-leads-body"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- PROSPECTOS VIEW (CRM interno) -->
       <div id="view-prospectos" class="view">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -2542,6 +2616,11 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
               <div class="profile-action-btns" id="prosp-det-action-btns">
                 <button class="btn-sm btn-blue" onclick="openEditProspecto()"><i class="ti ti-edit"></i> Editar lead</button>
               </div>
+              <!-- Puente CRM → Clientes (Fase 1, punto 8): "Convertir a
+                   cliente" o "Ver ficha de cliente", según exista ya un
+                   hb_clientes con este empresa_id. Se llena async en
+                   _prospRenderConvertBlock (consulta directa, sin caché). -->
+              <div style="text-align:center;margin-top:6px" id="prosp-det-hbcli-block"></div>
               <div style="text-align:center;margin-top:6px;display:none" id="prosp-det-delete-btn-wrap">
                 <button class="btn-sm btn-ghost" style="color:var(--cp-red);padding:4px 8px;font-size:11px" onclick="confirmDeleteProspecto()" title="Eliminar lead"><i class="ti ti-trash"></i> Eliminar lead</button>
               </div>
@@ -3153,6 +3232,34 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             </div>
             <div class="section-body" style="padding:0">
               <div id="cfg-eval-plantillas-list"></div>
+            </div>
+          </div>
+
+          <!-- CLIENTES — etapa ganada + tipos de servicio (Fase 1, punto 9).
+               Catálogos en hb_config (no app_config), mismo patrón CRUD que
+               PROSP_CFG_CATALOGS (index.html, ~13530) calcado de
+               direccionRenderCfgList — eye/eye-off para activo/inactivo,
+               nunca DELETE físico. -->
+          <div id="cfg-hbcli-section" class="section-card" style="margin-bottom:18px">
+            <div class="section-header">
+              <div class="section-title"><i class="ti ti-address-book" style="margin-right:7px;color:var(--cp-green)"></i>Clientes</div>
+            </div>
+            <div class="section-body">
+              <div style="margin-bottom:18px">
+                <div style="font-size:11px;font-weight:600;color:var(--cp-gray-400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Etapa ganada del CRM (aún sin automatismo conectado)</div>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <select class="form-input" id="cfg-hbcli-etapa-ganada" style="flex:1;max-width:260px"></select>
+                  <button class="btn-sm btn-blue" onclick="saveCfgEtapaGanada()"><i class="ti ti-check"></i> Guardar</button>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:600;color:var(--cp-gray-400);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Tipos de servicio</div>
+                <div id="cfg-hbcli-tipos-list"></div>
+                <div style="display:flex;gap:6px;margin-top:8px">
+                  <input type="text" class="form-input" id="cfg-hbcli-tipo-nombre" placeholder="Nuevo tipo de servicio…" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();cfgHbCliTipoAdd();}">
+                  <button type="button" class="btn-sm btn-ghost" onclick="cfgHbCliTipoAdd()"><i class="ti ti-plus"></i></button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -4068,7 +4175,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Permisos y solicitudes</span><div style="text-align:center"><input type="radio" name="uf-mod-permisos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-permisos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-permisos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Documentos</span><div style="text-align:center"><input type="radio" name="uf-mod-documentos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-documentos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-documentos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Organigrama</span><div style="text-align:center"><input type="radio" name="uf-mod-organigrama" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-organigrama" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-organigrama" value="oculto"></div></div>
-            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Clientes</span><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="oculto"></div></div>
+            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Suscripciones</span><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-clientes" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Desarrollos</span><div style="text-align:center"><input type="radio" name="uf-mod-desarrollos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-desarrollos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-desarrollos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Repositorio</span><div style="text-align:center"><input type="radio" name="uf-mod-repositorio" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-repositorio" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-repositorio" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Soporte Técnico</span><div style="text-align:center"><input type="radio" name="uf-mod-soporte" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-soporte" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-soporte" value="oculto"></div></div>
@@ -4079,6 +4186,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Marketing</span><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-marketing" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Contactos</span><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Proveedores</span><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="oculto"></div></div>
+            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Clientes</span><div style="text-align:center"><input type="radio" name="uf-mod-hbcli" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-hbcli" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-hbcli" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;align-items:center"><span style="font-size:12px">Gestión de Proyectos</span><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="oculto"></div></div>
           </div>
         </div>
@@ -4938,6 +5046,76 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
       <button class="btn-sm btn-red" id="prov-del-btn" onclick="deleteProveedor()" style="display:none;margin-right:auto"><i class="ti ti-trash"></i> Eliminar</button>
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-proveedor')">Cancelar</button>
       <button class="btn-sm btn-blue" id="save-prov-btn" onclick="saveProveedor()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALTA/EDICIÓN DE CLIENTE (hb_clientes) MODAL — Fase 1, alcance simple.
+     Si se abre desde "Convertir a cliente" (ficha de lead), hbCliModalEmpresaId
+     ya viene fijo y el hint de arriba muestra la cuenta vinculada. -->
+<div class="modal-overlay" id="modal-hbcliente">
+  <div class="modal" style="width:480px">
+    <div class="modal-header"><div class="modal-title" id="hbcli-modal-title">Nuevo cliente</div><button class="modal-close" onclick="closeModal('modal-hbcliente')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div id="hbcli-modal-empresa-hint" style="display:none;font-size:12px;background:var(--cp-gray-50);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:12px;color:var(--cp-gray-500)"></div>
+      <div class="form-grid">
+        <div class="form-field full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--cp-navy)"><input type="checkbox" id="hbclif-persona-fisica" onchange="_hbCliTogglePersonaFisica()"> Es persona física (no requiere razón social)</label></div>
+        <div class="form-field full"><label class="form-label" id="hbclif-razon-social-lbl">Razón social *</label><input class="form-input" id="hbclif-razon-social" placeholder="Ej. Servicios Turísticos del Caribe SA de CV"></div>
+        <div class="form-field full"><label class="form-label">Nombre comercial</label><input class="form-input" id="hbclif-nombre-comercial" placeholder="Opcional, si es distinto a la razón social"></div>
+        <div class="form-field"><label class="form-label">RFC</label><input class="form-input" id="hbclif-rfc" placeholder="Opcional"></div>
+        <div class="form-field"><label class="form-label">Tipo de cuenta</label>
+          <select class="form-input" id="hbclif-tipo-cuenta">
+            <option value="normal">Normal</option>
+            <option value="comercial">Comercial</option>
+          </select>
+        </div>
+        <div class="form-field"><label class="form-label">Modalidad</label>
+          <select class="form-input" id="hbclif-modalidad">
+            <option value="transaccional">Transaccional</option>
+            <option value="recurrente">Recurrente</option>
+            <option value="mixta">Mixta</option>
+          </select>
+        </div>
+        <div class="form-field"><label class="form-label">Condición de pago</label>
+          <select class="form-input" id="hbclif-condicion-pago" onchange="_hbCliToggleCredito()">
+            <option value="contado">Contado</option>
+            <option value="credito">Crédito</option>
+          </select>
+        </div>
+        <div class="form-field" id="hbclif-dias-credito-wrap" style="display:none"><label class="form-label">Días de crédito</label><input type="number" min="0" class="form-input" id="hbclif-dias-credito" placeholder="Ej. 30"></div>
+        <div class="form-field" id="hbclif-limite-credito-wrap" style="display:none"><label class="form-label">Límite de crédito (MXN)</label><input type="number" step="0.01" min="0" class="form-input" id="hbclif-limite-credito" placeholder="Opcional"></div>
+        <div class="form-field full"><label class="form-label">Notas</label><textarea class="form-input" id="hbclif-notas" rows="2" placeholder="Opcional"></textarea></div>
+        <div class="form-field full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--cp-navy)"><input type="checkbox" id="hbclif-activo" checked> Activo</label></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-red" id="hbcli-del-btn" onclick="deleteHbCli()" style="display:none;margin-right:auto"><i class="ti ti-trash"></i> Desactivar</button>
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-hbcliente')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-hbcli-btn" onclick="saveHbCli()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDITAR CAMPOS DE UN TIPO DE SERVICIO (hb_config: tipos_servicio) -->
+<div class="modal-overlay" id="modal-hbcli-tipo-campos">
+  <div class="modal" style="width:460px">
+    <div class="modal-header"><div class="modal-title" id="cfg-hbcli-tipo-campos-title">Campos del tipo</div><button class="modal-close" onclick="closeModal('modal-hbcli-tipo-campos')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div id="cfg-hbcli-tipo-campos-list"></div>
+      <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+        <input type="text" class="form-input" id="cfg-hbcli-campo-key" placeholder="key (ej. num_pax)" style="width:110px">
+        <input type="text" class="form-input" id="cfg-hbcli-campo-label" placeholder="Etiqueta visible" style="flex:1;min-width:120px">
+        <select class="form-input" id="cfg-hbcli-campo-tipo" style="width:100px">
+          <option value="texto">Texto</option>
+          <option value="numero">Número</option>
+          <option value="fecha">Fecha</option>
+          <option value="booleano">Sí/No</option>
+        </select>
+        <button type="button" class="btn-sm btn-ghost" onclick="cfgHbCliCampoAdd()"><i class="ti ti-plus"></i></button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-blue" onclick="closeModal('modal-hbcli-tipo-campos')">Listo</button>
     </div>
   </div>
 </div>
@@ -6015,6 +6193,10 @@ async function _loadModuleDataInner(moduleId) {
         await prospLoad();
         break;
       }
+      case 'hbcli': {
+        await hbCliLoad();
+        break;
+      }
       case 'marketing': {
         await mktFormLoad();
         await mktLandingLoad();
@@ -6233,8 +6415,14 @@ async function nav(view){
     await loadModuleData('kanban');
     renderBoardSelector();renderKanban();
   }
-  if(view==='clientes'){renderClientes();document.getElementById('page-title').textContent='Gestión de Clientes y Facturación';}
+  if(view==='clientes'){renderClientes();document.getElementById('page-title').textContent='Gestión de Suscripciones y Facturación';}
   if(view==='proveedores'){renderProveedores();document.getElementById('page-title').textContent='Proveedores';}
+  if(view==='hbcli'){
+    document.getElementById('page-title').textContent='Clientes';
+    if(!_moduleLoaded['hbcli'])showModuleSkeleton('hbcli-tbody');
+    await loadModuleData('hbcli');
+    renderHbCliLista();
+  }
   if(view==='prospectos'){
     document.getElementById('page-title').textContent='Contactos';
     if(!_moduleLoaded['prospectos'])showModuleSkeleton('prosp-tbody');
@@ -6629,14 +6817,14 @@ function renderDashSectionClientes(el){
   el.innerHTML=
     '<div style="background:white;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.07)">'+
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--cp-gray-100)">'+
-        '<div style="font-size:16px;font-weight:700;color:var(--cp-navy)"><i class="ti ti-building-store" style="margin-right:8px;color:var(--cp-green)"></i>Clientes · MRR</div>'+
-        '<a style="font-size:13px;font-weight:600;color:var(--cp-purple);cursor:pointer;text-decoration:none" onclick="nav(\'clientes\')">Ver clientes <i class="ti ti-arrow-right"></i></a>'+
+        '<div style="font-size:16px;font-weight:700;color:var(--cp-navy)"><i class="ti ti-building-store" style="margin-right:8px;color:var(--cp-green)"></i>Suscripciones · MRR</div>'+
+        '<a style="font-size:13px;font-weight:600;color:var(--cp-purple);cursor:pointer;text-decoration:none" onclick="nav(\'clientes\')">Ver suscripciones <i class="ti ti-arrow-right"></i></a>'+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">'+
         '<div style="'+_SC+'">'+
           '<div style="width:36px;height:36px;border-radius:10px;background:#F0FDF4;display:flex;align-items:center;justify-content:center;margin-bottom:12px"><i class="ti ti-building-store" style="font-size:18px;color:#10C080"></i></div>'+
           '<div style="font-size:28px;font-weight:800;color:#10C080;line-height:1;margin-bottom:4px">'+activos.length+'</div>'+
-          '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:2px">Clientes activos</div>'+
+          '<div style="font-size:13px;font-weight:600;color:var(--cp-navy);margin-bottom:2px">Suscripciones activas</div>'+
           '<div style="font-size:11px;color:var(--cp-gray-400)">en producción</div>'+
         '</div>'+
         '<div style="'+_SC+'">'+
@@ -7801,12 +7989,12 @@ async function removeVacDoc(vacId, empId) {
 // ═══════════════════════════════
 
 // ── Supabase Auth ─────────────────────────────────
-const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','marketing','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
+const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','hbcli','marketing','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
 const ROLE_DEFAULTS={
   admin:MODULES_ALL,
   // Legacy roles — kept only so old profiles that haven't been re-saved yet still
   // normalize to something sensible. New profiles use 'usuario' (see Step 6/7).
-  editor:['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','desarrollos','repositorio','soporte','ai-chat','okrs','gestion-proyectos'],
+  editor:['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','hbcli','desarrollos','repositorio','soporte','ai-chat','okrs','gestion-proyectos'],
   viewer:['dashboard','empleados','vacaciones','permisos','documentos','organigrama'],
   usuario:['diseno','gestion-proyectos'], // new users start with every module oculto except Diseño y Gestión de Proyectos (editor by default)
 };
@@ -8866,6 +9054,7 @@ async function showCfgCatalogosSection(btn){
   renderCfgProductosList();
   renderCfgKanbanMembers();
   loadModuleData('evaluaciones').then(renderCfgEvalSection);
+  renderCfgHbCliSection();
   if(!disenoTipos||!disenoTipos.length) await loadDisenoTipos().catch(()=>{});
   renderCfgDisenoSection();
 }
@@ -9038,8 +9227,8 @@ function getPref(key) {
 const NOTIF_PREF_DEFS = [
   {key:'kanban_vencidas', label:'Tareas Kanban vencidas', modulo:'kanban'},
   {key:'kanban_proximas', label:'Tareas Kanban próximas a vencer (3 días)', modulo:'kanban'},
-  {key:'clientes_demo', label:'Clientes en demo próximos a vencer', modulo:'clientes'},
-  {key:'clientes_contrato', label:'Contratos de clientes por vencer', modulo:'clientes'},
+  {key:'clientes_demo', label:'Suscripciones en demo próximas a vencer', modulo:'clientes'},
+  {key:'clientes_contrato', label:'Contratos de suscripción por vencer', modulo:'clientes'},
   {key:'soporte_criticos', label:'Tickets de soporte críticos', modulo:'soporte'},
   {key:'desarrollos_vencidos', label:'Desarrollos vencidos', modulo:'desarrollos'},
   {key:'diseno_vencidas', label:'Proyectos de diseño vencidos', modulo:'diseno'},
@@ -9712,6 +9901,14 @@ let prodData = [];
 let provData = [];
 let provCurrentId = null;
 function provSaveSB(prov) { return sbUpsert('hb_proveedores', prov); }
+// Clientes (hbCli*) = módulo nuevo de cuentas de hospitalidad (hb_clientes),
+// namespace 'hbCli' a propósito — 'cli'/'Cliente' ya están tomados por el
+// módulo legacy de licencias/MRR (Suscripciones, tabla `clientes`). La
+// identidad real del cliente es empresaId (FK a hb_crm_empresas); ver
+// hbCliEmpresaNombre.
+let hbCliData = [];
+let hbCliCurrentId = null;
+let hbCliModalEmpresaId = null; // fijado solo al abrir el modal desde "Convertir a cliente" (puente CRM)
 // Prospectos = módulo comercial interno (hb_crm_prospectos/hb_crm_seguimientos).
 // Prefijo 'prosp' a propósito — namespace propio, distinto de cualquier otro
 // módulo (histórico: evitaba chocar con el módulo "CRM Clientify", eliminado
@@ -10807,6 +11004,431 @@ async function deleteProveedor(){
   toast('Proveedor desactivado.','info');
 }
 
+// ── CLIENTES (hbCli* — hb_clientes, cuentas de hospitalidad de Grupo Limen) ──
+// La identidad real es empresaId (FK a hb_crm_empresas, índice único parcial
+// en la base — una sola ficha de cliente por empresa). crmProspectoId es solo
+// atribución del lead de origen, NUNCA se usa para deduplicar ni como llave.
+async function hbCliLoad(){
+  // Reutiliza el cache en memoria que ya llena crmFindOrCreateEmpresa
+  // (prospEmpresas) — si nadie visitó Prospectos todavía en esta sesión estará
+  // vacío, y solo entonces se llena aquí (sbGetAll ya trae su propio caché con
+  // TTL, así que esto no duplica egress si prospLoad ya lo pidió).
+  if(!prospEmpresas||!prospEmpresas.length){
+    const empresasRaw=await sbGetAll('hb_crm_empresas');
+    prospEmpresas=(empresasRaw||[]).map(function(e){return {id:e.id,nombre:e.nombre,nombre_normalizado:e.nombre_normalizado};});
+  }
+  const cliRaw=await sbGetAll('hb_clientes');
+  hbCliData=cliRaw.map(r=>({
+    id:r.id, empresaId:r.empresa_id, crmProspectoId:r.crm_prospecto_id,
+    razonSocial:r.razon_social, nombreComercial:r.nombre_comercial, rfc:r.rfc,
+    requiereFactura:r.requiere_factura||false, tipoCuenta:r.tipo_cuenta||'normal',
+    datosFiscales:r.datos_fiscales||{}, monedaPreferida:r.moneda_preferida||'MXN',
+    activo:r.activo!==false, esPersonaFisica:r.es_persona_fisica||false,
+    modalidad:r.modalidad||'transaccional', condicionPago:r.condicion_pago||'contado',
+    diasCredito:r.dias_credito, limiteCreditoMxn:r.limite_credito_mxn,
+    fechaAlta:r.fecha_alta, notas:r.notas
+  }));
+}
+function hbCliSaveSB(cli){
+  return sbUpsert('hb_clientes',{
+    id:cli.id, empresa_id:cli.empresaId, crm_prospecto_id:cli.crmProspectoId,
+    razon_social:cli.razonSocial, nombre_comercial:cli.nombreComercial, rfc:cli.rfc,
+    requiere_factura:cli.requiereFactura, tipo_cuenta:cli.tipoCuenta,
+    datos_fiscales:cli.datosFiscales, moneda_preferida:cli.monedaPreferida,
+    activo:cli.activo, es_persona_fisica:cli.esPersonaFisica, modalidad:cli.modalidad,
+    condicion_pago:cli.condicionPago, dias_credito:cli.diasCredito,
+    limite_credito_mxn:cli.limiteCreditoMxn, fecha_alta:cli.fechaAlta, notas:cli.notas
+  });
+}
+function hbCliEmpresaNombre(empresaId){
+  if(!empresaId)return null;
+  const e=(prospEmpresas||[]).find(x=>x.id===empresaId);
+  return e?e.nombre:null;
+}
+function renderHbCliLista(){
+  const addBtn=document.getElementById('btn-nuevo-hbcli');if(addBtn)addBtn.style.display=canEdit('hbcli')?'':'none';
+  const q=(document.getElementById('hbcli-search')?.value||'').toLowerCase();
+  const modF=document.getElementById('hbcli-filter-modalidad')?.value||'';
+  const showInactivos=document.getElementById('hbcli-show-inactivos')?.checked||false;
+  let clis=[...hbCliData];
+  if(!showInactivos)clis=clis.filter(c=>c.activo!==false);
+  if(modF)clis=clis.filter(c=>c.modalidad===modF);
+  if(q)clis=clis.filter(c=>{
+    const cuenta=(hbCliEmpresaNombre(c.empresaId)||c.razonSocial||'').toLowerCase();
+    return cuenta.includes(q)||(c.rfc||'').toLowerCase().includes(q);
+  });
+  clis.sort((a,b)=>(hbCliEmpresaNombre(a.empresaId)||a.razonSocial||'').localeCompare(hbCliEmpresaNombre(b.empresaId)||b.razonSocial||''));
+  const tbody=document.getElementById('hbcli-tbody');
+  setBadgeCount('hbcli-count',hbCliData.filter(c=>c.activo!==false).length);
+  if(!tbody)return;
+  if(!clis.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><i class="ti ti-address-book"></i><p>Sin clientes registrados.</p></div></td></tr>';return;}
+  const modLabels={transaccional:'Transaccional',recurrente:'Recurrente',mixta:'Mixta'};
+  const pagoLabels={contado:'Contado',credito:'Crédito'};
+  tbody.innerHTML=clis.map(c=>{
+    const activo=c.activo!==false;
+    const cuenta=hbCliEmpresaNombre(c.empresaId)||c.razonSocial||'(sin nombre)';
+    return '<tr'+(activo?'':' style="opacity:.5"')+'>'+
+      '<td><div class="emp-name" style="font-size:13px;cursor:pointer" onclick="openHbCliDetail(\''+c.id+'\')">'+escHtml(cuenta)+'</div></td>'+
+      '<td>'+(c.rfc?escHtml(c.rfc):'—')+'</td>'+
+      '<td>'+(modLabels[c.modalidad]||c.modalidad||'—')+'</td>'+
+      '<td>'+(pagoLabels[c.condicionPago]||c.condicionPago||'—')+'</td>'+
+      '<td><span class="badge '+(activo?'badge-green':'badge-gray')+'">'+(activo?'Activo':'Inactivo')+'</span></td>'+
+      '<td><button class="btn-sm btn-ghost" onclick="openHbCliDetail(\''+c.id+'\')"><i class="ti ti-address-book"></i> Ficha</button> <button class="btn-sm btn-ghost" onclick="openEditHbCli(\''+c.id+'\')"><i class="ti ti-edit"></i> Editar</button></td>'+
+    '</tr>';
+  }).join('');
+}
+function _hbCliTogglePersonaFisica(){
+  const pf=document.getElementById('hbclif-persona-fisica')?.checked;
+  const lbl=document.getElementById('hbclif-razon-social-lbl');
+  if(lbl)lbl.textContent=pf?'Nombre completo':'Razón social *';
+}
+function _hbCliToggleCredito(){
+  const esCredito=document.getElementById('hbclif-condicion-pago')?.value==='credito';
+  const w1=document.getElementById('hbclif-dias-credito-wrap');if(w1)w1.style.display=esCredito?'':'none';
+  const w2=document.getElementById('hbclif-limite-credito-wrap');if(w2)w2.style.display=esCredito?'':'none';
+}
+function openAddHbCli(){
+  if(!canEdit('hbcli'))return;
+  hbCliCurrentId=null;
+  document.getElementById('hbcli-modal-title').textContent='Nuevo cliente';
+  document.getElementById('hbcli-del-btn').style.display='none';
+  const hint=document.getElementById('hbcli-modal-empresa-hint');
+  if(hbCliModalEmpresaId){
+    const nombre=hbCliEmpresaNombre(hbCliModalEmpresaId);
+    hint.style.display='';hint.textContent='Cuenta vinculada: '+(nombre||hbCliModalEmpresaId);
+  }else{
+    hint.style.display='none';hint.textContent='';
+  }
+  document.getElementById('hbclif-persona-fisica').checked=false;
+  document.getElementById('hbclif-razon-social').value=hbCliModalEmpresaId?(hbCliEmpresaNombre(hbCliModalEmpresaId)||''):'';
+  document.getElementById('hbclif-nombre-comercial').value='';
+  document.getElementById('hbclif-rfc').value='';
+  document.getElementById('hbclif-tipo-cuenta').value='normal';
+  document.getElementById('hbclif-modalidad').value='transaccional';
+  document.getElementById('hbclif-condicion-pago').value='contado';
+  document.getElementById('hbclif-dias-credito').value='';
+  document.getElementById('hbclif-limite-credito').value='';
+  document.getElementById('hbclif-notas').value='';
+  document.getElementById('hbclif-activo').checked=true;
+  _hbCliTogglePersonaFisica();
+  _hbCliToggleCredito();
+  openModal('modal-hbcliente');
+}
+function openEditHbCli(id){
+  const c=hbCliData.find(x=>x.id===id);if(!c)return;
+  hbCliCurrentId=id;
+  hbCliModalEmpresaId=c.empresaId||null;
+  document.getElementById('hbcli-modal-title').textContent='Editar cliente';
+  document.getElementById('hbcli-del-btn').style.display=(c.activo!==false)?'flex':'none';
+  const hint=document.getElementById('hbcli-modal-empresa-hint');
+  const cuenta=hbCliEmpresaNombre(c.empresaId);
+  if(cuenta){hint.style.display='';hint.textContent='Cuenta vinculada: '+cuenta;}else{hint.style.display='none';hint.textContent='';}
+  document.getElementById('hbclif-persona-fisica').checked=!!c.esPersonaFisica;
+  document.getElementById('hbclif-razon-social').value=c.razonSocial||'';
+  document.getElementById('hbclif-nombre-comercial').value=c.nombreComercial||'';
+  document.getElementById('hbclif-rfc').value=c.rfc||'';
+  document.getElementById('hbclif-tipo-cuenta').value=c.tipoCuenta||'normal';
+  document.getElementById('hbclif-modalidad').value=c.modalidad||'transaccional';
+  document.getElementById('hbclif-condicion-pago').value=c.condicionPago||'contado';
+  document.getElementById('hbclif-dias-credito').value=c.diasCredito!=null?c.diasCredito:'';
+  document.getElementById('hbclif-limite-credito').value=c.limiteCreditoMxn!=null?c.limiteCreditoMxn:'';
+  document.getElementById('hbclif-notas').value=c.notas||'';
+  document.getElementById('hbclif-activo').checked=c.activo!==false;
+  _hbCliTogglePersonaFisica();
+  _hbCliToggleCredito();
+  openModal('modal-hbcliente');
+}
+async function saveHbCli(){
+  const esPF=document.getElementById('hbclif-persona-fisica').checked;
+  const razonSocial=sanitizeInput(document.getElementById('hbclif-razon-social').value,200);
+  if(!esPF&&!razonSocial){toast('La razón social es obligatoria.','error');return;}
+  setBtn('save-hbcli-btn',true);
+  const existing=hbCliCurrentId?hbCliData.find(x=>x.id===hbCliCurrentId):null;
+  const condicionPago=document.getElementById('hbclif-condicion-pago').value;
+  const cli={
+    id:hbCliCurrentId||uid9(),
+    empresaId:existing?existing.empresaId:hbCliModalEmpresaId,
+    crmProspectoId:existing?existing.crmProspectoId:null,
+    razonSocial,
+    nombreComercial:sanitizeInput(document.getElementById('hbclif-nombre-comercial').value,200),
+    rfc:sanitizeInput(document.getElementById('hbclif-rfc').value,20),
+    requiereFactura:existing?existing.requiereFactura:false,
+    tipoCuenta:document.getElementById('hbclif-tipo-cuenta').value,
+    datosFiscales:existing?existing.datosFiscales:{},
+    monedaPreferida:existing?existing.monedaPreferida:'MXN',
+    activo:document.getElementById('hbclif-activo').checked,
+    esPersonaFisica:esPF,
+    modalidad:document.getElementById('hbclif-modalidad').value,
+    condicionPago,
+    diasCredito:condicionPago==='credito'?(parseInt(document.getElementById('hbclif-dias-credito').value)||0):null,
+    limiteCreditoMxn:condicionPago==='credito'?(parseFloat(document.getElementById('hbclif-limite-credito').value)||null):null,
+    fechaAlta:existing?existing.fechaAlta:new Date().toISOString(),
+    notas:sanitizeInput(document.getElementById('hbclif-notas').value,1000)
+  };
+  const ok=await hbCliSaveSB(cli);
+  setBtn('save-hbcli-btn',false);
+  if(!ok)return;
+  const idx=hbCliData.findIndex(x=>x.id===cli.id);
+  if(idx!==-1)hbCliData[idx]=cli;else hbCliData.push(cli);
+  auditLog(existing?'editar':'crear','hb_clientes',cli.id,'Cliente: '+(hbCliEmpresaNombre(cli.empresaId)||razonSocial||cli.id));
+  const wasEditing=!!existing;
+  hbCliCurrentId=cli.id;
+  hbCliModalEmpresaId=null;
+  closeModal('modal-hbcliente');
+  renderHbCliLista();
+  if(document.getElementById('view-hbcli-detail')?.classList.contains('active'))renderHbCliDetailHeader(cli);
+  // Puente CRM (Fase 1, punto 8): si se guardó desde "Convertir a cliente" y
+  // el lead abierto sigue siendo el mismo, refresca el botón a "Ver ficha de
+  // cliente" sin navegar automático.
+  if(document.getElementById('view-prosp-detail')?.classList.contains('active')){
+    const curLead=prospData.find(x=>x.id===prospCurrentId);
+    if(curLead&&curLead.empresaId===cli.empresaId)_prospRenderConvertBlock(curLead);
+  }
+  toast(wasEditing?'Cliente actualizado ✓':'Cliente creado ✓');
+}
+// Soft-delete siempre (regla del proyecto) — nunca DELETE físico sobre hb_*.
+async function deleteHbCli(){
+  if(!hbCliCurrentId)return;
+  const cli=hbCliData.find(x=>x.id===hbCliCurrentId);if(!cli)return;
+  const updated={...cli,activo:false};
+  const ok=await hbCliSaveSB(updated);
+  if(!ok)return;
+  const idx=hbCliData.findIndex(x=>x.id===hbCliCurrentId);
+  if(idx!==-1)hbCliData[idx]=updated;
+  auditLog('eliminar','hb_clientes',hbCliCurrentId,'Cliente desactivado: '+(hbCliEmpresaNombre(cli.empresaId)||cli.razonSocial));
+  closeModal('modal-hbcliente');
+  renderHbCliLista();
+  if(document.getElementById('view-hbcli-detail')?.classList.contains('active'))renderHbCliDetailHeader(updated);
+  toast('Cliente desactivado.','info');
+}
+
+// ── FICHA 360 DE CLIENTE (hb_clientes) — replica la ESTRUCTURA de
+// openProspDetail (mismo grid 280px/1fr/300px, mismas clases .profile-card/
+// .section-card) pero con funciones y puntero (hbCliCurrentId) propios; no
+// comparte render con Prospectos.
+async function openHbCliDetail(id){
+  // Puede llamarse desde fuera de la Lista (ej. link "Ver ficha de cliente"
+  // en el puente CRM) sin que el módulo Clientes se haya cargado todavía —
+  // sin esto, hbCliData estaría vacío y la ficha no abriría en silencio.
+  if(!_moduleLoaded['hbcli'])await loadModuleData('hbcli');
+  const c=hbCliData.find(x=>x.id===id);if(!c)return;
+  hbCliCurrentId=id;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-hbcli-detail').classList.add('active');
+  document.getElementById('page-title').textContent=hbCliEmpresaNombre(c.empresaId)||c.razonSocial||'Cliente';
+  renderHbCliDetailHeader(c);
+  renderHbCliDetailOperaciones();
+  // "Leads de esta cuenta" y el contacto derivado (abajo) leen prospData —
+  // si nadie visitó Prospectos todavía en esta sesión, prospData/prospEtapas/
+  // prospTemperaturas estarían vacíos y la sección se vería erróneamente
+  // vacía. loadModuleData es idempotente (_moduleLoaded), así que esto no
+  // repite la carga si Prospectos ya estaba abierto.
+  await loadModuleData('prospectos');
+  renderHbCliDetailLeads(c);
+}
+function renderHbCliDetailHeader(c){
+  if(!c)return;
+  const cuenta=hbCliEmpresaNombre(c.empresaId)||c.razonSocial||'(sin nombre)';
+  const iconEl=document.getElementById('hbcli-det-icon');
+  const initials=(cuenta||'').split(' ').map(w=>w[0]||'').slice(0,2).join('').toUpperCase();
+  iconEl.style.background='var(--cp-blue-light)';iconEl.style.color='var(--cp-blue)';
+  iconEl.textContent=initials;
+  document.getElementById('hbcli-det-name').textContent=cuenta;
+  document.getElementById('hbcli-det-rfc').textContent=c.rfc||'Sin RFC';
+  const activo=c.activo!==false;
+  const modLabels={transaccional:'Transaccional',recurrente:'Recurrente',mixta:'Mixta'};
+  const pagoLabels={contado:'Contado',credito:'Crédito'};
+  document.getElementById('hbcli-det-chips').innerHTML=
+    '<span class="badge '+(activo?'badge-green':'badge-gray')+'">'+(activo?'Activo':'Inactivo')+'</span>'+
+    '<span class="badge badge-gray">'+(modLabels[c.modalidad]||c.modalidad||'—')+'</span>'+
+    // TODO Fase 2: reemplazar por estado derivado de actividad real —
+    // "Activo" si hay alguna hb_operaciones en los últimos N meses. Hasta que
+    // esa tabla exista, este chip queda fijo, nunca se inventa actividad.
+    '<span class="badge badge-gray" title="Se conecta cuando exista hb_operaciones (Fase 2)">Sin operaciones</span>';
+  // hb_crm_empresas no guarda datos de contacto propios — se muestra el
+  // contacto del lead más reciente vinculado a esta cuenta (mismo dataset
+  // que "Leads de esta cuenta"), nunca un dato inventado.
+  const leadsCuenta=c.empresaId?prospData.filter(p=>p.empresaId===c.empresaId):[];
+  const leadRef=leadsCuenta.slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
+  const contactoTxt=leadRef?((leadRef.contactoTel||leadRef.contactoMail||'—')+' · lead: '+leadRef.nombre):'—';
+  const rows=[
+    ['Razón social',c.razonSocial?escHtml(c.razonSocial):'—'],
+    ['Nombre comercial',c.nombreComercial?escHtml(c.nombreComercial):'—'],
+    ['Tipo de cuenta',c.tipoCuenta==='comercial'?'Comercial':'Normal'],
+    ['Persona física',c.esPersonaFisica?'Sí':'No'],
+    ['Condición de pago',(pagoLabels[c.condicionPago]||c.condicionPago||'—')+(c.condicionPago==='credito'?(' · '+(c.diasCredito||0)+'d'+(c.limiteCreditoMxn!=null?' · límite $'+Number(c.limiteCreditoMxn).toLocaleString('es-MX'):'')):'')],
+    ['Moneda preferida',c.monedaPreferida||'MXN'],
+    ['Contacto',escHtml(contactoTxt)],
+    ['Notas',c.notas?escHtml(c.notas):'—'],
+  ];
+  document.getElementById('hbcli-det-info-body').innerHTML=rows.map(([l,v])=>'<div class="info-row"><div class="info-lbl">'+l+'</div><div class="info-val">'+v+'</div></div>').join('');
+}
+function renderHbCliDetailOperaciones(){
+  const body=document.getElementById('hbcli-det-operaciones-body');
+  if(!body)return;
+  // TODO Fase 2: reemplazar por listado real de hb_operaciones. Sin esa
+  // tabla, este bloque es un placeholder fijo — no se inventan datos ni se
+  // deja un error por estar vacío.
+  body.innerHTML='<div class="empty-state"><i class="ti ti-briefcase"></i><p>Sin operaciones registradas.<br>Este bloque se conecta al construir el núcleo financiero (hb_operaciones, Fase 2).</p></div>';
+}
+// Mismo patrón de tarjeta que openEmpresaFicha, embebido como sección de la
+// ficha en vez de modal — mismo filtro sobre prospData por empresaId.
+function renderHbCliDetailLeads(c){
+  const body=document.getElementById('hbcli-det-leads-body');
+  if(!body)return;
+  if(!c.empresaId){
+    body.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">Cliente sin cuenta vinculada (empresa_id vacío) — no hay leads que mostrar.</div>';
+    return;
+  }
+  const leads=prospData.filter(p=>p.empresaId===c.empresaId);
+  if(!leads.length){
+    body.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400);padding:8px 0">Sin leads registrados para esta cuenta.</div>';
+    return;
+  }
+  body.innerHTML=leads.map(function(p){
+    const etapa=prospEtapas.find(e=>e.id===p.estado);
+    const temp=p.temperatura?prospTemperaturas.find(t=>t.id===p.temperatura):null;
+    return '<div onclick="openProspDetail(\''+p.id+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--cp-gray-100);cursor:pointer">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:12px;font-weight:600;color:var(--cp-navy);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escHtml(p.nombre)+'</div>'+
+        '<div style="margin-top:2px">'+
+          (etapa?'<span class="badge" style="background:'+etapa.color+'22;color:'+etapa.color+';font-size:9px">'+escHtml(etapa.nombre)+'</span>':'')+
+          (temp?'<span class="badge" style="background:'+temp.color+'22;color:'+temp.color+';font-size:9px;margin-left:4px">'+escHtml(temp.nombre)+'</span>':'')+
+        '</div>'+
+      '</div>'+
+      (p.valorEstimado!=null?'<span style="font-size:11px;color:var(--cp-green);font-weight:700;flex-shrink:0">$'+Number(p.valorEstimado).toLocaleString('es-MX')+'</span>':'')+
+    '</div>';
+  }).join('');
+}
+
+// ── Configuración → Catálogos → Clientes (Fase 1, punto 9): "etapa ganada"
+// (hb_config: crm_etapa_ganada, valor simple = id de crm_etapas, NO un
+// objeto) + editor de tipos_servicio ({id,nombre,activo,campos:[{key,label,
+// tipo}]}), calcado de direccionRenderCfgList/PROSP_CFG_CATALOGS —
+// eye/eye-off para activo/inactivo, NUNCA DELETE físico. Fetch propio y
+// ligero de hb_config (sbGetAll ya trae caché con TTL) para no depender de
+// que Prospectos se haya visitado en la sesión.
+let cfgHbCliTiposServicio=[];
+let _cfgHbCliTipoCamposId=null;
+async function renderCfgHbCliSection(){
+  const cfgRows=await sbGetAll('hb_config');
+  const etapaGanadaRow=cfgRows.find(r=>r.clave==='crm_etapa_ganada');
+  const etapasRow=cfgRows.find(r=>r.clave==='crm_etapas');
+  const tiposRow=cfgRows.find(r=>r.clave==='tipos_servicio');
+  const etapas=((etapasRow&&etapasRow.valor)||[]).slice().sort((a,b)=>(a.orden||0)-(b.orden||0));
+  cfgHbCliTiposServicio=(tiposRow&&tiposRow.valor)||[];
+  const sel=document.getElementById('cfg-hbcli-etapa-ganada');
+  if(sel){
+    const current=etapaGanadaRow?etapaGanadaRow.valor:null;
+    sel.innerHTML='<option value="">— Sin seleccionar —</option>'+etapas.map(function(e){return '<option value="'+e.id+'"'+(current===e.id?' selected':'')+'>'+escHtml(e.nombre)+'</option>';}).join('');
+  }
+  renderCfgHbCliTiposList();
+}
+async function saveCfgEtapaGanada(){
+  const val=document.getElementById('cfg-hbcli-etapa-ganada')?.value||null;
+  const {error}=await sb.from('hb_config').upsert({clave:'crm_etapa_ganada',valor:val});
+  if(error){console.error('crm_etapa_ganada upsert error:',error);toast('Error al guardar.','error');return;}
+  sbInvalidate('hb_config');
+  toast('Etapa ganada actualizada ✓');
+}
+function renderCfgHbCliTiposList(){
+  const el=document.getElementById('cfg-hbcli-tipos-list');if(!el)return;
+  if(!cfgHbCliTiposServicio.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400)">Sin tipos de servicio.</div>';return;}
+  el.innerHTML=cfgHbCliTiposServicio.map(function(t){
+    const activo=t.activo!==false;
+    const nCampos=(t.campos||[]).length;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--cp-gray-100)'+(activo?'':';opacity:.5')+'">'+
+      '<input type="text" value="'+escHtml(t.nombre)+'" onchange="cfgHbCliTipoRename(\''+t.id+'\',this.value)" style="flex:1;border:none;background:none;font-size:12px;color:var(--cp-navy);padding:4px 0">'+
+      '<span class="badge badge-gray" style="flex-shrink:0">'+nCampos+' campo'+(nCampos===1?'':'s')+'</span>'+
+      '<button type="button" style="background:none;border:none;color:var(--cp-purple);cursor:pointer;padding:4px;display:inline-flex" onclick="openCfgHbCliTipoCampos(\''+t.id+'\')" title="Editar campos"><i class="ti ti-list-details"></i></button>'+
+      '<button type="button" style="background:none;border:none;color:var(--cp-purple);cursor:pointer;padding:4px;display:inline-flex" onclick="cfgHbCliTipoToggleActivo(\''+t.id+'\')" title="'+(activo?'Desactivar':'Activar')+'"><i class="ti ti-'+(activo?'eye':'eye-off')+'"></i></button>'+
+    '</div>';
+  }).join('');
+}
+async function cfgHbCliTiposSaveSB(){
+  const {error}=await sb.from('hb_config').upsert({clave:'tipos_servicio',valor:cfgHbCliTiposServicio});
+  if(error){console.error('tipos_servicio upsert error:',error);return false;}
+  sbInvalidate('hb_config');
+  return true;
+}
+async function cfgHbCliTipoAdd(){
+  const nombreEl=document.getElementById('cfg-hbcli-tipo-nombre');
+  const nombre=sanitizeInput(nombreEl.value,60);if(!nombre)return;
+  const prev=JSON.parse(JSON.stringify(cfgHbCliTiposServicio));
+  cfgHbCliTiposServicio.push({id:uid9(),nombre,activo:true,campos:[]});
+  const ok=await cfgHbCliTiposSaveSB();
+  if(!ok){cfgHbCliTiposServicio.length=0;cfgHbCliTiposServicio.push(...prev);toast('Error al guardar.','error');return;}
+  nombreEl.value='';
+  renderCfgHbCliTiposList();
+}
+async function cfgHbCliTipoRename(id,nombre){
+  nombre=sanitizeInput(nombre,60);if(!nombre)return;
+  const prev=JSON.parse(JSON.stringify(cfgHbCliTiposServicio));
+  const it=cfgHbCliTiposServicio.find(function(x){return x.id===id;});if(!it)return;
+  it.nombre=nombre;
+  const ok=await cfgHbCliTiposSaveSB();
+  if(!ok){cfgHbCliTiposServicio.length=0;cfgHbCliTiposServicio.push(...prev);toast('Error al guardar.','error');}
+  renderCfgHbCliTiposList();
+}
+async function cfgHbCliTipoToggleActivo(id){
+  const prev=JSON.parse(JSON.stringify(cfgHbCliTiposServicio));
+  const it=cfgHbCliTiposServicio.find(function(x){return x.id===id;});if(!it)return;
+  it.activo=it.activo===false?true:false;
+  const ok=await cfgHbCliTiposSaveSB();
+  if(!ok){cfgHbCliTiposServicio.length=0;cfgHbCliTiposServicio.push(...prev);toast('Error al guardar.','error');}
+  renderCfgHbCliTiposList();
+}
+function openCfgHbCliTipoCampos(id){
+  const t=cfgHbCliTiposServicio.find(function(x){return x.id===id;});if(!t)return;
+  _cfgHbCliTipoCamposId=id;
+  document.getElementById('cfg-hbcli-tipo-campos-title').textContent='Campos de: '+t.nombre;
+  document.getElementById('cfg-hbcli-campo-key').value='';
+  document.getElementById('cfg-hbcli-campo-label').value='';
+  document.getElementById('cfg-hbcli-campo-tipo').value='texto';
+  renderCfgHbCliCamposList();
+  openModal('modal-hbcli-tipo-campos');
+}
+function renderCfgHbCliCamposList(){
+  const el=document.getElementById('cfg-hbcli-tipo-campos-list');if(!el)return;
+  const t=cfgHbCliTiposServicio.find(function(x){return x.id===_cfgHbCliTipoCamposId;});
+  const campos=(t&&t.campos)||[];
+  if(!campos.length){el.innerHTML='<div style="font-size:12px;color:var(--cp-gray-400)">Sin campos definidos.</div>';return;}
+  const tipoLabels={texto:'Texto',numero:'Número',fecha:'Fecha',booleano:'Sí/No'};
+  el.innerHTML=campos.map(function(c,i){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--cp-gray-100)">'+
+      '<code style="font-size:11px;color:var(--cp-gray-500);width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0">'+escHtml(c.key)+'</code>'+
+      '<span style="flex:1;font-size:12px;color:var(--cp-navy)">'+escHtml(c.label)+'</span>'+
+      '<span class="badge badge-gray" style="flex-shrink:0">'+(tipoLabels[c.tipo]||c.tipo)+'</span>'+
+      '<button type="button" style="background:none;border:none;color:var(--cp-red);cursor:pointer;padding:4px;display:inline-flex" onclick="cfgHbCliCampoRemove('+i+')" title="Quitar campo"><i class="ti ti-x"></i></button>'+
+    '</div>';
+  }).join('');
+}
+async function cfgHbCliCampoAdd(){
+  const t=cfgHbCliTiposServicio.find(function(x){return x.id===_cfgHbCliTipoCamposId;});if(!t)return;
+  const key=sanitizeInput(document.getElementById('cfg-hbcli-campo-key').value,40);
+  const label=sanitizeInput(document.getElementById('cfg-hbcli-campo-label').value,60);
+  const tipo=document.getElementById('cfg-hbcli-campo-tipo').value;
+  if(!key||!label){toast('Key y etiqueta son obligatorios.','error');return;}
+  const prev=JSON.parse(JSON.stringify(cfgHbCliTiposServicio));
+  t.campos=t.campos||[];
+  t.campos.push({key,label,tipo});
+  const ok=await cfgHbCliTiposSaveSB();
+  if(!ok){cfgHbCliTiposServicio.length=0;cfgHbCliTiposServicio.push(...prev);toast('Error al guardar.','error');return;}
+  document.getElementById('cfg-hbcli-campo-key').value='';
+  document.getElementById('cfg-hbcli-campo-label').value='';
+  renderCfgHbCliCamposList();
+  renderCfgHbCliTiposList();
+}
+async function cfgHbCliCampoRemove(idx){
+  const t=cfgHbCliTiposServicio.find(function(x){return x.id===_cfgHbCliTipoCamposId;});if(!t)return;
+  const prev=JSON.parse(JSON.stringify(cfgHbCliTiposServicio));
+  t.campos=(t.campos||[]).filter(function(_,i){return i!==idx;});
+  const ok=await cfgHbCliTiposSaveSB();
+  if(!ok){cfgHbCliTiposServicio.length=0;cfgHbCliTiposServicio.push(...prev);toast('Error al guardar.','error');return;}
+  renderCfgHbCliCamposList();
+  renderCfgHbCliTiposList();
+}
+
 // ── PROSPECTOS (CRM interno — hb_crm_prospectos / hb_crm_seguimientos) ──
 // Pipeline comercial propio de Grupo Limen, lead → confirmado/perdido.
 
@@ -11691,6 +12313,41 @@ function renderProspDetailHeader(p){
   const actBtns=document.getElementById('prosp-det-action-btns');if(actBtns)actBtns.style.display=canEditP?'':'none';
   const addSegBtn=document.getElementById('prosp-det-add-seg-btn');if(addSegBtn)addSegBtn.style.display=canEditP?'':'none';
   const delBtnWrap=document.getElementById('prosp-det-delete-btn-wrap');if(delBtnWrap)delBtnWrap.style.display=state.currentUser?.role==='admin'?'':'none';
+  // Puente CRM → Clientes (Fase 1, punto 8): solo tiene sentido si el lead
+  // tiene empresa_id; sin eso no hay identidad de cuenta que convertir, y NO
+  // se inventa un fallback (ej. usar el nombre del lead como cuenta).
+  const hbBlock=document.getElementById('prosp-det-hbcli-block');
+  if(hbBlock){
+    hbBlock.innerHTML='';
+    if(p.empresaId&&canEditP)_prospRenderConvertBlock(p);
+  }
+}
+// Consulta directa a Supabase (NUNCA hbCliData/sbGetAll cacheados) — empresa_id
+// tiene índice único parcial en hb_clientes, así que un falso negativo por
+// caché desactualizado crearía un duplicado. Fire-and-forget: se llama al
+// final de renderProspDetailHeader, sin bloquear el resto del render.
+async function _prospRenderConvertBlock(p){
+  const hbBlock=document.getElementById('prosp-det-hbcli-block');
+  if(!hbBlock)return;
+  const {data,error}=await sb.from('hb_clientes').select('id').eq('empresa_id',p.empresaId).limit(1);
+  if(error){console.error('_prospRenderConvertBlock',error);return;}
+  // El usuario pudo haber navegado a otro lead mientras esta consulta
+  // resolvía — no pintar sobre un perfil que ya no es el que se está viendo.
+  if(prospCurrentId!==p.id)return;
+  if(data&&data.length){
+    hbBlock.innerHTML='<a href="#" onclick="event.preventDefault();openHbCliDetail(\''+data[0].id+'\')" style="font-size:12px;color:var(--cp-purple);text-decoration:underline">Ver ficha de cliente →</a>';
+  }else{
+    hbBlock.innerHTML='<button class="btn-sm btn-ghost" onclick="openConvertirACliente()"><i class="ti ti-address-book"></i> Convertir a cliente</button>';
+  }
+}
+// Abre el modal de alta de Clientes (mismo de la Lista) precargado con
+// empresa_id fijo — NUNCA busca ni crea empresa aquí, eso solo lo hace
+// crmFindOrCreateEmpresa del lado del CRM.
+function openConvertirACliente(){
+  const p=prospData.find(x=>x.id===prospCurrentId);
+  if(!p||!p.empresaId)return;
+  hbCliModalEmpresaId=p.empresaId;
+  openAddHbCli();
 }
 // BLOQUE A (empresas) — modal de solo lectura con todos los leads que
 // comparten empresa_id, cada uno clickeable para abrir su perfil. Mismo
@@ -14483,7 +15140,7 @@ function exportAllClientesExcel() {
   const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=`Clientes_Facturacion_${new Date().toISOString().split('T')[0]}.csv`;a.click();URL.revokeObjectURL(url);
+  const a=document.createElement('a');a.href=url;a.download=`Suscripciones_Facturacion_${new Date().toISOString().split('T')[0]}.csv`;a.click();URL.revokeObjectURL(url);
   toast('Archivo descargado ✓');
 }
 
@@ -15828,7 +16485,7 @@ const AI_MODULES_DEFAULT = [
   {id:'equipo',    label:'Equipo',          icon:'ti-users',          on:true,  detail:'resumen'},
   {id:'kanban',    label:'Kanban',          icon:'ti-layout-kanban',  on:true,  detail:'detallado'},
   {id:'desarrollos',label:'Desarrollos',   icon:'ti-code',           on:true,  detail:'resumen'},
-  {id:'clientes',  label:'Clientes',        icon:'ti-building-store', on:true,  detail:'detallado'},
+  {id:'clientes',  label:'Suscripciones',   icon:'ti-building-store', on:true,  detail:'detallado'},
   {id:'soporte',   label:'Soporte Técnico', icon:'ti-headset',        on:true,  detail:'detallado'},
   {id:'rrhh',      label:'Vacaciones/1:1',  icon:'ti-calendar',       on:true,  detail:'resumen'},
   {id:'organigrama',label:'Organigrama',    icon:'ti-sitemap',        on:false, detail:'resumen'},
@@ -17609,7 +18266,7 @@ let dashMrrDesde = '';
 let dashMrrHasta = '';
 const DEFAULT_DASH_SECTIONS=[
   {id:'calendario', label:'Calendario', order:0, visibleRoles:['admin','editor','viewer']},
-  {id:'clientes',   label:'Clientes',    order:2, visibleRoles:['admin']},
+  {id:'clientes',   label:'Suscripciones', order:2, visibleRoles:['admin']},
   {id:'soporte',    label:'Soporte',     order:3, visibleRoles:['admin','editor']},
   {id:'okrs',       label:'OKRs',        order:4, visibleRoles:['admin','editor','viewer']}
 ];
@@ -20070,9 +20727,10 @@ const ALL_MODULES = [
   {id:'permisos',label:'Permisos y solicitudes',icon:'ti-clipboard-list',badge:null},
   {id:'documentos',label:'Documentos',icon:'ti-files',badge:null},
   {id:'organigrama',label:'Organigrama',icon:'ti-hierarchy',badge:null},
-  {id:'clientes',label:'Clientes',icon:'ti-building-store',badge:'clientes-count'},
+  {id:'clientes',label:'Suscripciones',icon:'ti-building-store',badge:'clientes-count'},
   {id:'proveedores',label:'Proveedores',icon:'ti-truck',badge:null},
   {id:'prospectos',label:'Contactos',icon:'ti-user-search',badge:'prosp-overdue-badge',badgeUrgent:true},
+  {id:'hbcli',label:'Clientes',icon:'ti-address-book',badge:'hbcli-count'},
   {id:'marketing',label:'Marketing',icon:'ti-speakerphone',badge:null},
   {id:'desarrollos',label:'Desarrollos',icon:'ti-code',badge:'dev-count'},
   {id:'configuracion',label:'Configuración',icon:'ti-settings',badge:null,always:true},
@@ -20089,7 +20747,7 @@ const ALL_MODULES = [
 function navConfigDefaults(){
   return [
     {id:'g1',label:'Principal',items:['dashboard','mis-pendientes','kanban','empleados']},
-    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','marketing','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
+    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','hbcli','marketing','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
     {id:'g4',label:'Sistema',items:['configuracion','ai-chat']},
   ];
 }
@@ -20150,6 +20808,17 @@ function loadNavConfig(){
       g2b.items=g2b.items||[];
       const provIdx=g2b.items.indexOf('proveedores');
       g2b.items.splice(provIdx>=0?provIdx+1:g2b.items.length,0,'prospectos');
+      saveMenuOrderConfig(cfg);
+    }
+  }
+  // Clientes (hbcli) — mismo tipo de inyección, para sidebars ya guardados antes
+  // de que este módulo existiera.
+  if(!cfg.some(g=>(g.items||[]).includes('hbcli'))){
+    const g2c=cfg.find(g=>g.id==='g2')||cfg[0];
+    if(g2c){
+      g2c.items=g2c.items||[];
+      const prospIdx=g2c.items.indexOf('prospectos');
+      g2c.items.splice(prospIdx>=0?prospIdx+1:g2c.items.length,0,'hbcli');
       saveMenuOrderConfig(cfg);
     }
   }
