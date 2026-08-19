@@ -6354,6 +6354,7 @@ async function dbLoad(){
     // (v74) Global admin-defined menu order — same app_config row pattern as company_info above.
     const menuOrderRow=(appCfgRaw||[]).find(r=>r.id==='menu_order');
     menuOrderConfig=menuOrderRow?.config?.groups||null;
+    menuOrderMigrated=menuOrderRow?.config?.migrated||[];
     // "Módulos activos de esta instancia" (14/8) — mismo patrón de app_config
     // que company_info/menu_order arriba. renderSidebarNav() se re-llama aquí
     // porque el login/checkExistingSession ya lo llamaron ANTES de este
@@ -10082,6 +10083,7 @@ let cliDocData = null;
 let ivaPct = 16; // % — loaded from app_config (id:'facturacion_config') in dbLoad(); default 16
 let companyInfo = {nombre:'Panel', ciudad:'', descripcion:'plataforma de gestión operativa', logoDataUrl:null, faviconDataUrl:null}; // loaded from app_config (id:'company_info') in dbLoad()
 let menuOrderConfig = null; // (v74) {groups:[...]} | null — loaded from app_config (id:'menu_order') in dbLoad(); null = no admin-defined order saved yet, loadNavConfig() falls back to navConfigDefaults()
+let menuOrderMigrated = []; // module ids already reconciled by loadNavConfig()'s retroactive injection (see below) — persisted alongside groups in the same app_config row. Prevents re-injecting a module the admin deliberately removed from the sidebar.
 // "Módulos activos de esta instancia" (14/8) — array de ids de ALL_MODULES
 // ocultos/inaccesibles para TODOS los usuarios, incluido admin. Loaded from
 // app_config (id:'instance_profile') in dbLoad(). 'configuracion' NUNCA
@@ -21228,9 +21230,12 @@ function navConfigDefaults(){
 // menuOrderConfig (declared near companyInfo) is populated once in dbLoad(); this just
 // keeps it in sync after every edit so loadNavConfig() reflects the change immediately
 // without a round-trip, exactly like renderSidebarNav() already expects.
-async function saveMenuOrderConfig(groups){
+// `migrated` (menuOrderMigrated) travels in the SAME row as `groups` — see loadNavConfig()
+// below for why a second array is needed instead of just checking `groups` for membership.
+async function saveMenuOrderConfig(groups,migrated){
   menuOrderConfig=groups;
-  const {error}=await sb.from('app_config').upsert({id:'menu_order',config:{groups},updated_at:new Date().toISOString()});
+  if(migrated!==undefined)menuOrderMigrated=migrated;
+  const {error}=await sb.from('app_config').upsert({id:'menu_order',config:{groups,migrated:menuOrderMigrated},updated_at:new Date().toISOString()});
   if(error){
     console.error('menu_order upsert error:',error);
     toast('Error al guardar el menú.','error');
@@ -21246,63 +21251,78 @@ function loadNavConfig(){
   let cfg;
   try{cfg=menuOrderConfig?JSON.parse(JSON.stringify(menuOrderConfig)):navConfigDefaults();}
   catch(e){cfg=navConfigDefaults();}
+  // Retroactive injection for modules added after a sidebar was already saved —
+  // one entry per module below. BUG FIXED (19/8): the guard used to be
+  // `!cfg.some(...includes(modId))` — "is it missing from the saved config right
+  // now" — which re-injected the module forever if an admin later removed it on
+  // purpose (canView()/modulesDisabled correctly hid it from view, but the very
+  // next loadNavConfig() call put it right back into `cfg` and re-saved it,
+  // masking the removal). The guard now checks `menuOrderMigrated` — a list
+  // persisted in the SAME app_config row, appended to once per module the first
+  // time it's reconciled — so a deliberate removal afterwards sticks. The
+  // `!cfg.some(...)` check still runs, just to decide whether an insert is
+  // needed (skip it if the module is already present, e.g. fresh installs that
+  // start from navConfigDefaults() and already include it).
+  let _navMigDirty=false;
+  function _navMigrateOnce(modId,inject){
+    if(menuOrderMigrated.includes(modId))return;
+    if(!cfg.some(g=>(g.items||[]).includes(modId)))inject();
+    menuOrderMigrated=[...menuOrderMigrated,modId];
+    _navMigDirty=true;
+  }
   // v1.8: "Mis Pendientes" es un módulo nuevo — se inyecta en configs de sidebar
   // ya guardadas (de antes de esta versión) para que quede visible a todos sin
   // que cada usuario tenga que re-agregarlo a mano desde Configuración.
-  if(!cfg.some(g=>(g.items||[]).includes('mis-pendientes'))){
+  _navMigrateOnce('mis-pendientes',()=>{
     const g1=cfg.find(g=>g.id==='g1')||cfg[0];
     if(g1){
       g1.items=g1.items||[];
       const dashIdx=g1.items.indexOf('dashboard');
       g1.items.splice(dashIdx>=0?dashIdx+1:0,0,'mis-pendientes');
-      saveMenuOrderConfig(cfg);
     }
-  }
+  });
   // Proveedores es un módulo nuevo — mismo tipo de inyección que 'mis-pendientes'
   // arriba, para que aparezca también en sidebars ya personalizados y guardados
   // en app_config antes de que este módulo existiera.
-  if(!cfg.some(g=>(g.items||[]).includes('proveedores'))){
+  _navMigrateOnce('proveedores',()=>{
     const g2=cfg.find(g=>g.id==='g2')||cfg[0];
     if(g2){
       g2.items=g2.items||[];
       const cliIdx=g2.items.indexOf('clientes');
       g2.items.splice(cliIdx>=0?cliIdx+1:g2.items.length,0,'proveedores');
-      saveMenuOrderConfig(cfg);
     }
-  }
+  });
   // Prospectos — mismo tipo de inyección, para sidebars ya guardados antes de
   // que este módulo existiera.
-  if(!cfg.some(g=>(g.items||[]).includes('prospectos'))){
+  _navMigrateOnce('prospectos',()=>{
     const g2b=cfg.find(g=>g.id==='g2')||cfg[0];
     if(g2b){
       g2b.items=g2b.items||[];
       const provIdx=g2b.items.indexOf('proveedores');
       g2b.items.splice(provIdx>=0?provIdx+1:g2b.items.length,0,'prospectos');
-      saveMenuOrderConfig(cfg);
     }
-  }
+  });
   // Clientes (hbcli) — mismo tipo de inyección, para sidebars ya guardados antes
   // de que este módulo existiera.
-  if(!cfg.some(g=>(g.items||[]).includes('hbcli'))){
+  _navMigrateOnce('hbcli',()=>{
     const g2c=cfg.find(g=>g.id==='g2')||cfg[0];
     if(g2c){
       g2c.items=g2c.items||[];
       const prospIdx=g2c.items.indexOf('prospectos');
       g2c.items.splice(prospIdx>=0?prospIdx+1:g2c.items.length,0,'hbcli');
-      saveMenuOrderConfig(cfg);
     }
-  }
+  });
   // Cuestionarios (cuest) — mismo tipo de inyección, para sidebars ya
   // guardados antes de que este módulo existiera.
-  if(!cfg.some(g=>(g.items||[]).includes('cuest'))){
+  _navMigrateOnce('cuest',()=>{
     const g2d=cfg.find(g=>g.id==='g2')||cfg[0];
     if(g2d){
       g2d.items=g2d.items||[];
       const gpIdx=g2d.items.indexOf('gestion-proyectos');
       g2d.items.splice(gpIdx>=0?gpIdx+1:g2d.items.length,0,'cuest');
-      saveMenuOrderConfig(cfg);
     }
-  }
+  });
+  if(_navMigDirty)saveMenuOrderConfig(cfg,menuOrderMigrated);
   return cfg;
 }
 async function saveNavConfig(){
