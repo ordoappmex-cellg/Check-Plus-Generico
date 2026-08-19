@@ -3361,6 +3361,25 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <div id="okrs-list"></div>
       </div>
 
+      <!-- CUESTIONARIOS VIEW -->
+      <div id="view-cuest" class="view">
+        <div class="section-card">
+          <div class="section-body">
+            <div class="search-bar">
+              <div class="search-input-wrap">
+                <i class="ti ti-search search-icon"></i>
+                <input type="text" id="cuest-search" placeholder="Buscar plantilla por nombre…" oninput="renderCuestPlantillas()">
+              </div>
+              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cp-gray-600);cursor:pointer;white-space:nowrap">
+                <input type="checkbox" id="cuest-show-inactivos" onchange="renderCuestPlantillas()"> Ver inactivas
+              </label>
+              <button class="btn-sm btn-blue" id="btn-nueva-cuest-plantilla" onclick="openAddCuestPlantilla()"><i class="ti ti-plus"></i> Nueva plantilla</button>
+            </div>
+            <div id="cuest-plantillas-list"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -4239,7 +4258,8 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Contactos</span><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-prospectos" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Proveedores</span><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-proveedores" value="oculto"></div></div>
             <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Clientes</span><div style="text-align:center"><input type="radio" name="uf-mod-hbcli" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-hbcli" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-hbcli" value="oculto"></div></div>
-            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;align-items:center"><span style="font-size:12px">Gestión de Proyectos</span><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="oculto"></div></div>
+            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;border-bottom:1px solid var(--cp-gray-100);align-items:center"><span style="font-size:12px">Gestión de Proyectos</span><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-gestion-proyectos" value="oculto"></div></div>
+            <div style="display:grid;grid-template-columns:1fr 72px 72px 72px;padding:7px 12px;align-items:center"><span style="font-size:12px">Cuestionarios</span><div style="text-align:center"><input type="radio" name="uf-mod-cuest" value="editor"></div><div style="text-align:center"><input type="radio" name="uf-mod-cuest" value="viewer"></div><div style="text-align:center"><input type="radio" name="uf-mod-cuest" value="oculto"></div></div>
           </div>
         </div>
       </div>
@@ -6193,6 +6213,10 @@ async function _loadModuleDataInner(moduleId) {
         }
         break;
       }
+      case 'cuest': {
+        await cuestLoad();
+        break;
+      }
       case 'nomina':
         // Nómina reads directly from state.employees (already loaded) — nothing to fetch.
         break;
@@ -6506,6 +6530,12 @@ async function nav(view){
     document.getElementById('page-title').textContent='Organigrama';
     await loadModuleData('organigrama');
     renderOrganigrama();
+  }
+  if(view==='cuest'){
+    document.getElementById('page-title').textContent='Cuestionarios';
+    if(!_moduleLoaded['cuest'])showModuleSkeleton('cuest-plantillas-list');
+    await loadModuleData('cuest');
+    renderCuestPlantillas();
   }
   if(view==='ai-chat'){renderAIContextPanel();updateAIRecentPrompts();aiRenderGreeting('-view');document.getElementById('page-title').textContent='Asistente IA';}
   if(view==='repositorio'){
@@ -8048,7 +8078,7 @@ async function removeVacDoc(vacId, empId) {
 // ═══════════════════════════════
 
 // ── Supabase Auth ─────────────────────────────────
-const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','hbcli','marketing','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos'];
+const MODULES_ALL=['dashboard','kanban','empleados','vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','hbcli','marketing','desarrollos','repositorio','soporte','configuracion','ai-chat','okrs','diseno','direccion','gestion-proyectos','cuest'];
 const ROLE_DEFAULTS={
   admin:MODULES_ALL,
   // Legacy roles — kept only so old profiles that haven't been re-saved yet still
@@ -21181,12 +21211,13 @@ const ALL_MODULES = [
   {id:'diseno',label:'Diseño',icon:'ti-brush',badge:'diseno-badge',group:'gestion'},
   {id:'direccion',label:'Dirección',icon:'ti-briefcase',badge:null,group:'gestion'},
   {id:'gestion-proyectos',label:'Gestión de Proyectos',icon:'ti-checklist',badge:null,group:'gestion'},
+  {id:'cuest',label:'Cuestionarios',icon:'ti-clipboard-check',badge:null,group:'gestion'},
 ];
 
 function navConfigDefaults(){
   return [
     {id:'g1',label:'Principal',items:['dashboard','mis-pendientes','kanban','empleados']},
-    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','hbcli','marketing','desarrollos','diseno','direccion','gestion-proyectos','repositorio','soporte','okrs','evaluaciones']},
+    {id:'g2',label:'Gestión',items:['vacaciones','permisos','documentos','organigrama','clientes','proveedores','prospectos','hbcli','marketing','desarrollos','diseno','direccion','gestion-proyectos','cuest','repositorio','soporte','okrs','evaluaciones']},
     {id:'g4',label:'Sistema',items:['configuracion','ai-chat']},
   ];
 }
@@ -21258,6 +21289,17 @@ function loadNavConfig(){
       g2c.items=g2c.items||[];
       const prospIdx=g2c.items.indexOf('prospectos');
       g2c.items.splice(prospIdx>=0?prospIdx+1:g2c.items.length,0,'hbcli');
+      saveMenuOrderConfig(cfg);
+    }
+  }
+  // Cuestionarios (cuest) — mismo tipo de inyección, para sidebars ya
+  // guardados antes de que este módulo existiera.
+  if(!cfg.some(g=>(g.items||[]).includes('cuest'))){
+    const g2d=cfg.find(g=>g.id==='g2')||cfg[0];
+    if(g2d){
+      g2d.items=g2d.items||[];
+      const gpIdx=g2d.items.indexOf('gestion-proyectos');
+      g2d.items.splice(gpIdx>=0?gpIdx+1:g2d.items.length,0,'cuest');
       saveMenuOrderConfig(cfg);
     }
   }
@@ -30080,6 +30122,71 @@ function sortEvalTeamTable(colIdx){
   if(_evalTeamSortCol===colIdx)_evalTeamSortAsc=!_evalTeamSortAsc;
   else{_evalTeamSortCol=colIdx;_evalTeamSortAsc=true;}
   renderEvalTeamResults();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CUESTIONARIOS MODULE
+// ══════════════════════════════════════════════════════════════════════════════
+// Vista propia (view-cuest), a diferencia de Evaluaciones (incrustado en modal
+// de colaborador) — se reutiliza el PATRÓN de Evaluaciones (plantilla→pilares→
+// criterios), no su código. Tablas: cuest_config, cuest_plantillas,
+// cuest_secciones, cuest_preguntas, cuest_geocercas, cuest_asignaciones,
+// cuest_respuestas (esquema confirmado 19/8, no inventado).
+
+let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[];
+let _cuestConfigCache=null;
+
+// ── cuest_config — tabla propia del módulo, patrón clave/valor análogo a
+// app_config pero NUNCA reutilizarla: es una tabla distinta (clave/valor,
+// no id/config). ──────────────────────────────────────────────────────────
+async function cuestCfgGet(clave){
+  if(!_cuestConfigCache){
+    try{ _cuestConfigCache=await sbGetAll('cuest_config'); }catch(e){ _cuestConfigCache=[]; }
+  }
+  return _cuestConfigCache.find(r=>r.clave===clave)?.valor;
+}
+async function cuestCfgSet(clave,valor){
+  const {error}=await sb.from('cuest_config').upsert({clave,valor,updated_at:new Date().toISOString()});
+  if(error){ console.warn('cuestCfgSet:',error); return false; }
+  _cuestConfigCache=null;
+  sbInvalidate('cuest_config');
+  return true;
+}
+
+// ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
+async function cuestLoad(){
+  const rows=await sbGetAll('cuest_plantillas');
+  cuestPlantillas=rows.filter(r=>r.activo!==false).map(r=>({id:r.id,nombre:r.nombre,descripcion:r.descripcion||'',tipo:r.tipo||'evento',activo:r.activo!==false,creadoPor:r.creado_por,createdAt:r.created_at,updatedAt:r.updated_at}));
+}
+
+function renderCuestPlantillas(){
+  const el=document.getElementById('cuest-plantillas-list');if(!el)return;
+  const q=(document.getElementById('cuest-search')?.value||'').toLowerCase().trim();
+  const showInactivos=document.getElementById('cuest-show-inactivos')?.checked;
+  const items=cuestPlantillas.filter(p=>(showInactivos||p.activo)&&(!q||p.nombre.toLowerCase().includes(q)));
+  if(!items.length){el.innerHTML='<div style="color:var(--cp-gray-400);font-size:13px;padding:20px;text-align:center">Sin plantillas todavía. Crea la primera con "+ Nueva plantilla".</div>';return;}
+  el.innerHTML=items.map(function(p){
+    const secs=cuestSecciones.filter(function(s){return s.plantillaId===p.id;});
+    const pregs=cuestPreguntas.filter(function(pr){return secs.some(function(s){return s.id===pr.seccionId;});});
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--cp-gray-100)'+(p.activo?'':';opacity:.5')+'">'+
+      '<div style="flex:1">'+
+        '<div style="font-size:13px;font-weight:600;color:var(--cp-navy)">'+escHtml(p.nombre)+'</div>'+
+        '<div style="font-size:11px;color:var(--cp-gray-400)">'+secs.length+' secciones · '+pregs.length+' preguntas · '+(p.tipo==='evento'?'Evento':'On demand')+'</div>'+
+      '</div>'+
+      '<span class="badge '+(p.activo?'badge-green':'badge-gray')+'">'+(p.activo?'Activa':'Inactiva')+'</span>'+
+      '<button class="btn-sm btn-ghost" onclick="openEditCuestPlantilla(\''+p.id+'\')" style="padding:4px 8px"><i class="ti ti-pencil"></i></button>'+
+    '</div>';
+  }).join('');
+}
+
+// Stubs — el constructor de secciones/preguntas se construye en la siguiente
+// sub-tarea (Sub-tarea 2). Por ahora la vista abre y lista plantillas vacías
+// sin quedar en blanco.
+function openAddCuestPlantilla(){
+  toast('Constructor de plantillas: se agrega en la siguiente sub-tarea.','info');
+}
+function openEditCuestPlantilla(id){
+  toast('Constructor de plantillas: se agrega en la siguiente sub-tarea.','info');
 }
 
 </script>
