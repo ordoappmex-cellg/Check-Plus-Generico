@@ -3363,19 +3363,49 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
       <!-- CUESTIONARIOS VIEW -->
       <div id="view-cuest" class="view">
-        <div class="section-card">
-          <div class="section-body">
-            <div class="search-bar">
-              <div class="search-input-wrap">
-                <i class="ti ti-search search-icon"></i>
-                <input type="text" id="cuest-search" placeholder="Buscar plantilla por nombre…" oninput="renderCuestPlantillas()">
+        <div id="cuest-lista-wrap">
+          <div class="section-card">
+            <div class="section-body">
+              <div class="search-bar">
+                <div class="search-input-wrap">
+                  <i class="ti ti-search search-icon"></i>
+                  <input type="text" id="cuest-search" placeholder="Buscar plantilla por nombre…" oninput="renderCuestPlantillas()">
+                </div>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cp-gray-600);cursor:pointer;white-space:nowrap">
+                  <input type="checkbox" id="cuest-show-inactivos" onchange="renderCuestPlantillas()"> Ver inactivas
+                </label>
+                <button class="btn-sm btn-blue" id="btn-nueva-cuest-plantilla" onclick="openAddCuestPlantilla()"><i class="ti ti-plus"></i> Nueva plantilla</button>
               </div>
-              <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cp-gray-600);cursor:pointer;white-space:nowrap">
-                <input type="checkbox" id="cuest-show-inactivos" onchange="renderCuestPlantillas()"> Ver inactivas
-              </label>
-              <button class="btn-sm btn-blue" id="btn-nueva-cuest-plantilla" onclick="openAddCuestPlantilla()"><i class="ti ti-plus"></i> Nueva plantilla</button>
+              <div id="cuest-plantillas-list"></div>
             </div>
-            <div id="cuest-plantillas-list"></div>
+          </div>
+        </div>
+
+        <!-- Ficha de plantilla abierta — constructor de 3 niveles (secciones
+             acordeón, preguntas anidadas). Vive dentro de esta misma vista,
+             a diferencia de Evaluaciones (modal). -->
+        <div id="cuest-ficha-wrap" style="display:none">
+          <div class="section-card">
+            <div class="section-header">
+              <button class="btn-sm btn-ghost" onclick="cuestCerrarFicha()"><i class="ti ti-arrow-left"></i> Volver a plantillas</button>
+              <button class="btn-sm btn-ghost" id="cuestf-toggle-activa-btn" onclick="cuestTogglePlantillaActiva()" style="display:none"></button>
+            </div>
+            <div class="section-body">
+              <input type="hidden" id="cuestf-id">
+              <div class="form-grid">
+                <div class="form-field full"><label class="form-label">Nombre *</label><input class="form-input" id="cuestf-nombre" placeholder="Nombre de la plantilla"></div>
+                <div class="form-field full"><label class="form-label">Descripción</label><textarea class="form-input" id="cuestf-descripcion" rows="2" placeholder="Descripción opcional"></textarea></div>
+                <div class="form-field full">
+                  <label class="form-label">Tipo</label>
+                  <div style="display:flex;gap:12px;margin-top:4px">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="radio" name="cuestf-tipo" value="evento" id="cuestf-tipo-evento" checked> Evento</label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="radio" name="cuestf-tipo" value="on_demand" id="cuestf-tipo-on_demand"> On demand</label>
+                  </div>
+                </div>
+              </div>
+              <div style="margin:10px 0 18px"><button class="btn-sm btn-blue" onclick="cuestGuardarPlantilla()"><i class="ti ti-check"></i> Guardar plantilla</button></div>
+              <div id="cuestf-secciones-editor"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -30155,6 +30185,22 @@ function sortEvalTeamTable(colIdx){
 
 let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[];
 let _cuestConfigCache=null;
+let _cuestFichaPlantillaId=null; // plantilla actualmente abierta en la ficha, o null si estamos en la lista
+let _cuestPreguntasExpandidas={}; // {preguntaId:true} — estado de expandido en memoria, no persistido
+let _cuestTiposEvidencia=null; // cache de cuestCfgGet('tipos_evidencia'), normalizado
+
+// Tipos de respuesta — 6 valores FIJOS del CHECK de cuest_preguntas.tipo_respuesta.
+// NO son un catálogo editable (a diferencia de tipos_evidencia), así que sí se
+// hardcodean aquí a propósito.
+const CUEST_TIPOS_RESPUESTA=[
+  {id:'si_no',label:'Sí / No'},
+  {id:'emocional',label:'Emocional (escala de caras)'},
+  {id:'lista',label:'Lista (una opción)'},
+  {id:'multiple',label:'Múltiple (varias opciones)'},
+  {id:'abierta',label:'Abierta (texto libre)'},
+  {id:'iconos',label:'Íconos'}
+];
+function cuestTipoRespuestaLabel(id){const t=CUEST_TIPOS_RESPUESTA.find(function(x){return x.id===id;});return t?t.label:id;}
 
 // ── cuest_config — tabla propia del módulo, patrón clave/valor análogo a
 // app_config pero NUNCA reutilizarla: es una tabla distinta (clave/valor,
@@ -30172,11 +30218,39 @@ async function cuestCfgSet(clave,valor){
   sbInvalidate('cuest_config');
   return true;
 }
+// tipos_evidencia no tiene forma garantizada (array de strings o de objetos
+// {id,nombre}) — se normaliza defensivamente en vez de asumir una de las dos.
+function _cuestNormalizaTiposEvidencia(raw){
+  if(!Array.isArray(raw))return [];
+  return raw.map(function(t){
+    if(typeof t==='string')return {id:t,nombre:t};
+    return {id:t.id||t.clave||t.valor||'',nombre:t.nombre||t.label||t.id||''};
+  }).filter(function(t){return t.id;});
+}
+async function cuestEnsureTiposEvidencia(){
+  if(_cuestTiposEvidencia)return _cuestTiposEvidencia;
+  const raw=await cuestCfgGet('tipos_evidencia').catch(function(){return [];});
+  _cuestTiposEvidencia=_cuestNormalizaTiposEvidencia(raw);
+  return _cuestTiposEvidencia;
+}
+
+// ── Helpers de guardado (patrón evalSavePlantilla/evalSavePilar/evalSaveCriterio,
+// mismo idioma sbUpsert — código propio, no compartido con Evaluaciones) ──────
+async function cuestSavePlantilla(p){return sbUpsert('cuest_plantillas',{id:p.id,nombre:p.nombre,descripcion:p.descripcion||null,tipo:p.tipo||'evento',activo:p.activo!==false,creado_por:p.creadoPor||null});}
+async function cuestSaveSeccion(s){return sbUpsert('cuest_secciones',{id:s.id,plantilla_id:s.plantillaId,nombre:s.nombre,orden:s.orden||0});}
+async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,seccion_id:q.seccionId,orden:q.orden||0,texto:q.texto,tipo_respuesta:q.tipoRespuesta,opciones:q.opciones||[],obligatoria:q.obligatoria!==false,evidencia:q.evidencia||{tipos:[],obligatoria:false},dispara:q.dispara||{notifica_a:null,genera_folio:false,sla_horas:null}});}
 
 // ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
 async function cuestLoad(){
-  const rows=await sbGetAll('cuest_plantillas');
-  cuestPlantillas=rows.filter(r=>r.activo!==false).map(r=>({id:r.id,nombre:r.nombre,descripcion:r.descripcion||'',tipo:r.tipo||'evento',activo:r.activo!==false,creadoPor:r.creado_por,createdAt:r.created_at,updatedAt:r.updated_at}));
+  const [plantRaw,seccRaw,pregRaw]=await Promise.all([
+    sbGetAll('cuest_plantillas'), sbGetAll('cuest_secciones'), sbGetAll('cuest_preguntas')
+  ]);
+  // Se cargan TODAS (activas e inactivas) — renderCuestPlantillas() ya filtra
+  // por el checkbox "Ver inactivas"; filtrar aquí las dejaría fuera del estado
+  // en memoria y ese checkbox nunca mostraría nada.
+  cuestPlantillas=plantRaw.map(function(r){return {id:r.id,nombre:r.nombre,descripcion:r.descripcion||'',tipo:r.tipo||'evento',activo:r.activo!==false,creadoPor:r.creado_por,createdAt:r.created_at,updatedAt:r.updated_at};});
+  cuestSecciones=seccRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,nombre:r.nombre,orden:r.orden||0};});
+  cuestPreguntas=pregRaw.map(function(r){return {id:r.id,seccionId:r.seccion_id,orden:r.orden||0,texto:r.texto,tipoRespuesta:r.tipo_respuesta,opciones:Array.isArray(r.opciones)?r.opciones:[],obligatoria:r.obligatoria!==false,evidencia:r.evidencia||{tipos:[],obligatoria:false},dispara:r.dispara||{notifica_a:null,genera_folio:false,sla_horas:null}};});
 }
 
 function renderCuestPlantillas(){
@@ -30199,14 +30273,277 @@ function renderCuestPlantillas(){
   }).join('');
 }
 
-// Stubs — el constructor de secciones/preguntas se construye en la siguiente
-// sub-tarea (Sub-tarea 2). Por ahora la vista abre y lista plantillas vacías
-// sin quedar en blanco.
-function openAddCuestPlantilla(){
-  toast('Constructor de plantillas: se agrega en la siguiente sub-tarea.','info');
+// ── Apertura/cierre de la ficha (dentro de view-cuest, sin modal) ─────────
+async function openAddCuestPlantilla(){
+  document.getElementById('cuestf-id').value='';
+  document.getElementById('cuestf-nombre').value='';
+  document.getElementById('cuestf-descripcion').value='';
+  document.getElementById('cuestf-tipo-evento').checked=true;
+  document.getElementById('cuestf-secciones-editor').innerHTML='<div style="color:var(--cp-gray-400);font-size:12px">Guarda primero la plantilla para agregar secciones.</div>';
+  const toggleBtn=document.getElementById('cuestf-toggle-activa-btn');if(toggleBtn)toggleBtn.style.display='none';
+  _cuestFichaPlantillaId=null;
+  await Promise.all([cuestEnsureTiposEvidencia(),(!(_userProfilesCache||[]).length)?loadAllUserProfiles().catch(function(){}):Promise.resolve()]);
+  document.getElementById('cuest-lista-wrap').style.display='none';
+  document.getElementById('cuest-ficha-wrap').style.display='';
 }
-function openEditCuestPlantilla(id){
-  toast('Constructor de plantillas: se agrega en la siguiente sub-tarea.','info');
+async function openEditCuestPlantilla(id){
+  const p=cuestPlantillas.find(function(x){return x.id===id;});if(!p)return;
+  document.getElementById('cuestf-id').value=p.id;
+  document.getElementById('cuestf-nombre').value=p.nombre;
+  document.getElementById('cuestf-descripcion').value=p.descripcion||'';
+  document.getElementById(p.tipo==='on_demand'?'cuestf-tipo-on_demand':'cuestf-tipo-evento').checked=true;
+  const toggleBtn=document.getElementById('cuestf-toggle-activa-btn');
+  if(toggleBtn){toggleBtn.style.display='';toggleBtn.textContent=p.activo?'Desactivar plantilla':'Activar plantilla';}
+  _cuestFichaPlantillaId=id;
+  await Promise.all([cuestEnsureTiposEvidencia(),(!(_userProfilesCache||[]).length)?loadAllUserProfiles().catch(function(){}):Promise.resolve()]);
+  renderCuestSecciones(id);
+  document.getElementById('cuest-lista-wrap').style.display='none';
+  document.getElementById('cuest-ficha-wrap').style.display='';
+}
+function cuestCerrarFicha(){
+  _cuestFichaPlantillaId=null;
+  _cuestPreguntasExpandidas={};
+  document.getElementById('cuest-ficha-wrap').style.display='none';
+  document.getElementById('cuest-lista-wrap').style.display='';
+  renderCuestPlantillas();
+}
+async function cuestTogglePlantillaActiva(){
+  const p=cuestPlantillas.find(function(x){return x.id===_cuestFichaPlantillaId;});if(!p)return;
+  p.activo=!p.activo;
+  await cuestSavePlantilla(p).catch(function(){});
+  const toggleBtn=document.getElementById('cuestf-toggle-activa-btn');
+  if(toggleBtn)toggleBtn.textContent=p.activo?'Desactivar plantilla':'Activar plantilla';
+  toast((p.activo?'Plantilla activada':'Plantilla desactivada')+' ✓');
+}
+
+async function cuestGuardarPlantilla(){
+  const id=document.getElementById('cuestf-id').value||uid9();
+  const nombre=document.getElementById('cuestf-nombre').value.trim();
+  const descripcion=document.getElementById('cuestf-descripcion').value.trim();
+  const tipo=document.getElementById('cuestf-tipo-on_demand').checked?'on_demand':'evento';
+  if(!nombre){toast('Nombre requerido','error');return;}
+  const existing=cuestPlantillas.find(function(x){return x.id===id;});
+  const p=existing||{id,nombre,tipo,activo:true,creadoPor:state.currentUser?.id,createdAt:new Date().toISOString()};
+  p.nombre=nombre;p.descripcion=descripcion;p.tipo=tipo;
+  await cuestSavePlantilla(p).catch(function(e){toast('Error: '+e.message,'error');});
+  if(!existing)cuestPlantillas.push(p);
+  document.getElementById('cuestf-id').value=p.id;
+  const toggleBtn=document.getElementById('cuestf-toggle-activa-btn');
+  if(toggleBtn){toggleBtn.style.display='';toggleBtn.textContent=p.activo?'Desactivar plantilla':'Activar plantilla';}
+  _cuestFichaPlantillaId=p.id;
+  renderCuestSecciones(p.id);
+  toast('Plantilla guardada ✓','success');
+}
+
+// ── Secciones (equivalente a pilares) ──────────────────────────────────────
+function renderCuestSecciones(plantillaId){
+  const el=document.getElementById('cuestf-secciones-editor');if(!el)return;
+  const secciones=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId;}).sort(function(a,b){return a.orden-b.orden;});
+  let html='';
+  secciones.forEach(function(sec,si){
+    const pregs=cuestPreguntas.filter(function(q){return q.seccionId===sec.id;}).sort(function(a,b){return a.orden-b.orden;});
+    html+='<div style="border:1px solid var(--cp-gray-100);border-radius:var(--radius-md);margin-bottom:12px;overflow:hidden">';
+    html+='<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--cp-purple-light);border-bottom:1px solid var(--cp-gray-100)">';
+    html+='<span style="font-size:11px;font-weight:700;color:var(--cp-purple);flex-shrink:0;min-width:20px">S'+(si+1)+'</span>';
+    html+='<input type="text" class="form-input" id="cuestsec-nombre-'+sec.id+'" style="flex:1;font-size:12px;font-weight:600;padding:4px 8px" value="'+escHtml(sec.nombre)+'" placeholder="Nombre de la sección">';
+    html+='<button class="btn-sm btn-ghost" style="padding:3px 6px" title="Mover arriba" onclick="cuestMoveSeccion(\''+sec.id+'\',-1,\''+plantillaId+'\')"><i class="ti ti-arrow-up" style="font-size:12px"></i></button>';
+    html+='<button class="btn-sm btn-ghost" style="padding:3px 6px" title="Mover abajo" onclick="cuestMoveSeccion(\''+sec.id+'\',1,\''+plantillaId+'\')"><i class="ti ti-arrow-down" style="font-size:12px"></i></button>';
+    html+='<button class="btn-sm btn-blue" style="padding:3px 8px" title="Guardar nombre" onclick="cuestSaveSeccionNombre(\''+sec.id+'\',\''+plantillaId+'\')"><i class="ti ti-check" style="font-size:11px"></i></button>';
+    html+='<button class="btn-sm btn-ghost" style="padding:3px 6px" title="Eliminar sección" onclick="cuestDeleteSeccion(\''+sec.id+'\',\''+plantillaId+'\')"><i class="ti ti-trash" style="color:var(--cp-red);font-size:13px"></i></button>';
+    html+='</div>';
+    html+='<div style="padding:8px 10px">';
+    pregs.forEach(function(q,qi){html+=cuestRenderPreguntaCard(q,qi,sec.id,plantillaId);});
+    html+='<button class="btn-sm btn-ghost" style="width:100%;margin-top:6px;font-size:11px;color:var(--cp-purple);border-color:var(--cp-purple)" onclick="cuestAddPregunta(\''+sec.id+'\',\''+plantillaId+'\')"><i class="ti ti-plus"></i> Agregar pregunta</button>';
+    html+='</div></div>';
+  });
+  html+='<button class="btn-sm btn-blue" style="width:100%" onclick="cuestAddSeccion(\''+plantillaId+'\')"><i class="ti ti-plus"></i> Agregar sección</button>';
+  el.innerHTML=html;
+}
+
+async function cuestAddSeccion(plantillaId){
+  const orden=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId;}).length;
+  const sec={id:uid9(),plantillaId,nombre:'Nueva sección',orden};
+  await cuestSaveSeccion(sec).catch(function(){});
+  cuestSecciones.push(sec);
+  renderCuestSecciones(plantillaId);
+  toast('Sección agregada — edita el nombre y guarda.','info');
+}
+async function cuestSaveSeccionNombre(seccionId,plantillaId){
+  const sec=cuestSecciones.find(function(s){return s.id===seccionId;});if(!sec)return;
+  const nombre=document.getElementById('cuestsec-nombre-'+seccionId)?.value.trim();
+  if(!nombre){toast('Nombre requerido','error');return;}
+  sec.nombre=nombre;
+  await cuestSaveSeccion(sec).catch(function(e){toast('Error: '+e.message,'error');});
+  toast('Sección guardada ✓','success');
+}
+async function cuestMoveSeccion(seccionId,dir,plantillaId){
+  const sorted=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId;}).sort(function(a,b){return a.orden-b.orden;});
+  const idx=sorted.findIndex(function(s){return s.id===seccionId;});
+  const swapIdx=idx+dir;
+  if(swapIdx<0||swapIdx>=sorted.length)return;
+  const a=sorted[idx],b=sorted[swapIdx];
+  const tmp=a.orden;a.orden=b.orden;b.orden=tmp;
+  await Promise.all([cuestSaveSeccion(a).catch(function(){}),cuestSaveSeccion(b).catch(function(){})]);
+  renderCuestSecciones(plantillaId);
+}
+async function cuestDeleteSeccion(seccionId,plantillaId){
+  if(!guardAdmin('cuestDeleteSeccion'))return;
+  if(!confirm('¿Eliminar esta sección y todas sus preguntas?'))return;
+  await sb.from('cuest_preguntas').delete().eq('seccion_id',seccionId).catch(function(){});
+  await sb.from('cuest_secciones').delete().eq('id',seccionId).catch(function(){});
+  sbInvalidate('cuest_secciones');sbInvalidate('cuest_preguntas');
+  cuestPreguntas=cuestPreguntas.filter(function(q){return q.seccionId!==seccionId;});
+  cuestSecciones=cuestSecciones.filter(function(s){return s.id!==seccionId;});
+  renderCuestSecciones(plantillaId);
+  toast('Sección eliminada','info');
+}
+
+// ── Preguntas (equivalente a criterios, con muchos más campos) ────────────
+function cuestRenderPreguntaCard(q,qi,seccionId,plantillaId){
+  const expanded=!!_cuestPreguntasExpandidas[q.id];
+  let html='<div style="border:1px solid var(--cp-gray-100);border-radius:6px;margin-bottom:8px;overflow:hidden">';
+  html+='<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--cp-gray-50)">';
+  html+='<span style="font-size:10px;font-weight:700;color:var(--cp-gray-400);flex-shrink:0">Q'+(qi+1)+'</span>';
+  html+='<span style="flex:1;font-size:12px;color:var(--cp-navy)">'+(escHtml(q.texto||'')||'<span style=\"color:var(--cp-gray-400)\">(sin texto)</span>')+'</span>';
+  html+='<span class="badge badge-gray" style="font-size:10px">'+escHtml(cuestTipoRespuestaLabel(q.tipoRespuesta))+'</span>';
+  if(q.obligatoria)html+='<span class="badge badge-amber" style="font-size:10px">Obligatoria</span>';
+  html+='<button class="btn-sm btn-ghost" style="padding:3px 6px" title="Mover arriba" onclick="cuestMovePregunta(\''+q.id+'\',-1,\''+seccionId+'\',\''+plantillaId+'\')"><i class="ti ti-arrow-up" style="font-size:12px"></i></button>';
+  html+='<button class="btn-sm btn-ghost" style="padding:3px 6px" title="Mover abajo" onclick="cuestMovePregunta(\''+q.id+'\',1,\''+seccionId+'\',\''+plantillaId+'\')"><i class="ti ti-arrow-down" style="font-size:12px"></i></button>';
+  html+='<button class="btn-sm btn-ghost" style="padding:3px 6px" title="'+(expanded?'Colapsar':'Editar')+'" onclick="cuestTogglePregunta(\''+q.id+'\',\''+plantillaId+'\')"><i class="ti ti-'+(expanded?'chevron-up':'pencil')+'" style="font-size:12px"></i></button>';
+  html+='<button class="btn-sm btn-ghost" style="padding:3px 6px" title="Eliminar" onclick="cuestDeletePregunta(\''+q.id+'\',\''+seccionId+'\',\''+plantillaId+'\')"><i class="ti ti-trash" style="color:var(--cp-red);font-size:13px"></i></button>';
+  html+='</div>';
+  if(expanded)html+=cuestRenderPreguntaForm(q,seccionId,plantillaId);
+  html+='</div>';
+  return html;
+}
+
+function cuestRenderPreguntaForm(q,seccionId,plantillaId){
+  const tipos=_cuestTiposEvidencia||[];
+  const evTipos=(q.evidencia&&Array.isArray(q.evidencia.tipos))?q.evidencia.tipos:[];
+  const evObligatoria=!!(q.evidencia&&q.evidencia.obligatoria);
+  const disparaNotificaA=(q.dispara&&q.dispara.notifica_a)||'';
+  const disparaFolio=!!(q.dispara&&q.dispara.genera_folio);
+  const disparaSla=(q.dispara&&q.dispara.sla_horas!=null)?q.dispara.sla_horas:'';
+  const mostrarOpciones=q.tipoRespuesta==='lista'||q.tipoRespuesta==='multiple';
+  let html='<div style="padding:10px;border-top:1px solid var(--cp-gray-100)">';
+  html+='<div class="form-field full" style="margin-bottom:8px"><label class="form-label">Texto de la pregunta *</label><textarea class="form-input" id="cuestq-texto-'+q.id+'" rows="2">'+escHtml(q.texto||'')+'</textarea></div>';
+  html+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">';
+  html+='<div class="form-field" style="min-width:220px"><label class="form-label">Tipo de respuesta</label><select class="form-input" id="cuestq-tipo-'+q.id+'" onchange="cuestOnTipoRespuestaChange(\''+q.id+'\')">'+
+    CUEST_TIPOS_RESPUESTA.map(function(t){return '<option value="'+t.id+'"'+(t.id===q.tipoRespuesta?' selected':'')+'>'+escHtml(t.label)+'</option>';}).join('')+
+    '</select></div>';
+  html+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;align-self:flex-end;padding-bottom:8px"><input type="checkbox" id="cuestq-obligatoria-'+q.id+'"'+(q.obligatoria?' checked':'')+'> Obligatoria</label>';
+  html+='</div>';
+  html+='<div class="form-field full" id="cuestq-opciones-wrap-'+q.id+'" style="margin-bottom:8px;display:'+(mostrarOpciones?'block':'none')+'">'+
+    '<label class="form-label">Opciones (una por línea)</label>'+
+    '<textarea class="form-input" id="cuestq-opciones-'+q.id+'" rows="3" placeholder="Opción 1\nOpción 2">'+escHtml((q.opciones||[]).join('\n'))+'</textarea>'+
+  '</div>';
+  html+='<div style="margin-bottom:8px">';
+  html+='<label class="form-label">Evidencia requerida</label>';
+  html+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">';
+  if(!tipos.length){
+    html+='<span style="font-size:12px;color:var(--cp-gray-400)">Sin tipos de evidencia configurados en cuest_config (clave tipos_evidencia).</span>';
+  }else{
+    tipos.forEach(function(t){
+      html+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="cuestq-ev-tipo-'+q.id+'" value="'+escHtml(t.id)+'"'+(evTipos.indexOf(t.id)>=0?' checked':'')+'> '+escHtml(t.nombre)+'</label>';
+    });
+  }
+  html+='</div>';
+  html+='<label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:6px"><input type="checkbox" id="cuestq-evobl-'+q.id+'"'+(evObligatoria?' checked':'')+'> Evidencia obligatoria</label>';
+  html+='</div>';
+  html+='<div style="margin-bottom:8px">';
+  html+='<button type="button" class="btn-sm btn-ghost" style="font-size:11px" onclick="cuestToggleDispara(\''+q.id+'\')"><i class="ti ti-bell"></i> Dispara (notificación / folio / SLA)</button>';
+  html+='<div id="cuestq-dispara-wrap-'+q.id+'" style="display:none;margin-top:8px;padding:10px;background:var(--cp-gray-50);border-radius:6px">';
+  html+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">';
+  html+='<div class="form-field" style="min-width:220px"><label class="form-label">Notificar a</label><select class="form-input" id="cuestq-notifica-'+q.id+'">'+
+    '<option value="">— Nadie —</option>'+
+    '<optgroup label="Rol">'+
+      '<option value="rol:admin"'+(disparaNotificaA==='rol:admin'?' selected':'')+'>Rol: Admin</option>'+
+      '<option value="rol:usuario"'+(disparaNotificaA==='rol:usuario'?' selected':'')+'>Rol: Usuario</option>'+
+    '</optgroup>'+
+    '<optgroup label="Usuario">'+
+      (_userProfilesCache||[]).map(function(u){return '<option value="'+u.user_id+'"'+(disparaNotificaA===u.user_id?' selected':'')+'>'+escHtml(u.display_name||u.email)+'</option>';}).join('')+
+    '</optgroup>'+
+  '</select></div>';
+  html+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding-bottom:8px"><input type="checkbox" id="cuestq-folio-'+q.id+'"'+(disparaFolio?' checked':'')+'> Genera folio</label>';
+  html+='<div class="form-field" style="width:120px"><label class="form-label">SLA (horas)</label><input type="number" class="form-input" id="cuestq-sla-'+q.id+'" min="0" value="'+escHtml(String(disparaSla))+'"></div>';
+  html+='</div></div></div>';
+  html+='<button class="btn-sm btn-blue" onclick="cuestGuardarPregunta(\''+q.id+'\',\''+seccionId+'\',\''+plantillaId+'\')"><i class="ti ti-check"></i> Guardar pregunta</button>';
+  html+='</div>';
+  return html;
+}
+
+function cuestOnTipoRespuestaChange(preguntaId){
+  const sel=document.getElementById('cuestq-tipo-'+preguntaId);
+  const wrap=document.getElementById('cuestq-opciones-wrap-'+preguntaId);
+  if(!sel||!wrap)return;
+  wrap.style.display=(sel.value==='lista'||sel.value==='multiple')?'block':'none';
+}
+function cuestToggleDispara(preguntaId){
+  const wrap=document.getElementById('cuestq-dispara-wrap-'+preguntaId);
+  if(wrap)wrap.style.display=wrap.style.display==='none'?'block':'none';
+}
+function cuestTogglePregunta(preguntaId,plantillaId){
+  _cuestPreguntasExpandidas[preguntaId]=!_cuestPreguntasExpandidas[preguntaId];
+  renderCuestSecciones(plantillaId);
+}
+
+async function cuestAddPregunta(seccionId,plantillaId){
+  const orden=cuestPreguntas.filter(function(q){return q.seccionId===seccionId;}).length;
+  const q={id:uid9(),seccionId,orden,texto:'',tipoRespuesta:'abierta',opciones:[],obligatoria:true,evidencia:{tipos:[],obligatoria:false},dispara:{notifica_a:null,genera_folio:false,sla_horas:null}};
+  await cuestSavePregunta(q).catch(function(){});
+  cuestPreguntas.push(q);
+  _cuestPreguntasExpandidas[q.id]=true;
+  renderCuestSecciones(plantillaId);
+  toast('Pregunta agregada — complétala y guarda.','info');
+}
+
+async function cuestGuardarPregunta(preguntaId,seccionId,plantillaId){
+  const q=cuestPreguntas.find(function(x){return x.id===preguntaId;});if(!q)return;
+  const texto=document.getElementById('cuestq-texto-'+preguntaId)?.value.trim();
+  if(!texto){toast('El texto de la pregunta es obligatorio','error');return;}
+  const tipoRespuesta=document.getElementById('cuestq-tipo-'+preguntaId)?.value||'abierta';
+  const obligatoria=!!document.getElementById('cuestq-obligatoria-'+preguntaId)?.checked;
+  let opciones=[];
+  if(tipoRespuesta==='lista'||tipoRespuesta==='multiple'){
+    const raw=document.getElementById('cuestq-opciones-'+preguntaId)?.value||'';
+    opciones=raw.split('\n').map(function(s){return s.trim();}).filter(function(s){return s.length;});
+  }
+  const evTipos=[];
+  document.querySelectorAll('.cuestq-ev-tipo-'+preguntaId+':checked').forEach(function(cb){evTipos.push(cb.value);});
+  const evObligatoria=!!document.getElementById('cuestq-evobl-'+preguntaId)?.checked;
+  // evidencia y dispara se arman como UN objeto jsonb completo cada uno —
+  // nunca como columnas sueltas (así está definido el esquema real).
+  const evidencia={tipos:evTipos,obligatoria:evObligatoria};
+  const notificaA=document.getElementById('cuestq-notifica-'+preguntaId)?.value||null;
+  const generaFolio=!!document.getElementById('cuestq-folio-'+preguntaId)?.checked;
+  const slaRaw=document.getElementById('cuestq-sla-'+preguntaId)?.value;
+  const slaHoras=slaRaw!==''&&slaRaw!=null?parseInt(slaRaw,10):null;
+  const dispara={notifica_a:notificaA||null,genera_folio:generaFolio,sla_horas:slaHoras};
+  q.texto=texto;q.tipoRespuesta=tipoRespuesta;q.obligatoria=obligatoria;q.opciones=opciones;q.evidencia=evidencia;q.dispara=dispara;
+  await cuestSavePregunta(q).catch(function(e){toast('Error: '+e.message,'error');});
+  renderCuestSecciones(plantillaId);
+  toast('Pregunta guardada ✓','success');
+}
+
+async function cuestMovePregunta(preguntaId,dir,seccionId,plantillaId){
+  const sorted=cuestPreguntas.filter(function(q){return q.seccionId===seccionId;}).sort(function(a,b){return a.orden-b.orden;});
+  const idx=sorted.findIndex(function(q){return q.id===preguntaId;});
+  const swapIdx=idx+dir;
+  if(swapIdx<0||swapIdx>=sorted.length)return;
+  const a=sorted[idx],b=sorted[swapIdx];
+  const tmp=a.orden;a.orden=b.orden;b.orden=tmp;
+  await Promise.all([cuestSavePregunta(a).catch(function(){}),cuestSavePregunta(b).catch(function(){})]);
+  renderCuestSecciones(plantillaId);
+}
+async function cuestDeletePregunta(preguntaId,seccionId,plantillaId){
+  if(!guardAdmin('cuestDeletePregunta'))return;
+  if(!confirm('¿Eliminar esta pregunta?'))return;
+  await sb.from('cuest_preguntas').delete().eq('id',preguntaId).catch(function(){});
+  sbInvalidate('cuest_preguntas');
+  cuestPreguntas=cuestPreguntas.filter(function(q){return q.id!==preguntaId;});
+  delete _cuestPreguntasExpandidas[preguntaId];
+  renderCuestSecciones(plantillaId);
+  toast('Pregunta eliminada','info');
 }
 
 </script>
