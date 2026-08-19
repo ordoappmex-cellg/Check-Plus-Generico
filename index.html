@@ -13441,9 +13441,18 @@ async function crmCotizExportPdf(){
   const marginX=14;
   let y=16;
 
-  // Membrete — mismo dato que renderSidebarBranding (companyInfo.logoDataUrl/
-  // nombre/ciudad, ya en app_config vía dbLoad). El logo es cortesía visual:
-  // si algo falla, se ignora sin romper el PDF. No pude inspeccionar el
+  // Color de marca — reutiliza cpAccentHex() (helper existente, Fase C de
+  // paleta) en vez de crear un campo nuevo: Configuración → Empresa/
+  // Identidad YA tiene un color picker real para el acento de marca
+  // (_cfgIdentidadCustomAccent, input type=color, L9440), persistido en
+  // app_config id='paleta_colores' y aplicado a --cp-accent. cpAccentHex()
+  // lee ese valor ya resuelto — mismo patrón que usan los gráficos canvas
+  // de Clientes, que tampoco pueden usar var(--cp-accent) directo.
+  const accentRgb=_hexToRgbString(cpAccentHex()).split(',').map(Number);
+
+  // Membrete — SOLO el logo, sin nombre de empresa al lado (va al pie de
+  // página, ver el final de la función). El logo es cortesía visual: si
+  // algo falla, se ignora sin romper el PDF. No pude inspeccionar el
   // archivo real (sin acceso a Supabase/navegador en esta sesión), así que
   // este bloque cubre las DOS causas posibles que se señalaron sin asumir
   // cuál es la real: (1) transparencia — fondo blanco sólido detrás del
@@ -13454,6 +13463,7 @@ async function crmCotizExportPdf(){
   // dentro de una caja máxima de 22mm.
   let hasLogo=false;
   const LOGO_BOX=22;
+  const logoTop=y-6;
   if(companyInfo.logoDataUrl){
     try{
       const props=doc.getImageProperties(companyInfo.logoDataUrl);
@@ -13466,22 +13476,19 @@ async function crmCotizExportPdf(){
       const m=/^data:image\/(\w+);base64,/.exec(companyInfo.logoDataUrl);
       if(m)fmt=(m[1].toUpperCase()==='JPG'?'JPEG':m[1].toUpperCase());
       doc.setFillColor(255,255,255);
-      doc.rect(marginX,y-6,LOGO_BOX,LOGO_BOX,'F');
-      doc.addImage(companyInfo.logoDataUrl,fmt,marginX+(LOGO_BOX-w)/2,y-6+(LOGO_BOX-h)/2,w,h,undefined,'NONE');
+      doc.rect(marginX,logoTop,LOGO_BOX,LOGO_BOX,'F');
+      doc.addImage(companyInfo.logoDataUrl,fmt,marginX+(LOGO_BOX-w)/2,logoTop+(LOGO_BOX-h)/2,w,h,undefined,'NONE');
       hasLogo=true;
     }catch(e){console.warn('crmCotizExportPdf logo',e);}
   }
-  const textX=hasLogo?marginX+LOGO_BOX+4:marginX;
-  doc.setFontSize(14);doc.setFont('helvetica','bold');
-  doc.text(companyInfo.nombre||'Cotización',textX,y);y+=6;
-  doc.setFontSize(10);doc.setFont('helvetica','normal');
-  if(companyInfo.ciudad){doc.text(companyInfo.ciudad,textX,y);y+=6;}
-  if(hasLogo&&y<28)y=28;
+  if(hasLogo)y=logoTop+LOGO_BOX+2;
 
   doc.setDrawColor(200);doc.line(marginX,y,196,y);y+=8;
 
   doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.setTextColor(accentRgb[0],accentRgb[1],accentRgb[2]);
   doc.text('Cotización '+folio,marginX,y);y+=8;
+  doc.setTextColor(0,0,0);
 
   doc.setFontSize(10);doc.setFont('helvetica','normal');
   [
@@ -13511,7 +13518,7 @@ async function crmCotizExportPdf(){
     body:body.length?body:[['—','Sin líneas capturadas','','','','']],
     margin:{left:marginX,right:14},
     styles:{fontSize:9,cellPadding:2.5},
-    headStyles:{fillColor:[123,47,247]},
+    headStyles:{fillColor:accentRgb},
   });
   y=doc.lastAutoTable.finalY+8;
 
@@ -13524,6 +13531,15 @@ async function crmCotizExportPdf(){
 
   doc.setFontSize(12);doc.setFont('helvetica','bold');
   doc.text('Total: $'+total.toLocaleString('es-MX',{minimumFractionDigits:2})+' MXN',196,y,{align:'right'});
+
+  // Nombre de la empresa al PIE de página, pequeño — ya no va junto al
+  // logo en el membrete (punto 1 de este ajuste).
+  if(companyInfo.nombre){
+    const pageH=doc.internal.pageSize.getHeight();
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(150,150,150);
+    doc.text(companyInfo.nombre,marginX,pageH-10);
+    doc.setTextColor(0,0,0);
+  }
 
   doc.save('Cotizacion_'+folio.replace(/[^a-z0-9_-]+/gi,'_')+'.pdf');
 }
