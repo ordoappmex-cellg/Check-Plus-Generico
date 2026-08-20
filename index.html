@@ -30383,6 +30383,29 @@ const CUEST_ICONOS_EMOCIONAL=[
   {id:'ti-mood-smile',label:'Bien'},
   {id:'ti-mood-happy',label:'Muy bien'}
 ];
+// Interpolación hex lineal entre dos colores ancla (t=0..1) — igual criterio
+// que cpAccentHex()+sufijo de alpha ya usado en el proyecto para casos donde
+// var() no alcanza (aquí hace falta un HEX intermedio calculado, no uno de
+// los 3 tonos fijos).
+function _cuestHexLerp(hexA,hexB,t){
+  const a=parseInt(hexA.slice(1),16),b=parseInt(hexB.slice(1),16);
+  const ar=(a>>16)&255,ag=(a>>8)&255,ab=a&255;
+  const br=(b>>16)&255,bg=(b>>8)&255,bb=b&255;
+  const r=Math.round(ar+(br-ar)*t),g=Math.round(ag+(bg-ag)*t),bl=Math.round(ab+(bb-ab)*t);
+  return '#'+[r,g,bl].map(function(v){return v.toString(16).padStart(2,'0');}).join('');
+}
+// Color por POSICIÓN en la escala emocional (nunca por texto — el admin
+// puede escribir cualquier etiqueta): índice 0 = primera = mejor = verde;
+// último índice = peor = rojo; los de en medio se reparten verde→ámbar
+// (primera mitad) y ámbar→rojo (segunda mitad). Funciona igual con 2, 3, 4
+// o 5+ opciones sin hardcodear nombres de color por texto. Mismos 3 tonos
+// ancla que --cp-green/--cp-amber/--cp-red (línea ~96-98 del CSS).
+function cuestEmocionalColorPorPosicion(index,total){
+  const VERDE='#10C080',AMBAR='#F5A623',ROJO='#EF4444';
+  if(total<=1)return VERDE;
+  const t=index/(total-1); // 0..1
+  return t<=0.5?_cuestHexLerp(VERDE,AMBAR,t/0.5):_cuestHexLerp(AMBAR,ROJO,(t-0.5)/0.5);
+}
 
 // ── cuest_config — tabla propia del módulo, patrón clave/valor análogo a
 // app_config pero NUNCA reutilizarla: es una tabla distinta (clave/valor,
@@ -30575,6 +30598,7 @@ function renderCuestSecciones(plantillaId){
   html+='<button class="btn-sm btn-blue" style="width:100%" onclick="cuestAddSeccion(\''+plantillaId+'\')"><i class="ti ti-plus"></i> Agregar sección</button>';
   el.innerHTML=html;
   cuestUpdatePesoTotal(plantillaId);
+  cuestOpcionesRecolorPreviewsAll();
 }
 
 async function cuestAddSeccion(plantillaId){
@@ -30775,13 +30799,15 @@ function cuestOpcionRowHtml(preguntaId,tipo,texto,icono){
   let html='<div class="cuestq-opcion-row" style="display:flex;gap:6px;margin-bottom:4px;align-items:center">';
   html+='<input type="text" class="form-input cuestq-opcion-input" style="flex:1;font-size:12px;padding:4px 8px" value="'+escHtml(texto)+'" oninput="cuestSyncRespuestaCorrecta(\''+preguntaId+'\')">';
   if(tipo==='emocional'){
-    html+='<i class="ti '+(icono?escHtml(icono):'ti-mood-neutral')+' cuestq-opcion-icon-preview" style="font-size:18px;color:var(--cp-gray-400);width:20px;text-align:center;flex-shrink:0"></i>';
+    // Color se aplica aparte por cuestOpcionesRecolorPreviewsAll() según
+    // POSICIÓN entre las filas — aquí solo el gris neutro de arranque.
+    html+='<i class="ti '+(icono?escHtml(icono):'ti-mood-neutral')+' cuestq-opcion-icon-preview" style="font-size:15px;color:var(--cp-gray-400);background:var(--cp-gray-100);width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"></i>';
     html+='<select class="form-input cuestq-opcion-icono" style="width:130px;font-size:12px;padding:4px 6px;flex-shrink:0" onchange="cuestOpcionIconoChange(this)">';
     html+='<option value="">— Sin ícono —</option>';
     html+=CUEST_ICONOS_EMOCIONAL.map(function(ic){return '<option value="'+ic.id+'"'+(icono===ic.id?' selected':'')+'>'+escHtml(ic.label)+'</option>';}).join('');
     html+='</select>';
   }
-  html+='<button type="button" class="btn-sm btn-ghost" style="padding:3px 8px" onclick="this.closest(\'.cuestq-opcion-row\').remove();cuestSyncRespuestaCorrecta(\''+preguntaId+'\')"><i class="ti ti-x"></i></button>';
+  html+='<button type="button" class="btn-sm btn-ghost" style="padding:3px 8px" onclick="this.closest(\'.cuestq-opcion-row\').remove();cuestSyncRespuestaCorrecta(\''+preguntaId+'\');cuestOpcionesRecolorPreviewsAll()"><i class="ti ti-x"></i></button>';
   html+='</div>';
   return html;
 }
@@ -30790,6 +30816,25 @@ function cuestOpcionIconoChange(sel){
   const row=sel.closest('.cuestq-opcion-row');
   const preview=row&&row.querySelector('.cuestq-opcion-icon-preview');
   if(preview)preview.className='ti '+(sel.value||'ti-mood-neutral')+' cuestq-opcion-icon-preview';
+}
+// Recalcula el color de los previews emocional por POSICIÓN dentro de su
+// lista (0=primera=verde…última=rojo, cuestEmocionalColorPorPosicion). Se
+// llama tras CUALQUIER cambio que pueda alterar el total de filas de alguna
+// lista (agregar/quitar una opción, cambiar de tipo, o repintar la ficha
+// completa) — el total cambia el mapeo de TODAS las filas, no solo de la
+// tocada, así que siempre se recorren todas las listas visibles.
+function cuestOpcionesRecolorPreviewsAll(){
+  document.querySelectorAll('[id^="cuestq-opciones-list-"]').forEach(function(list){
+    const rows=list.querySelectorAll('.cuestq-opcion-row');
+    const total=rows.length;
+    rows.forEach(function(row,idx){
+      const preview=row.querySelector('.cuestq-opcion-icon-preview');
+      if(!preview)return; // lista/multiple no tienen preview de ícono
+      const color=cuestEmocionalColorPorPosicion(idx,total);
+      preview.style.color=color;
+      preview.style.background=color+'22';
+    });
+  });
 }
 function cuestAddOpcionRow(preguntaId){
   const list=document.getElementById('cuestq-opciones-list-'+preguntaId);
@@ -30800,6 +30845,7 @@ function cuestAddOpcionRow(preguntaId){
   wrapper.innerHTML=cuestOpcionRowHtml(preguntaId,tipo,'',null);
   const row=wrapper.firstElementChild;
   list.appendChild(row);
+  cuestOpcionesRecolorPreviewsAll();
   const inp=row.querySelector('.cuestq-opcion-input');
   if(inp)inp.focus();
 }
@@ -30848,6 +30894,7 @@ function cuestOnTipoRespuestaChange(preguntaId){
       rows.push({texto:inp?inp.value:'',icono:iconoSel?iconoSel.value:null});
     });
     list.innerHTML=rows.map(function(r){return cuestOpcionRowHtml(preguntaId,tipo,r.texto,r.icono);}).join('');
+    cuestOpcionesRecolorPreviewsAll();
   }
   cuestSyncRespuestaCorrecta(preguntaId);
   const cuentaCb=document.getElementById('cuestq-cuenta-'+preguntaId);
@@ -31485,9 +31532,17 @@ function cuestWizRenderControl(q,valor){
     const val=(valor&&typeof valor.valor==='string')?valor.valor:null;
     const opciones=cuestNormalizaOpcionesEmocional(q.opciones||[]);
     if(!opciones.length)return '<div style="font-size:12px;color:var(--cp-gray-400)">Esta pregunta no tiene opciones configuradas.</div>';
-    return '<div style="display:flex;gap:10px;flex-wrap:wrap">'+opciones.map(function(op){
+    const total=opciones.length;
+    // Color por POSICIÓN (cuestEmocionalColorPorPosicion), nunca por texto —
+    // círculo tenue detrás del ícono (color+'22') + borde/fondo del botón en
+    // el mismo tono cuando está seleccionada (color+'14').
+    return '<div style="display:flex;gap:10px;flex-wrap:wrap">'+opciones.map(function(op,idx){
       const selected=val===op.texto;
-      return '<button type="button" class="btn-sm '+(selected?'btn-blue':'btn-ghost')+'" style="flex-direction:column;gap:4px;padding:10px 14px" data-valor="'+escHtml(op.texto)+'" onclick="cuestWizSetValorEmocional(\''+q.id+'\',this.dataset.valor)"><i class="ti '+(op.icono?escHtml(op.icono):'ti-mood-neutral')+'" style="font-size:20px"></i><span style="font-size:11px">'+escHtml(op.texto)+'</span></button>';
+      const color=cuestEmocionalColorPorPosicion(idx,total);
+      return '<button type="button" class="btn-sm" style="flex-direction:column;gap:6px;padding:12px 16px;border-radius:12px;border:2px solid '+(selected?color:'var(--cp-gray-200)')+';background:'+(selected?color+'14':'transparent')+'" data-valor="'+escHtml(op.texto)+'" onclick="cuestWizSetValorEmocional(\''+q.id+'\',this.dataset.valor)">'+
+        '<span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:'+color+'22"><i class="ti '+(op.icono?escHtml(op.icono):'ti-mood-neutral')+'" style="font-size:20px;color:'+color+'"></i></span>'+
+        '<span style="font-size:11px;color:var(--cp-navy)">'+escHtml(op.texto)+'</span>'+
+      '</button>';
     }).join('')+'</div>';
   }
   // abierta
