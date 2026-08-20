@@ -5360,6 +5360,18 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
   </div>
 </div>
 
+<!-- RESUMEN FINAL del wizard de Responder — se abre desde cuestWizFinalizar,
+     antes de cerrar el wizard (cuestWizResumenCerrar cierra el modal Y
+     vuelve a "Mis asignaciones"). Sin botón de cerrar en la X — el flujo
+     obliga a pasar por "Cerrar" para no saltarse el resumen sin querer. -->
+<div class="modal-overlay" id="modal-cuest-wiz-resumen">
+  <div class="modal" style="width:460px">
+    <div class="modal-header"><div class="modal-title"><i class="ti ti-circle-check" style="margin-right:7px;color:var(--cp-green)"></i>Cuestionario finalizado</div></div>
+    <div class="modal-body" id="cuest-wiz-resumen-body"></div>
+    <div class="modal-footer"><button class="btn-sm btn-blue" onclick="cuestWizResumenCerrar()"><i class="ti ti-check"></i> Cerrar</button></div>
+  </div>
+</div>
+
 <!-- ALTA/EDICIÓN DE CLIENTE (hb_clientes) MODAL — Fase 1, alcance simple.
      Si se abre desde "Convertir a cliente" (ficha de lead), hbCliModalEmpresaId
      ya viene fijo y el hint de arriba muestra la cuenta vinculada. -->
@@ -30531,10 +30543,18 @@ async function cuestLoad(){
   // memoria (aprobadorId denormalizado por folio) en vez de un embed de
   // PostgREST — mismo criterio que el resto del módulo (cuestAsigPlantillaLabel
   // etc. ya resuelven relaciones así, contra arrays hermanos ya cargados).
-  cuestFolios=folioRaw.map(function(r){
-    const resp=cuestRespuestas.find(function(x){return x.id===r.respuesta_id;});
-    return {id:r.id,respuestaId:r.respuesta_id,preguntaId:r.pregunta_id,tipo:r.tipo,asignadoA:r.asignado_a,slaHoras:r.sla_horas!=null?Number(r.sla_horas):null,fechaLimite:r.fecha_limite||null,estado:r.estado,createdAt:r.created_at,resolucionTexto:r.resolucion_texto||'',resolucionEvidencias:Array.isArray(r.resolucion_evidencias)?r.resolucion_evidencias:[],aprobadoPor:r.aprobado_por||null,fechaAprobacion:r.fecha_aprobacion||null,motivoRechazo:r.motivo_rechazo||null,aprobadorId:resp?resp.usuarioId:null};
-  });
+  cuestFolios=folioRaw.map(cuestMapFolioRow);
+}
+// Mapeo compartido de una fila cruda de cuest_folios → objeto en memoria.
+// Extraído para reutilizarlo TAL CUAL en cuestFolioWizRecargarPorRespuesta
+// (recarga acotada tras crear folios en el wizard) — un solo lugar que
+// define la forma del objeto, nunca dos copias que se puedan desincronizar.
+// numero_folio es columna con DEFAULT automático de una SEQUENCE en la base
+// (formato 'PA-00001') — nunca se calcula ni se envía desde el cliente,
+// solo se LEE de vuelta tal como quedó guardada.
+function cuestMapFolioRow(r){
+  const resp=cuestRespuestas.find(function(x){return x.id===r.respuesta_id;});
+  return {id:r.id,respuestaId:r.respuesta_id,preguntaId:r.pregunta_id,tipo:r.tipo,asignadoA:r.asignado_a,slaHoras:r.sla_horas!=null?Number(r.sla_horas):null,fechaLimite:r.fecha_limite||null,estado:r.estado,createdAt:r.created_at,resolucionTexto:r.resolucion_texto||'',resolucionEvidencias:Array.isArray(r.resolucion_evidencias)?r.resolucion_evidencias:[],aprobadoPor:r.aprobado_por||null,fechaAprobacion:r.fecha_aprobacion||null,motivoRechazo:r.motivo_rechazo||null,numeroFolio:r.numero_folio||null,aprobadorId:resp?resp.usuarioId:null};
 }
 function cuestNormalizaOpcionesEmocional(opciones){
   return (Array.isArray(opciones)?opciones:[]).map(function(op){
@@ -31481,6 +31501,22 @@ async function cuestRespWizLoadDetalle(respuestaId){
   if(error){console.error('cuestRespWizLoadDetalle',error);return [];}
   return (data||[]).map(function(r){return {id:r.id,respuestaId:r.respuesta_id,preguntaId:r.pregunta_id,valor:r.valor,evidencias:Array.isArray(r.evidencias)?r.evidencias:[]};});
 }
+// Se llama DESPUÉS de cuestWizEvaluarDisparos (cuando los folios ya están
+// creados en la base) para traer de vuelta lo que la SEQUENCE realmente
+// generó — numero_folio nunca se calcula ni se envía desde el cliente
+// (cuestSaveFolio no lo incluye en el payload de INSERT), así que esta es
+// la única forma de conocerlo: leerlo tal cual quedó en la base. Query
+// acotada por respuesta_id, mismo criterio anti-egress que
+// cuestRespWizLoadDetalle — nunca sbGetAll completo de cuest_folios aquí.
+// Reemplaza (no duplica) las entradas de esta respuesta en cuestFolios, que
+// ya tenían un numeroFolio:null puesto localmente por cuestWizEvaluarDisparos.
+async function cuestFolioWizRecargarPorRespuesta(respuestaId){
+  const {data,error}=await sb.from('cuest_folios').select('*').eq('respuesta_id',respuestaId);
+  if(error){console.error('cuestFolioWizRecargarPorRespuesta',error);return [];}
+  const folios=(data||[]).map(cuestMapFolioRow);
+  cuestFolios=cuestFolios.filter(function(f){return f.respuestaId!==respuestaId;}).concat(folios);
+  return folios;
+}
 
 // "Mis asignaciones" pendientes: asignado_a=usuario actual, activo=true, sin
 // una respuesta 'completado' propia ya existente para esa asignación.
@@ -31580,6 +31616,42 @@ function cuestWizUpdateFinalizarBtn(){
   btn.disabled=cuestWizObligatoriasFaltantes()>0;
 }
 
+// ── Aviso en vivo de folio (mientras se responde, ANTES de finalizar) ──────
+// Evalúa si la respuesta ACTUAL de la pregunta visible dispararía un folio,
+// usando cuestWizFraccionCorrecta — la MISMA función que cuestWizEvaluarDisparos
+// usa al finalizar de verdad. Única diferencia deliberada: para 'abierta' el
+// aviso en vivo exige que ya haya texto escrito (si no, avisaría de una
+// pregunta todavía vacía) — cuestWizEvaluarDisparos sigue disparando SIEMPRE
+// en abierta al finalizar, sin este matiz (regla ya acordada, no cambia).
+function cuestWizAvisoFolioDispararia(q,valor){
+  if(q.tipoRespuesta==='abierta')return !!(valor&&typeof valor.texto==='string'&&valor.texto.trim());
+  if(!q.respuestaCorrecta)return true;
+  const frac=cuestWizFraccionCorrecta(q,valor);
+  return frac==null?true:(frac<1);
+}
+// Mismo criterio de asignación que cuestWizEvaluarDisparos: geocerca de la
+// asignación → su encargado_id; si no, dispara.notifica_a; si no, sin asignar.
+function cuestWizAvisoFolioAsignadoLabel(q){
+  const asignacion=cuestAsignaciones.find(function(x){return x.id===_cuestWizAsignacionId;});
+  const geocerca=(asignacion&&asignacion.geocercaId)?cuestGeocercas.find(function(x){return x.id===asignacion.geocercaId;}):null;
+  const asignadoA=(geocerca&&geocerca.encargadoId)?geocerca.encargadoId:(q.dispara.notifica_a||null);
+  return asignadoA?cuestAsigUsuarioLabel(asignadoA):'— Sin asignar —';
+}
+// Se llama en cada cambio de respuesta (no solo al navegar) — banner
+// discreto, no bloqueante, que aparece/desaparece según la respuesta actual
+// dispare o no. Nunca se "queda pegado": si no dispara, limpia el contenedor.
+function cuestWizActualizarAvisoFolio(){
+  const cont=document.getElementById('cuest-wiz-folio-aviso');if(!cont)return;
+  const item=_cuestWizPreguntasOrdenadas[_cuestWizIndex];
+  if(!item){cont.innerHTML='';return;}
+  const q=item.pregunta;
+  if(!q.dispara||!q.dispara.genera_folio){cont.innerHTML='';return;}
+  const valor=_cuestWizValores[q.id];
+  if(!cuestWizAvisoFolioDispararia(q,valor)){cont.innerHTML='';return;}
+  const nombre=cuestWizAvisoFolioAsignadoLabel(q);
+  cont.innerHTML='<div style="display:flex;align-items:center;gap:8px;background:var(--cp-amber-light);color:#78350f;border-radius:8px;padding:8px 10px;font-size:12px;margin-top:12px"><i class="ti ti-alert-triangle"></i> Esto generará un plan de acción para <b>'+escHtml(nombre)+'</b>.</div>';
+}
+
 function cuestWizRenderPregunta(){
   const total=_cuestWizPreguntasOrdenadas.length;
   const progEl=document.getElementById('cuest-wiz-progreso');
@@ -31599,11 +31671,13 @@ function cuestWizRenderPregunta(){
   let html='<div style="margin-bottom:16px"><div style="height:6px;background:var(--cp-gray-100);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+Math.round(((_cuestWizIndex+1)/total)*100)+'%;background:var(--cp-accent);transition:width .2s"></div></div></div>';
   html+='<div style="font-size:15px;font-weight:600;color:var(--cp-navy);margin-bottom:12px">'+escHtml(q.texto||'')+(q.obligatoria?' <span style="color:var(--cp-red)">*</span>':'')+'</div>';
   html+=cuestWizRenderControl(q,_cuestWizValores[q.id]);
+  html+='<div id="cuest-wiz-folio-aviso"></div>';
   document.getElementById('cuest-wiz-pregunta-body').innerHTML=html;
   const antBtn=document.getElementById('cuest-wiz-ant-btn'),sigBtn=document.getElementById('cuest-wiz-sig-btn');
   antBtn.style.display='';antBtn.disabled=_cuestWizIndex===0;
   sigBtn.style.display=_cuestWizIndex===total-1?'none':'';
   cuestWizUpdateFinalizarBtn();
+  cuestWizActualizarAvisoFolio();
 }
 // Renderiza el CONTROL de respuesta según tipo_respuesta — reutiliza las
 // mismas constantes/forma de datos del constructor (CUEST_TIPOS_RESPUESTA,
@@ -31658,15 +31732,21 @@ function cuestWizRenderControl(q,valor){
   const texto=(valor&&typeof valor.texto==='string')?valor.texto:'';
   return '<textarea class="form-input" rows="4" placeholder="Escribe tu respuesta…" oninput="cuestWizSetValorAbierta(\''+q.id+'\',this.value)">'+escHtml(texto)+'</textarea>';
 }
+// cuestWizRenderPregunta() ya llama cuestWizActualizarAvisoFolio() al
+// final, así que los setters que hacen re-render completo (bool/emocional,
+// necesitan repintar el estado seleccionado del botón) lo heredan gratis.
+// Los que NO re-renderizan completo (lista/multiple/abierta, para no perder
+// foco/parpadear) llaman al aviso aparte.
 function cuestWizSetValorBool(preguntaId,v){_cuestWizValores[preguntaId]={valor:v};cuestWizRenderPregunta();}
-function cuestWizSetValorLista(preguntaId,v){_cuestWizValores[preguntaId]={opcion:v};cuestWizUpdateFinalizarBtn();}
+function cuestWizSetValorLista(preguntaId,v){_cuestWizValores[preguntaId]={opcion:v};cuestWizUpdateFinalizarBtn();cuestWizActualizarAvisoFolio();}
 function cuestWizSetValorEmocional(preguntaId,v){_cuestWizValores[preguntaId]={valor:v};cuestWizRenderPregunta();}
-function cuestWizSetValorAbierta(preguntaId,v){_cuestWizValores[preguntaId]={texto:v};cuestWizUpdateFinalizarBtn();}
+function cuestWizSetValorAbierta(preguntaId,v){_cuestWizValores[preguntaId]={texto:v};cuestWizUpdateFinalizarBtn();cuestWizActualizarAvisoFolio();}
 function cuestWizSyncMultiple(preguntaId){
   const vals=[];
   document.querySelectorAll('.cuest-wiz-multiple-chk:checked').forEach(function(cb){vals.push(cb.value);});
   _cuestWizValores[preguntaId]={opciones:vals};
   cuestWizUpdateFinalizarBtn();
+  cuestWizActualizarAvisoFolio();
 }
 function cuestWizAnterior(){if(_cuestWizIndex>0){_cuestWizIndex--;cuestWizRenderPregunta();}}
 function cuestWizSiguiente(){if(_cuestWizIndex<_cuestWizPreguntasOrdenadas.length-1){_cuestWizIndex++;cuestWizRenderPregunta();}}
@@ -31785,8 +31865,8 @@ async function cuestWizEvaluarDisparos(){
   }
 }
 // NOTA: el esquema dado para cuest_respuestas NO tiene columna de
-// calificación — se calcula y se muestra en el toast de cierre, pero no se
-// persiste todavía (no hay dónde). Si se agrega la columna más adelante,
+// calificación — se calcula y se muestra en el resumen de cierre, pero no
+// se persiste todavía (no hay dónde). Si se agrega la columna más adelante,
 // cuestWizCalcularCalificacion() ya devuelve el número listo para guardar.
 async function cuestWizFinalizar(){
   if(cuestWizObligatoriasFaltantes()>0){toast('Faltan preguntas obligatorias por responder.','error');return;}
@@ -31795,16 +31875,63 @@ async function cuestWizFinalizar(){
   if(!guardadoOk){setBtn('cuest-wiz-finalizar-btn',false);toast('No se pudieron guardar todas las respuestas.','error');return;}
   const calificacion=cuestWizCalcularCalificacion();
   await cuestWizEvaluarDisparos();
+  // Recarga los folios de esta respuesta desde la base DESPUÉS de crearlos
+  // — es la única forma de conocer numero_folio real (lo asigna la
+  // SEQUENCE al insertar, cuestSaveFolio nunca lo envía ni lo calcula).
+  await cuestFolioWizRecargarPorRespuesta(_cuestWizRespuestaId);
   const resp=cuestRespuestas.find(function(r){return r.id===_cuestWizRespuestaId;});
-  const updated=Object.assign({},resp,{estado:'completado',fechaFin:new Date().toISOString()});
+  const fechaInicio=resp?resp.fechaInicio:null;
+  const fechaFin=new Date().toISOString();
+  const updated=Object.assign({},resp,{estado:'completado',fechaFin:fechaFin});
   const ok=await cuestSaveRespuesta(updated);
   setBtn('cuest-wiz-finalizar-btn',false);
   if(!ok){toast('Error al finalizar.','error');return;}
   const idx=cuestRespuestas.findIndex(function(r){return r.id===updated.id;});
   if(idx!==-1)cuestRespuestas[idx]=updated;
   auditLog('completar','cuest_respuestas',updated.id,'Cuestionario completado'+(calificacion!=null?' — calificación '+calificacion+'%':''));
+  cuestWizMostrarResumen(updated.id,fechaInicio,fechaFin,calificacion);
+}
+// "min"/"1h 05min" — nunca segundos crudos.
+function cuestFormatDuracion(ms){
+  const totalMin=Math.max(0,Math.round(ms/60000));
+  if(totalMin<60)return totalMin+' min';
+  const h=Math.floor(totalMin/60),m=totalMin%60;
+  return h+'h '+String(m).padStart(2,'0')+'min';
+}
+// Resumen final — se muestra ANTES de cerrar el wizard (cuestWizCerrar se
+// dispara solo al hacer clic en "Cerrar" del modal, cuestWizResumenCerrar).
+// "Respondidas X de Y" usa cuestWizTieneValor sobre TODAS las preguntas de
+// la plantilla (mismo criterio ya usado para habilitar "Finalizar" y para
+// el chequeo de obligatorias — no un criterio nuevo). Los folios se leen de
+// cuestFolios ya recargado con numero_folio real desde la base.
+function cuestWizMostrarResumen(respuestaId,fechaInicio,fechaFin,calificacion){
+  const total=_cuestWizPreguntasOrdenadas.length;
+  const respondidas=_cuestWizPreguntasOrdenadas.filter(function(item){return cuestWizTieneValor(item.pregunta,_cuestWizValores[item.pregunta.id]);}).length;
+  const ms=(fechaInicio&&fechaFin)?(new Date(fechaFin).getTime()-new Date(fechaInicio).getTime()):0;
+  const folios=cuestFolios.filter(function(f){return f.respuestaId===respuestaId;});
+  let html='<div style="display:flex;flex-wrap:wrap;gap:20px;margin-bottom:18px">';
+  html+='<div><div style="font-size:11px;color:var(--cp-gray-400);text-transform:uppercase;font-weight:700">Respondidas</div><div style="font-size:20px;font-weight:700;color:var(--cp-navy)">'+respondidas+' de '+total+'</div></div>';
+  html+='<div><div style="font-size:11px;color:var(--cp-gray-400);text-transform:uppercase;font-weight:700">Tiempo</div><div style="font-size:20px;font-weight:700;color:var(--cp-navy)">'+cuestFormatDuracion(ms)+'</div></div>';
+  if(calificacion!=null)html+='<div><div style="font-size:11px;color:var(--cp-gray-400);text-transform:uppercase;font-weight:700">Calificación</div><div style="font-size:20px;font-weight:700;color:var(--cp-navy)">'+calificacion+'%</div></div>';
+  html+='</div>';
+  html+='<div class="form-label" style="margin-bottom:8px">Planes de acción / incidencias generados</div>';
+  if(!folios.length){
+    html+='<div style="font-size:12px;color:var(--cp-gray-400);background:var(--cp-gray-50);border-radius:8px;padding:10px">Sin novedades detectadas.</div>';
+  }else{
+    html+=folios.map(function(f){
+      return '<div style="border:1px solid var(--cp-gray-100);border-radius:8px;padding:8px 10px;margin-bottom:6px">'+
+        '<div style="font-size:12px;font-weight:700;color:var(--cp-navy)">'+escHtml(f.numeroFolio||'(folio sin número aún)')+'</div>'+
+        '<div style="font-size:12px;color:var(--cp-gray-600)">'+escHtml(cuestFolioPreguntaLabel(f.preguntaId))+'</div>'+
+        '<div style="font-size:11px;color:var(--cp-gray-400)">Asignado a: '+escHtml(f.asignadoA?cuestAsigUsuarioLabel(f.asignadoA):'— Sin asignar —')+'</div>'+
+      '</div>';
+    }).join('');
+  }
+  document.getElementById('cuest-wiz-resumen-body').innerHTML=html;
+  openModal('modal-cuest-wiz-resumen');
+}
+function cuestWizResumenCerrar(){
+  closeModal('modal-cuest-wiz-resumen');
   cuestWizCerrar();
-  toast('Cuestionario finalizado ✓'+(calificacion!=null?' Calificación: '+calificacion+'%':' (sin preguntas calificables evaluables)'),'success');
 }
 
 // ── Folios (cuest_folios) — bandeja + flujo de aprobación ───────────────────
