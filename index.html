@@ -3437,7 +3437,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                 <button class="btn-sm btn-blue" id="btn-nueva-cuest-geocerca" onclick="openAddCuestGeocerca()"><i class="ti ti-plus"></i> Nueva geocerca</button>
               </div>
               <table class="emp-table">
-                <thead><tr><th>Nombre</th><th>Lat</th><th>Lng</th><th>Radio (m)</th><th>Estado</th><th></th></tr></thead>
+                <thead><tr><th></th><th>Nombre</th><th>Encargado</th><th>Lat</th><th>Lng</th><th>Radio (m)</th><th>Estado</th><th></th></tr></thead>
                 <tbody id="cuest-geo-tbody"></tbody>
               </table>
             </div>
@@ -5216,17 +5216,34 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 </div>
 
 <!-- GEOCERCAS (cuest_geocercas) — modal único crear/editar, patrón proveedor.
-     lat/lng con input numérico simple (SIN mapa/Leaflet todavía). -->
+     Foto: mismo patrón de staging que mktlandf-portada (preview local con
+     FileReader, sube a Storage recién al guardar, vía uploadCuestGeoFoto —
+     clon de uploadProspDocFile/uploadLandingImage, bucket crm-documentos ya
+     existente). Mapa: clon de prospDashInitMap (Dashboard de Prospectos). -->
 <div class="modal-overlay" id="modal-cuest-geocerca">
-  <div class="modal" style="width:420px">
+  <div class="modal" style="width:460px">
     <div class="modal-header"><div class="modal-title" id="cuestgeo-modal-title">Nueva geocerca</div><button class="modal-close" onclick="closeModal('modal-cuest-geocerca')"><i class="ti ti-x"></i></button></div>
     <div class="modal-body">
       <input type="hidden" id="cuestgeof-id">
       <div class="form-grid">
+        <div class="form-field full" style="display:flex;align-items:center;gap:16px;margin-bottom:4px">
+          <div id="cuestgeof-foto-zone" onclick="document.getElementById('cuestgeof-foto-input').click()" style="width:100px;height:100px;border-radius:var(--radius-md);border:2px dashed var(--cp-gray-200);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;background:var(--cp-gray-50);overflow:hidden;position:relative;flex-shrink:0">
+            <img id="cuestgeof-foto-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0">
+            <i class="ti ti-photo" style="font-size:22px;color:var(--cp-gray-400)"></i>
+            <span style="font-size:9px;color:var(--cp-gray-400);margin-top:2px">Foto</span>
+            <input type="file" id="cuestgeof-foto-input" accept="image/*" style="display:none" onchange="previewCuestGeoFoto(event)">
+          </div>
+          <div style="font-size:11px;color:var(--cp-gray-400);flex:1">Foto de la ubicación (opcional). Se sube al guardar.</div>
+        </div>
         <div class="form-field full"><label class="form-label">Nombre *</label><input class="form-input" id="cuestgeof-nombre" placeholder="Ej. Oficina central"></div>
-        <div class="form-field"><label class="form-label">Latitud *</label><input type="number" step="0.000001" class="form-input" id="cuestgeof-lat" placeholder="Ej. 21.161908"></div>
-        <div class="form-field"><label class="form-label">Longitud *</label><input type="number" step="0.000001" class="form-input" id="cuestgeof-lng" placeholder="Ej. -86.851527"></div>
-        <div class="form-field"><label class="form-label">Radio (metros)</label><input type="number" step="1" min="1" class="form-input" id="cuestgeof-radio" placeholder="100"></div>
+        <div class="form-field full"><label class="form-label">Encargado</label><select class="form-input" id="cuestgeof-encargado"><option value="">— Sin encargado —</option></select></div>
+        <div class="form-field"><label class="form-label">Latitud *</label><input type="number" step="0.000001" class="form-input" id="cuestgeof-lat" placeholder="Ej. 21.161908" oninput="cuestGeoSyncMapFromInputs()"></div>
+        <div class="form-field"><label class="form-label">Longitud *</label><input type="number" step="0.000001" class="form-input" id="cuestgeof-lng" placeholder="Ej. -86.851527" oninput="cuestGeoSyncMapFromInputs()"></div>
+        <div class="form-field"><label class="form-label">Radio (metros)</label><input type="number" step="1" min="1" class="form-input" id="cuestgeof-radio" placeholder="100" oninput="cuestGeoSyncMapFromInputs()"></div>
+        <div class="form-field full">
+          <label class="form-label">Verificar en el mapa (clic para fijar el punto)</label>
+          <div id="cuestgeof-map" style="height:320px;border-radius:var(--radius-md);margin-top:4px;background:var(--cp-gray-100)"></div>
+        </div>
         <div class="form-field full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--cp-navy)"><input type="checkbox" id="cuestgeof-activo" checked> Activa</label></div>
       </div>
     </div>
@@ -30391,7 +30408,7 @@ async function cuestLoad(){
   // lat/lng/radio_metros son columnas numeric/int — mismo gotcha de PostgREST
   // devolviendo numeric como string (ver comentario de peso arriba), Number()
   // explícito para que el formulario y el badge de estado no concatenen.
-  cuestGeocercas=geoRaw.map(function(r){return {id:r.id,nombre:r.nombre,lat:r.lat!=null?Number(r.lat):null,lng:r.lng!=null?Number(r.lng):null,radioMetros:r.radio_metros!=null?Number(r.radio_metros):100,activo:r.activo!==false,createdAt:r.created_at};});
+  cuestGeocercas=geoRaw.map(function(r){return {id:r.id,nombre:r.nombre,lat:r.lat!=null?Number(r.lat):null,lng:r.lng!=null?Number(r.lng):null,radioMetros:r.radio_metros!=null?Number(r.radio_metros):100,encargadoId:r.encargado_id||null,fotoUrl:r.foto_url||null,activo:r.activo!==false,createdAt:r.created_at};});
   cuestAsignaciones=asigRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,asignadoA:r.asignado_a,geocercaId:r.geocerca_id||null,requiereEstarDentro:!!r.requiere_estar_dentro,fechaProgramada:r.fecha_programada||null,activo:r.activo!==false,createdAt:r.created_at};});
 }
 function cuestNormalizaOpcionesEmocional(opciones){
@@ -30913,9 +30930,14 @@ async function cuestSetTopTab(tab,btn){
 
 // ── Geocercas (cuest_geocercas) — patrón Proveedores: tabla + modal único
 // crear/editar, ojo/ojo-tachado inline para activo/inactivo (nunca DELETE
-// físico). lat/lng con input numérico simple, sin mapa/Leaflet todavía. ────
+// físico). Foto: staging local (mismo patrón que mktlandf-portada) + upload
+// real al guardar (uploadCuestGeoFoto, clon de uploadProspDocFile). Mapa:
+// clon de prospDashInitMap (Dashboard de Prospectos, línea ~14163). ────────
 let cuestGeoCurrentId=null;
-async function cuestSaveGeocerca(g){return sbUpsert('cuest_geocercas',{id:g.id,nombre:g.nombre,lat:g.lat,lng:g.lng,radio_metros:g.radioMetros,activo:g.activo!==false});}
+let _cuestGeoFotoFile=null, _cuestGeoFotoUrl=null; // staging de la foto — igual que _mktLandingPortadaFile/_mktLandingPortadaUrl
+let _cuestGeoLeafletMap=null, _cuestGeoLeafletMarker=null, _cuestGeoLeafletCircle=null;
+async function cuestSaveGeocerca(g){return sbUpsert('cuest_geocercas',{id:g.id,nombre:g.nombre,lat:g.lat,lng:g.lng,radio_metros:g.radioMetros,encargado_id:g.encargadoId||null,foto_url:g.fotoUrl||null,activo:g.activo!==false});}
+function cuestGeoEncargadoLabel(id){if(!id)return '—';const u=(_userProfilesCache||[]).find(function(x){return x.user_id===id;});return u?(u.display_name||u.email):id;}
 function renderCuestGeocercas(){
   const q=(document.getElementById('cuest-geo-search')?.value||'').toLowerCase().trim();
   const showInactivas=document.getElementById('cuest-geo-show-inactivos')?.checked;
@@ -30924,11 +30946,13 @@ function renderCuestGeocercas(){
   if(q)geos=geos.filter(function(g){return (g.nombre||'').toLowerCase().includes(q);});
   geos.sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
   const tbody=document.getElementById('cuest-geo-tbody');if(!tbody)return;
-  if(!geos.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><i class="ti ti-map-pin"></i><p>Sin geocercas registradas.</p></div></td></tr>';return;}
+  if(!geos.length){tbody.innerHTML='<tr><td colspan="8"><div class="empty-state"><i class="ti ti-map-pin"></i><p>Sin geocercas registradas.</p></div></td></tr>';return;}
   tbody.innerHTML=geos.map(function(g){
     const activo=g.activo!==false;
     return '<tr'+(activo?'':' style="opacity:.5"')+'>'+
+      '<td>'+(g.fotoUrl?'<img src="'+escHtml(g.fotoUrl)+'" style="width:32px;height:32px;border-radius:6px;object-fit:cover;display:block">':'<div style="width:32px;height:32px;border-radius:6px;background:var(--cp-gray-100);display:flex;align-items:center;justify-content:center"><i class="ti ti-map-pin" style="font-size:14px;color:var(--cp-gray-400)"></i></div>')+'</td>'+
       '<td><div class="emp-name" style="font-size:13px">'+escHtml(g.nombre)+'</div></td>'+
+      '<td>'+escHtml(cuestGeoEncargadoLabel(g.encargadoId))+'</td>'+
       '<td>'+(g.lat!=null?g.lat:'—')+'</td>'+
       '<td>'+(g.lng!=null?g.lng:'—')+'</td>'+
       '<td>'+(g.radioMetros!=null?g.radioMetros:'—')+'</td>'+
@@ -30940,7 +30964,95 @@ function renderCuestGeocercas(){
     '</tr>';
   }).join('');
 }
-function openAddCuestGeocerca(){
+function cuestGeoPopulateEncargadoSelect(selectedId){
+  const sel=document.getElementById('cuestgeof-encargado');if(!sel)return;
+  sel.innerHTML='<option value="">— Sin encargado —</option>'+(_userProfilesCache||[]).map(function(u){return '<option value="'+u.user_id+'"'+(u.user_id===selectedId?' selected':'')+'>'+escHtml(u.display_name||u.email)+'</option>';}).join('');
+}
+function cuestGeoResetFotoUI(){
+  _cuestGeoFotoFile=null;_cuestGeoFotoUrl=null;
+  const img=document.getElementById('cuestgeof-foto-preview');img.src='';img.style.display='none';
+  const zone=document.getElementById('cuestgeof-foto-zone');zone.querySelector('i').style.display='';zone.querySelector('span').style.display='';
+}
+// Preview local con FileReader — igual que previewMktLandingPortada. La
+// subida real a Storage ocurre en saveCuestGeocerca, no aquí.
+function previewCuestGeoFoto(event){
+  const file=event.target.files[0];if(!file)return;
+  if(!checkFileSize(file)){event.target.value='';return;}
+  _cuestGeoFotoFile=file;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    const img=document.getElementById('cuestgeof-foto-preview');
+    const zone=document.getElementById('cuestgeof-foto-zone');
+    img.src=ev.target.result;img.style.display='block';
+    zone.querySelector('i').style.display='none';zone.querySelector('span').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+// Clon de uploadProspDocFile (línea ~13146)/uploadLandingImage — mismo fetch
+// directo REST (NO el SDK de Storage), x-upsert:true, ruta
+// 'geocercas/<geoId>/<timestamp>-<nombre sanitizado>'. Reutiliza el bucket
+// PÚBLICO ya existente 'crm-documentos' (Documentos) — sin bucket nuevo.
+async function uploadCuestGeoFoto(file,geoId){
+  if(!checkFileSize(file)) throw new Error('Archivo demasiado grande.');
+  const session=await sbGetSession();
+  const token=session?.access_token||state.currentUser?.token;
+  const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path='geocercas/'+geoId+'/'+Date.now()+'-'+safeName;
+  const encodedPath=path.split('/').map(encodeURIComponent).join('/');
+  const res=await fetch(SUPABASE_URL+'/storage/v1/object/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath,{
+    method:'POST',
+    headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':file.type||'application/octet-stream','x-upsert':'true'},
+    body:file
+  });
+  if(!res.ok){const e=await res.json().catch(function(){return {};});throw new Error(e.message||e.error||'Error al subir la foto. Verifica que el bucket "'+CRM_DOC_STORAGE_BUCKET+'" exista en Supabase Storage.');}
+  return SUPABASE_URL+'/storage/v1/object/public/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath;
+}
+// ── Mapa del modal — clon de prospDashInitMap (Dashboard de Prospectos):
+// mismo criterio de destruir el mapa anterior (evita "Map container is
+// already initialized" al reabrir el modal), mismos tiles de OpenStreetMap
+// sin key. A diferencia del dashboard (solo lectura, L.circleMarker fijo por
+// conteo), aquí es bidireccional: clic en el mapa → mueve marcador + llena
+// los inputs; escribir lat/lng/radio a mano → mueve marcador y círculo
+// (cuestGeoSyncMapFromInputs). L.circle (radio real en metros, no
+// circleMarker en píxeles) para poder "verificar" el geocercado a simple vista.
+function cuestGeoInitMap(){
+  const el=document.getElementById('cuestgeof-map');
+  if(!el||typeof L==='undefined')return;
+  if(_cuestGeoLeafletMap){ _cuestGeoLeafletMap.remove(); _cuestGeoLeafletMap=null; _cuestGeoLeafletMarker=null; _cuestGeoLeafletCircle=null; }
+  const latEl=document.getElementById('cuestgeof-lat'),lngEl=document.getElementById('cuestgeof-lng');
+  const lat=parseFloat(latEl.value),lng=parseFloat(lngEl.value);
+  const hasCoords=!isNaN(lat)&&!isNaN(lng);
+  const center=hasCoords?[lat,lng]:[21.161908,-86.851527]; // fallback: Quintana Roo (zona del cliente), sin coords todavía
+  const map=L.map(el).setView(center,hasCoords?15:10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors',maxZoom:18}).addTo(map);
+  _cuestGeoLeafletMap=map;
+  if(hasCoords)cuestGeoPlaceMarker(lat,lng);
+  map.on('click',function(e){
+    latEl.value=e.latlng.lat.toFixed(6);
+    lngEl.value=e.latlng.lng.toFixed(6);
+    cuestGeoPlaceMarker(e.latlng.lat,e.latlng.lng);
+  });
+}
+function cuestGeoPlaceMarker(lat,lng){
+  if(!_cuestGeoLeafletMap)return;
+  const radioRaw=parseInt(document.getElementById('cuestgeof-radio')?.value,10);
+  const radio=(!isNaN(radioRaw)&&radioRaw>0)?radioRaw:100;
+  if(_cuestGeoLeafletMarker)_cuestGeoLeafletMarker.setLatLng([lat,lng]);
+  else _cuestGeoLeafletMarker=L.marker([lat,lng]).addTo(_cuestGeoLeafletMap);
+  if(_cuestGeoLeafletCircle)_cuestGeoLeafletCircle.setLatLng([lat,lng]).setRadius(radio);
+  else _cuestGeoLeafletCircle=L.circle([lat,lng],{radius:radio,color:'#7B2FF7',fillColor:'#7B2FF7',fillOpacity:0.15,weight:2}).addTo(_cuestGeoLeafletMap);
+}
+// input→mapa (oninput de lat/lng/radio). Si lat/lng todavía no son números
+// válidos no hace nada — el usuario sigue escribiendo.
+function cuestGeoSyncMapFromInputs(){
+  if(!_cuestGeoLeafletMap)return;
+  const lat=parseFloat(document.getElementById('cuestgeof-lat')?.value);
+  const lng=parseFloat(document.getElementById('cuestgeof-lng')?.value);
+  if(isNaN(lat)||isNaN(lng))return;
+  cuestGeoPlaceMarker(lat,lng);
+  _cuestGeoLeafletMap.panTo([lat,lng]);
+}
+async function openAddCuestGeocerca(){
   cuestGeoCurrentId=null;
   document.getElementById('cuestgeo-modal-title').textContent='Nueva geocerca';
   document.getElementById('cuestgeof-nombre').value='';
@@ -30948,9 +31060,13 @@ function openAddCuestGeocerca(){
   document.getElementById('cuestgeof-lng').value='';
   document.getElementById('cuestgeof-radio').value='100';
   document.getElementById('cuestgeof-activo').checked=true;
+  cuestGeoResetFotoUI();
+  if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
+  cuestGeoPopulateEncargadoSelect('');
   openModal('modal-cuest-geocerca');
+  setTimeout(cuestGeoInitMap,0); // necesita que el modal ya esté visible en el DOM
 }
-function openEditCuestGeocerca(id){
+async function openEditCuestGeocerca(id){
   const g=cuestGeocercas.find(function(x){return x.id===id;});if(!g)return;
   cuestGeoCurrentId=id;
   document.getElementById('cuestgeo-modal-title').textContent='Editar geocerca';
@@ -30959,7 +31075,16 @@ function openEditCuestGeocerca(id){
   document.getElementById('cuestgeof-lng').value=g.lng!=null?g.lng:'';
   document.getElementById('cuestgeof-radio').value=g.radioMetros!=null?g.radioMetros:100;
   document.getElementById('cuestgeof-activo').checked=g.activo!==false;
+  cuestGeoResetFotoUI();
+  _cuestGeoFotoUrl=g.fotoUrl||null;
+  if(g.fotoUrl){
+    const img=document.getElementById('cuestgeof-foto-preview');const zone=document.getElementById('cuestgeof-foto-zone');
+    img.src=g.fotoUrl;img.style.display='block';zone.querySelector('i').style.display='none';zone.querySelector('span').style.display='none';
+  }
+  if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
+  cuestGeoPopulateEncargadoSelect(g.encargadoId||'');
   openModal('modal-cuest-geocerca');
+  setTimeout(cuestGeoInitMap,0);
 }
 async function saveCuestGeocerca(){
   const nombre=sanitizeInput(document.getElementById('cuestgeof-nombre')?.value,150);
@@ -30969,7 +31094,20 @@ async function saveCuestGeocerca(){
   if(isNaN(lat)||isNaN(lng)){toast('Latitud y longitud son obligatorias.','error');return;}
   const radioRaw=parseInt(document.getElementById('cuestgeof-radio')?.value,10);
   setBtn('save-cuestgeo-btn',true);
-  const g={id:cuestGeoCurrentId||uid9(),nombre,lat,lng,radioMetros:(!isNaN(radioRaw)&&radioRaw>0)?radioRaw:100,activo:document.getElementById('cuestgeof-activo').checked};
+  const geoId=cuestGeoCurrentId||uid9();
+  // La foto sube a Storage AQUÍ, recién al guardar — nunca al elegir el
+  // archivo (mismo criterio de staging que saveMktLanding/uploadLandingImage).
+  let fotoUrl=_cuestGeoFotoUrl;
+  if(_cuestGeoFotoFile){
+    try{
+      fotoUrl=await uploadCuestGeoFoto(_cuestGeoFotoFile,geoId);
+    }catch(err){
+      setBtn('save-cuestgeo-btn',false);
+      toast('Error subiendo la foto: '+(err.message||''),'error');
+      return;
+    }
+  }
+  const g={id:geoId,nombre,lat,lng,radioMetros:(!isNaN(radioRaw)&&radioRaw>0)?radioRaw:100,encargadoId:document.getElementById('cuestgeof-encargado')?.value||null,fotoUrl,activo:document.getElementById('cuestgeof-activo').checked};
   const ok=await cuestSaveGeocerca(g);
   setBtn('save-cuestgeo-btn',false);
   if(!ok)return;
