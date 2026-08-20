@@ -3528,6 +3528,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
               <div class="org-view-toggle">
                 <button class="org-view-btn active" id="cuest-folio-tab-asignados" onclick="cuestSetFoliosVista('asignados',this)">Asignados a mí</button>
                 <button class="org-view-btn" id="cuest-folio-tab-aprobacion" onclick="cuestSetFoliosVista('aprobacion',this)">Para mi aprobación</button>
+                <button class="org-view-btn" id="cuest-folio-tab-compartidos" onclick="cuestSetFoliosVista('compartidos',this)">Compartidos conmigo</button>
                 <button class="org-view-btn" id="cuest-folio-tab-todos" onclick="cuestSetFoliosVista('todos',this)" style="display:none">Todos</button>
               </div>
             </div>
@@ -30403,7 +30404,7 @@ function sortEvalTeamTable(colIdx){
 // cuest_secciones, cuest_preguntas, cuest_geocercas, cuest_asignaciones,
 // cuest_respuestas (esquema confirmado 19/8, no inventado).
 
-let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[], cuestRespuestas=[], cuestFolios=[];
+let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[], cuestRespuestas=[], cuestFolios=[], cuestFolioCompartidos=[];
 let _cuestConfigCache=null;
 let _cuestFichaPlantillaId=null; // plantilla actualmente abierta en la ficha, o null si estamos en la lista
 let _cuestPreguntasExpandidas={}; // {preguntaId:true} — estado de expandido en memoria, no persistido
@@ -30497,10 +30498,10 @@ async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,s
 
 // ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
 async function cuestLoad(){
-  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw,respRaw,folioRaw]=await Promise.all([
+  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw,respRaw,folioRaw,compRaw]=await Promise.all([
     sbGetAll('cuest_plantillas'), sbGetAll('cuest_secciones'), sbGetAll('cuest_preguntas'),
     sbGetAll('cuest_geocercas'), sbGetAll('cuest_asignaciones'), sbGetAll('cuest_respuestas'),
-    sbGetAll('cuest_folios')
+    sbGetAll('cuest_folios'), sbGetAll('cuest_folio_compartidos')
   ]);
   // Se cargan TODAS (activas e inactivas) — renderCuestPlantillas() ya filtra
   // por el checkbox "Ver inactivas"; filtrar aquí las dejaría fuera del estado
@@ -30544,6 +30545,10 @@ async function cuestLoad(){
   // PostgREST — mismo criterio que el resto del módulo (cuestAsigPlantillaLabel
   // etc. ya resuelven relaciones así, contra arrays hermanos ya cargados).
   cuestFolios=folioRaw.map(cuestMapFolioRow);
+  // cuest_folio_compartidos: una fila por (folio, usuario con el que se
+  // compartió) — pequeña, se carga completa igual que el resto de tablas
+  // chicas del módulo. Usada por la vista "Compartidos conmigo".
+  cuestFolioCompartidos=compRaw.map(function(r){return {id:r.id,folioId:r.folio_id,usuarioId:r.usuario_id,compartidoPor:r.compartido_por,createdAt:r.created_at};});
 }
 // Mapeo compartido de una fila cruda de cuest_folios → objeto en memoria.
 // Extraído para reutilizarlo TAL CUAL en cuestFolioWizRecargarPorRespuesta
@@ -31496,6 +31501,7 @@ let _cuestWizIndex=0;
 let _cuestWizValores={}; // {preguntaId: valor jsonb} — se actualiza en memoria al tocar un control, se persiste solo al guardar
 let _cuestWizDetalleIds={}; // {preguntaId: id de la fila en cuest_respuestas_detalle} — estable durante la sesión para que sbUpsert actualice en vez de insertar una fila nueva cada "Guardar y salir"
 let _cuestWizContexto5w2h={}; // {preguntaId: {que,por_que,cuando,donde,quien,como,cuanto,observaciones}} — TODO opcional, solo vive en memoria hasta cuestWizEvaluarDisparos (no hay folio antes de finalizar, así que no hay dónde persistirlo a medio wizard)
+let _cuestWizCompartirCon={}; // {preguntaId: [user_id,...]} — selección opcional de "Compartir con", mismo ciclo de vida que _cuestWizContexto5w2h
 let _cuestWizAvisoFolioEstado={preguntaId:null,visible:false}; // evita reconstruir el banner+formulario 5W2H si nada cambió (perdería el foco/lo tecleado)
 
 async function cuestSaveRespuesta(r){return sbUpsert('cuest_respuestas',{id:r.id,asignacion_id:r.asignacionId,usuario_id:r.usuarioId,estado:r.estado,fecha_inicio:r.fechaInicio||null,fecha_fin:r.fechaFin||null,ubicacion_inicio:r.ubicacionInicio||null,ubicacion_fin:r.ubicacionFin||null,dentro_geocerca:r.dentroGeocerca!=null?r.dentroGeocerca:null});}
@@ -31506,6 +31512,9 @@ async function cuestSaveRespuestaDetalle(preguntaId,valor){
   return ok;
 }
 async function cuestSaveFolio(f){return sbUpsert('cuest_folios',{id:f.id,respuesta_id:f.respuestaId,pregunta_id:f.preguntaId,tipo:f.tipo,sla_horas:f.slaHoras,fecha_limite:f.fechaLimite,estado:f.estado,asignado_a:f.asignadoA,contexto_5w2h:f.contexto5w2h||{}});}
+// Una fila por usuario con el que se comparte un folio — compartido_por
+// siempre el usuario actual (quien está respondiendo/finalizando ahora).
+async function cuestSaveFolioCompartido(folioId,usuarioId){return sbUpsert('cuest_folio_compartidos',{id:uid9(),folio_id:folioId,usuario_id:usuarioId,compartido_por:state.currentUser?.id||null});}
 // Clon del patrón REST directo ya usado en el módulo (uploadCuestGeoFoto/
 // uploadProspDocFile) — bucket PÚBLICO ya existente 'crm-documentos', ruta
 // 'folios/<folioId>/reporte-<timestamp>.pdf'. Recibe un Blob (jsPDF
@@ -31691,6 +31700,7 @@ async function cuestWizAbrir(asignacionId){
   _cuestWizValores={};
   _cuestWizDetalleIds={};
   _cuestWizContexto5w2h={};
+  _cuestWizCompartirCon={};
   _cuestWizAvisoFolioEstado={preguntaId:null,visible:false};
   const detalle=await cuestRespWizLoadDetalle(resp.id);
   detalle.forEach(function(d){_cuestWizValores[d.preguntaId]=d.valor;_cuestWizDetalleIds[d.preguntaId]=d.id;});
@@ -31707,7 +31717,7 @@ function cuestWizCerrarConfirm(){
 function cuestWizCerrar(){
   _cuestWizRespuestaId=null;_cuestWizAsignacionId=null;
   _cuestWizValores={};_cuestWizDetalleIds={};_cuestWizPreguntasOrdenadas=[];_cuestWizIndex=0;
-  _cuestWizContexto5w2h={};_cuestWizAvisoFolioEstado={preguntaId:null,visible:false};
+  _cuestWizContexto5w2h={};_cuestWizCompartirCon={};_cuestWizAvisoFolioEstado={preguntaId:null,visible:false};
   document.getElementById('cuest-resp-wizard-wrap').style.display='none';
   document.getElementById('cuest-resp-lista-wrap').style.display='';
   renderCuestResponder();
@@ -31812,7 +31822,33 @@ function cuestWiz5w2hFormHtml(preguntaId){
   });
   html+='</div>';
   html+='<div class="form-field full" style="margin-top:8px"><label class="form-label" style="color:#78350f">Observaciones</label><textarea class="form-input" rows="2" style="font-size:12px" oninput="cuestWiz5w2hSetCampo(\''+preguntaId+'\',\'observaciones\',this.value)">'+escHtml(ctx.observaciones||'')+'</textarea></div>';
+  html+='<div class="form-field full" style="margin-top:8px"><label class="form-label" style="color:#78350f">Compartir con (opcional)</label>'+cuestWizCompartirFormHtml(preguntaId)+'</div>';
   return html;
+}
+// "Compartir con" — multi-select opcional de usuarios (checkboxes, mismo
+// patrón que okrRenderMembersPanel, línea ~18254) dentro del mismo panel
+// 5W2H. Selección guardada en _cuestWizCompartirCon (memoria, por
+// preguntaId) para sobrevivir si el usuario navega a otra pregunta y
+// regresa (el banner se reconstruye desde cero en ese caso).
+function cuestWizCompartirFormHtml(preguntaId){
+  const seleccionados=_cuestWizCompartirCon[preguntaId]||[];
+  const profiles=_userProfilesCache||[];
+  if(!profiles.length)return '<div style="font-size:12px;color:#78350f">Sin usuarios cargados.</div>';
+  return '<div style="max-height:140px;overflow-y:auto;border:1px solid #e8d8b0;border-radius:6px;margin-top:4px;background:#fff">'+
+    profiles.map(function(u){
+      const checked=seleccionados.indexOf(u.user_id)>=0;
+      return '<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid #f0e6c8;cursor:pointer;font-size:12px;color:var(--cp-navy)">'+
+        '<input type="checkbox" value="'+u.user_id+'" '+(checked?'checked':'')+' onchange="cuestWizCompartirToggle(\''+preguntaId+'\',\''+u.user_id+'\',this.checked)">'+
+        '<span>'+escHtml(u.display_name||u.email)+'</span>'+
+      '</label>';
+    }).join('')+
+  '</div>';
+}
+function cuestWizCompartirToggle(preguntaId,userId,checked){
+  const arr=_cuestWizCompartirCon[preguntaId]||(_cuestWizCompartirCon[preguntaId]=[]);
+  const idx=arr.indexOf(userId);
+  if(checked&&idx<0)arr.push(userId);
+  else if(!checked&&idx>=0)arr.splice(idx,1);
 }
 // Escribe directo a memoria en cada tecla (igual que _cuestWizValores) — así
 // el dato sobrevive aunque el banner se reconstruya después por cualquier
@@ -32038,6 +32074,16 @@ async function cuestWizEvaluarDisparos(){
     // cuestLoad y en el filtro) — el bug no era de nombres de campo.
     const ok=await cuestSaveFolio(folio);
     if(ok)cuestFolios.push(folio);
+    // "Compartir con" — una fila en cuest_folio_compartidos por usuario
+    // seleccionado en el 5W2H de ESTA pregunta, ya con el folio_id real
+    // (recién creado arriba, nunca antes). Cortesía: si alguna falla, no
+    // bloquea el resto ni el cierre del wizard — el folio ya existe.
+    if(ok){
+      const compartirIds=_cuestWizCompartirCon[q.id]||[];
+      for(const usuarioId of compartirIds){
+        await cuestSaveFolioCompartido(folio.id,usuarioId).catch(function(e){console.warn('cuestSaveFolioCompartido',e);});
+      }
+    }
   }
 }
 // NOTA: el esquema dado para cuest_respuestas NO tiene columna de
@@ -32162,18 +32208,27 @@ async function cuestSaveFolioUpdate(f){return sbUpsert('cuest_folios',{id:f.id,r
 
 function cuestSetFoliosVista(vista,btn){
   _cuestFoliosVista=vista;
-  document.querySelectorAll('#cuest-folio-tab-asignados,#cuest-folio-tab-aprobacion,#cuest-folio-tab-todos').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('#cuest-folio-tab-asignados,#cuest-folio-tab-aprobacion,#cuest-folio-tab-compartidos,#cuest-folio-tab-todos').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
   renderCuestFolios();
 }
-// Las 3 vistas son LITERALES (asignado_a / aprobadorId de cada folio) para
-// cualquier usuario, incluido admin — el bypass de admin para VER todo vive
-// en la pestaña "Todos", y para ACTUAR sobre cualquier folio vive en
-// cuestFolioPuedeActuarEncargado/Aprobador (punto 4, no aquí).
+// Las 4 vistas son LITERALES (asignado_a / aprobadorId / compartido de cada
+// folio) para cualquier usuario, incluido admin — el bypass de admin para
+// VER todo vive en la pestaña "Todos", y para ACTUAR sobre cualquier folio
+// vive en cuestFolioPuedeActuarEncargado/Aprobador (punto 4, no aquí).
+// "Compartidos conmigo" es de solo lectura de facto: cuestFolioDetalleHtml
+// ya solo pinta los botones de Iniciar/Aprobar si esEncargado/esAprobador
+// da true, y un folio compartido conmigo (que no sea también mi asignación
+// o mi aprobación) no cumple ninguna de las dos — no hace falta un chequeo
+// extra aquí para "ocultar acciones".
 function cuestFoliosFiltrados(){
   const uid=state.currentUser?.id;
   if(_cuestFoliosVista==='todos')return (state.currentUser?.role==='admin')?[...cuestFolios]:[];
   if(_cuestFoliosVista==='aprobacion')return cuestFolios.filter(function(f){return f.estado==='pendiente_aprobacion'&&f.aprobadorId===uid;});
+  if(_cuestFoliosVista==='compartidos'){
+    const folioIds=cuestFolioCompartidos.filter(function(c){return c.usuarioId===uid;}).map(function(c){return c.folioId;});
+    return cuestFolios.filter(function(f){return folioIds.indexOf(f.id)>=0;});
+  }
   return cuestFolios.filter(function(f){return f.asignadoA===uid;});
 }
 // Vencidos primero, luego por fecha_límite ascendente (más urgente primero); sin fecha límite, al final.
