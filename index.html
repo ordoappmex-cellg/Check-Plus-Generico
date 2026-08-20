@@ -3363,6 +3363,13 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
 
       <!-- CUESTIONARIOS VIEW -->
       <div id="view-cuest" class="view">
+        <div class="org-view-toggle" style="margin-bottom:14px">
+          <button class="org-view-btn active" id="cuest-tab-vw-plantillas" onclick="cuestSetTopTab('plantillas',this)"><i class="ti ti-clipboard-list"></i> Plantillas</button>
+          <button class="org-view-btn" id="cuest-tab-vw-geocercas" onclick="cuestSetTopTab('geocercas',this)"><i class="ti ti-map-pin"></i> Geocercas</button>
+          <button class="org-view-btn" id="cuest-tab-vw-asignaciones" onclick="cuestSetTopTab('asignaciones',this)"><i class="ti ti-user-check"></i> Asignaciones</button>
+        </div>
+
+        <div id="cuest-tab-plantillas">
         <div id="cuest-lista-wrap">
           <div class="section-card">
             <div class="section-body">
@@ -3389,6 +3396,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
             <div class="section-header">
               <button class="btn-sm btn-ghost" onclick="cuestCerrarFicha()"><i class="ti ti-arrow-left"></i> Volver a plantillas</button>
               <span id="cuestf-peso-total" style="font-size:12px;font-weight:700;margin-left:auto;margin-right:10px"></span>
+              <button class="btn-sm btn-ghost" id="cuestf-asignar-btn" onclick="openAddCuestAsignacion(_cuestFichaPlantillaId)" style="display:none"><i class="ti ti-user-check"></i> Asignar</button>
               <button class="btn-sm btn-ghost" id="cuestf-toggle-activa-btn" onclick="cuestTogglePlantillaActiva()" style="display:none"></button>
             </div>
             <div class="section-body">
@@ -3406,6 +3414,60 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
               </div>
               <div style="margin:10px 0 18px"><button class="btn-sm btn-blue" onclick="cuestGuardarPlantilla()"><i class="ti ti-check"></i> Guardar plantilla</button></div>
               <div id="cuestf-secciones-editor"></div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <!-- Geocercas (cuest_geocercas) — patrón Proveedores: tabla + modal
+             único crear/editar, ojo/ojo-tachado inline para activo/inactivo,
+             nunca DELETE físico. lat/lng con input numérico simple, sin
+             mapa/Leaflet todavía (mejora posterior, no bloquea nada). -->
+        <div id="cuest-tab-geocercas" style="display:none">
+          <div class="section-card">
+            <div class="section-body">
+              <div class="search-bar">
+                <div class="search-input-wrap">
+                  <i class="ti ti-search search-icon"></i>
+                  <input type="text" id="cuest-geo-search" placeholder="Buscar geocerca por nombre…" oninput="renderCuestGeocercas()">
+                </div>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cp-gray-600);cursor:pointer;white-space:nowrap">
+                  <input type="checkbox" id="cuest-geo-show-inactivos" onchange="renderCuestGeocercas()"> Ver inactivas
+                </label>
+                <button class="btn-sm btn-blue" id="btn-nueva-cuest-geocerca" onclick="openAddCuestGeocerca()"><i class="ti ti-plus"></i> Nueva geocerca</button>
+              </div>
+              <table class="emp-table">
+                <thead><tr><th>Nombre</th><th>Lat</th><th>Lng</th><th>Radio (m)</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="cuest-geo-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asignaciones (cuest_asignaciones) — cada fila es plantilla+usuario
+             independiente (nunca compartida entre usuarios). Filtrable por
+             plantilla y por usuario. Solo "Desactivar/Activar" (soft), sin
+             edición de una asignación existente — si algo cambió, se crea
+             una nueva. -->
+        <div id="cuest-tab-asignaciones" style="display:none">
+          <div class="section-card">
+            <div class="section-body">
+              <div class="search-bar">
+                <select class="form-input" id="cuest-asig-filter-plantilla" onchange="renderCuestAsignaciones()" style="width:220px">
+                  <option value="">Todas las plantillas</option>
+                </select>
+                <select class="form-input" id="cuest-asig-filter-usuario" onchange="renderCuestAsignaciones()" style="width:200px">
+                  <option value="">Todos los usuarios</option>
+                </select>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cp-gray-600);cursor:pointer;white-space:nowrap">
+                  <input type="checkbox" id="cuest-asig-show-inactivas" onchange="renderCuestAsignaciones()"> Ver inactivas
+                </label>
+                <button class="btn-sm btn-blue" id="btn-nueva-cuest-asignacion" onclick="openAddCuestAsignacion()"><i class="ti ti-plus"></i> Nueva asignación</button>
+              </div>
+              <table class="emp-table">
+                <thead><tr><th>Plantilla</th><th>Usuario</th><th>Geocerca</th><th>Requiere estar dentro</th><th>Fecha programada</th><th>Estado</th><th></th></tr></thead>
+                <tbody id="cuest-asig-tbody"></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -5149,6 +5211,56 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
       <button class="btn-sm btn-red" id="prov-del-btn" onclick="deleteProveedor()" style="display:none;margin-right:auto"><i class="ti ti-trash"></i> Eliminar</button>
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-proveedor')">Cancelar</button>
       <button class="btn-sm btn-blue" id="save-prov-btn" onclick="saveProveedor()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- GEOCERCAS (cuest_geocercas) — modal único crear/editar, patrón proveedor.
+     lat/lng con input numérico simple (SIN mapa/Leaflet todavía). -->
+<div class="modal-overlay" id="modal-cuest-geocerca">
+  <div class="modal" style="width:420px">
+    <div class="modal-header"><div class="modal-title" id="cuestgeo-modal-title">Nueva geocerca</div><button class="modal-close" onclick="closeModal('modal-cuest-geocerca')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="cuestgeof-id">
+      <div class="form-grid">
+        <div class="form-field full"><label class="form-label">Nombre *</label><input class="form-input" id="cuestgeof-nombre" placeholder="Ej. Oficina central"></div>
+        <div class="form-field"><label class="form-label">Latitud *</label><input type="number" step="0.000001" class="form-input" id="cuestgeof-lat" placeholder="Ej. 21.161908"></div>
+        <div class="form-field"><label class="form-label">Longitud *</label><input type="number" step="0.000001" class="form-input" id="cuestgeof-lng" placeholder="Ej. -86.851527"></div>
+        <div class="form-field"><label class="form-label">Radio (metros)</label><input type="number" step="1" min="1" class="form-input" id="cuestgeof-radio" placeholder="100"></div>
+        <div class="form-field full"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--cp-navy)"><input type="checkbox" id="cuestgeof-activo" checked> Activa</label></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-cuest-geocerca')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-cuestgeo-btn" onclick="saveCuestGeocerca()"><i class="ti ti-check"></i> Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASIGNACIÓN DE PLANTILLA (cuest_asignaciones) — se abre desde la ficha de
+     una plantilla (selector de plantilla oculto, valor fijo) o desde la lista
+     general de Asignaciones (selector habilitado). Siempre crea una fila
+     nueva e independiente — nunca edita/comparte una asignación existente. -->
+<div class="modal-overlay" id="modal-cuest-asignacion">
+  <div class="modal" style="width:460px">
+    <div class="modal-header"><div class="modal-title" id="cuestasig-modal-title">Nueva asignación</div><button class="modal-close" onclick="closeModal('modal-cuest-asignacion')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full" id="cuestasigf-plantilla-wrap">
+          <label class="form-label">Plantilla *</label>
+          <select class="form-input" id="cuestasigf-plantilla"><option value="">— Selecciona —</option></select>
+        </div>
+        <div class="form-field full"><label class="form-label">Usuario *</label><select class="form-input" id="cuestasigf-usuario"><option value="">— Selecciona —</option></select></div>
+        <div class="form-field full"><label class="form-label">Geocerca</label><select class="form-input" id="cuestasigf-geocerca" onchange="cuestAsigToggleDentro()"><option value="">— Sin geocerca —</option></select></div>
+        <div class="form-field full" id="cuestasigf-dentro-wrap" style="display:none">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--cp-navy)"><input type="checkbox" id="cuestasigf-requiere-dentro"> Requiere estar dentro de la zona</label>
+        </div>
+        <div class="form-field full"><label class="form-label">Fecha programada</label><input type="datetime-local" class="form-input" id="cuestasigf-fecha"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm btn-ghost" onclick="closeModal('modal-cuest-asignacion')">Cancelar</button>
+      <button class="btn-sm btn-blue" id="save-cuestasig-btn" onclick="saveCuestAsignacion()"><i class="ti ti-check"></i> Guardar</button>
     </div>
   </div>
 </div>
@@ -30255,8 +30367,9 @@ async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,s
 
 // ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
 async function cuestLoad(){
-  const [plantRaw,seccRaw,pregRaw]=await Promise.all([
-    sbGetAll('cuest_plantillas'), sbGetAll('cuest_secciones'), sbGetAll('cuest_preguntas')
+  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw]=await Promise.all([
+    sbGetAll('cuest_plantillas'), sbGetAll('cuest_secciones'), sbGetAll('cuest_preguntas'),
+    sbGetAll('cuest_geocercas'), sbGetAll('cuest_asignaciones')
   ]);
   // Se cargan TODAS (activas e inactivas) — renderCuestPlantillas() ya filtra
   // por el checkbox "Ver inactivas"; filtrar aquí las dejaría fuera del estado
@@ -30275,6 +30388,11 @@ async function cuestLoad(){
     if(r.tipo_respuesta==='emocional')opciones=cuestNormalizaOpcionesEmocional(opciones);
     return {id:r.id,seccionId:r.seccion_id,orden:r.orden||0,texto:r.texto,tipoRespuesta:r.tipo_respuesta,opciones:opciones,obligatoria:r.obligatoria!==false,evidencia:r.evidencia||{tipos:[],obligatoria:false},dispara:r.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:r.peso!=null?Number(r.peso):0,cuentaParaCalificacion:r.cuenta_para_calificacion!==false,respuestaCorrecta:r.respuesta_correcta||null};
   });
+  // lat/lng/radio_metros son columnas numeric/int — mismo gotcha de PostgREST
+  // devolviendo numeric como string (ver comentario de peso arriba), Number()
+  // explícito para que el formulario y el badge de estado no concatenen.
+  cuestGeocercas=geoRaw.map(function(r){return {id:r.id,nombre:r.nombre,lat:r.lat!=null?Number(r.lat):null,lng:r.lng!=null?Number(r.lng):null,radioMetros:r.radio_metros!=null?Number(r.radio_metros):100,activo:r.activo!==false,createdAt:r.created_at};});
+  cuestAsignaciones=asigRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,asignadoA:r.asignado_a,geocercaId:r.geocerca_id||null,requiereEstarDentro:!!r.requiere_estar_dentro,fechaProgramada:r.fecha_programada||null,activo:r.activo!==false,createdAt:r.created_at};});
 }
 function cuestNormalizaOpcionesEmocional(opciones){
   return (Array.isArray(opciones)?opciones:[]).map(function(op){
@@ -30311,6 +30429,7 @@ async function openAddCuestPlantilla(){
   document.getElementById('cuestf-tipo-evento').checked=true;
   document.getElementById('cuestf-secciones-editor').innerHTML='<div style="color:var(--cp-gray-400);font-size:12px">Guarda primero la plantilla para agregar secciones.</div>';
   const toggleBtn=document.getElementById('cuestf-toggle-activa-btn');if(toggleBtn)toggleBtn.style.display='none';
+  const asignarBtn=document.getElementById('cuestf-asignar-btn');if(asignarBtn)asignarBtn.style.display='none';
   const pesoTotalEl=document.getElementById('cuestf-peso-total');if(pesoTotalEl)pesoTotalEl.textContent='';
   _cuestFichaPlantillaId=null;
   await Promise.all([cuestEnsureTiposEvidencia(),(!(_userProfilesCache||[]).length)?loadAllUserProfiles().catch(function(){}):Promise.resolve()]);
@@ -30325,6 +30444,7 @@ async function openEditCuestPlantilla(id){
   document.getElementById(p.tipo==='on_demand'?'cuestf-tipo-on_demand':'cuestf-tipo-evento').checked=true;
   const toggleBtn=document.getElementById('cuestf-toggle-activa-btn');
   if(toggleBtn){toggleBtn.style.display='';toggleBtn.textContent=p.activo?'Desactivar plantilla':'Activar plantilla';}
+  const asignarBtn=document.getElementById('cuestf-asignar-btn');if(asignarBtn)asignarBtn.style.display='';
   _cuestFichaPlantillaId=id;
   await Promise.all([cuestEnsureTiposEvidencia(),(!(_userProfilesCache||[]).length)?loadAllUserProfiles().catch(function(){}):Promise.resolve()]);
   renderCuestSecciones(id);
@@ -30775,6 +30895,212 @@ async function cuestDeletePregunta(preguntaId,seccionId,plantillaId){
   delete _cuestPreguntasExpandidas[preguntaId];
   renderCuestSecciones(plantillaId);
   toast('Pregunta eliminada','info');
+}
+
+// ── Tabs de nivel superior de view-cuest: Plantillas / Geocercas / Asignaciones ──
+async function cuestSetTopTab(tab,btn){
+  document.querySelectorAll('#cuest-tab-vw-plantillas,#cuest-tab-vw-geocercas,#cuest-tab-vw-asignaciones').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  document.getElementById('cuest-tab-plantillas').style.display=tab==='plantillas'?'':'none';
+  document.getElementById('cuest-tab-geocercas').style.display=tab==='geocercas'?'':'none';
+  document.getElementById('cuest-tab-asignaciones').style.display=tab==='asignaciones'?'':'none';
+  if(tab==='geocercas')renderCuestGeocercas();
+  else if(tab==='asignaciones'){
+    if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
+    renderCuestAsignaciones();
+  }
+}
+
+// ── Geocercas (cuest_geocercas) — patrón Proveedores: tabla + modal único
+// crear/editar, ojo/ojo-tachado inline para activo/inactivo (nunca DELETE
+// físico). lat/lng con input numérico simple, sin mapa/Leaflet todavía. ────
+let cuestGeoCurrentId=null;
+async function cuestSaveGeocerca(g){return sbUpsert('cuest_geocercas',{id:g.id,nombre:g.nombre,lat:g.lat,lng:g.lng,radio_metros:g.radioMetros,activo:g.activo!==false});}
+function renderCuestGeocercas(){
+  const q=(document.getElementById('cuest-geo-search')?.value||'').toLowerCase().trim();
+  const showInactivas=document.getElementById('cuest-geo-show-inactivos')?.checked;
+  let geos=[...cuestGeocercas];
+  if(!showInactivas)geos=geos.filter(function(g){return g.activo!==false;});
+  if(q)geos=geos.filter(function(g){return (g.nombre||'').toLowerCase().includes(q);});
+  geos.sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
+  const tbody=document.getElementById('cuest-geo-tbody');if(!tbody)return;
+  if(!geos.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><i class="ti ti-map-pin"></i><p>Sin geocercas registradas.</p></div></td></tr>';return;}
+  tbody.innerHTML=geos.map(function(g){
+    const activo=g.activo!==false;
+    return '<tr'+(activo?'':' style="opacity:.5"')+'>'+
+      '<td><div class="emp-name" style="font-size:13px">'+escHtml(g.nombre)+'</div></td>'+
+      '<td>'+(g.lat!=null?g.lat:'—')+'</td>'+
+      '<td>'+(g.lng!=null?g.lng:'—')+'</td>'+
+      '<td>'+(g.radioMetros!=null?g.radioMetros:'—')+'</td>'+
+      '<td><span class="badge '+(activo?'badge-green':'badge-gray')+'">'+(activo?'Activa':'Inactiva')+'</span></td>'+
+      '<td style="display:flex;gap:4px;white-space:nowrap">'+
+        '<button class="btn-sm btn-ghost" onclick="cuestGeocercaToggleActivo(\''+g.id+'\')" title="'+(activo?'Desactivar':'Activar')+'"><i class="ti ti-'+(activo?'eye':'eye-off')+'"></i></button>'+
+        '<button class="btn-sm btn-ghost" onclick="openEditCuestGeocerca(\''+g.id+'\')"><i class="ti ti-edit"></i> Editar</button>'+
+      '</td>'+
+    '</tr>';
+  }).join('');
+}
+function openAddCuestGeocerca(){
+  cuestGeoCurrentId=null;
+  document.getElementById('cuestgeo-modal-title').textContent='Nueva geocerca';
+  document.getElementById('cuestgeof-nombre').value='';
+  document.getElementById('cuestgeof-lat').value='';
+  document.getElementById('cuestgeof-lng').value='';
+  document.getElementById('cuestgeof-radio').value='100';
+  document.getElementById('cuestgeof-activo').checked=true;
+  openModal('modal-cuest-geocerca');
+}
+function openEditCuestGeocerca(id){
+  const g=cuestGeocercas.find(function(x){return x.id===id;});if(!g)return;
+  cuestGeoCurrentId=id;
+  document.getElementById('cuestgeo-modal-title').textContent='Editar geocerca';
+  document.getElementById('cuestgeof-nombre').value=g.nombre||'';
+  document.getElementById('cuestgeof-lat').value=g.lat!=null?g.lat:'';
+  document.getElementById('cuestgeof-lng').value=g.lng!=null?g.lng:'';
+  document.getElementById('cuestgeof-radio').value=g.radioMetros!=null?g.radioMetros:100;
+  document.getElementById('cuestgeof-activo').checked=g.activo!==false;
+  openModal('modal-cuest-geocerca');
+}
+async function saveCuestGeocerca(){
+  const nombre=sanitizeInput(document.getElementById('cuestgeof-nombre')?.value,150);
+  if(!nombre){toast('El nombre es obligatorio.','error');return;}
+  const lat=parseFloat(document.getElementById('cuestgeof-lat')?.value);
+  const lng=parseFloat(document.getElementById('cuestgeof-lng')?.value);
+  if(isNaN(lat)||isNaN(lng)){toast('Latitud y longitud son obligatorias.','error');return;}
+  const radioRaw=parseInt(document.getElementById('cuestgeof-radio')?.value,10);
+  setBtn('save-cuestgeo-btn',true);
+  const g={id:cuestGeoCurrentId||uid9(),nombre,lat,lng,radioMetros:(!isNaN(radioRaw)&&radioRaw>0)?radioRaw:100,activo:document.getElementById('cuestgeof-activo').checked};
+  const ok=await cuestSaveGeocerca(g);
+  setBtn('save-cuestgeo-btn',false);
+  if(!ok)return;
+  const idx=cuestGeocercas.findIndex(function(x){return x.id===g.id;});
+  if(idx!==-1)cuestGeocercas[idx]=g;else cuestGeocercas.push(g);
+  auditLog(cuestGeoCurrentId?'editar':'crear','cuest_geocercas',g.id,'Geocerca: '+nombre);
+  closeModal('modal-cuest-geocerca');
+  renderCuestGeocercas();
+  toast(cuestGeoCurrentId?'Geocerca actualizada ✓':'Geocerca creada ✓');
+}
+async function cuestGeocercaToggleActivo(id){
+  const g=cuestGeocercas.find(function(x){return x.id===id;});if(!g)return;
+  const updated={...g,activo:g.activo===false};
+  const ok=await cuestSaveGeocerca(updated);
+  if(!ok)return;
+  const idx=cuestGeocercas.findIndex(function(x){return x.id===id;});
+  if(idx!==-1)cuestGeocercas[idx]=updated;
+  auditLog(updated.activo?'activar':'desactivar','cuest_geocercas',id,'Geocerca '+(updated.activo?'activada':'desactivada')+': '+g.nombre);
+  renderCuestGeocercas();
+  toast(updated.activo?'Geocerca activada.':'Geocerca desactivada.','info');
+}
+
+// ── Asignaciones (cuest_asignaciones) — cada llamada a saveCuestAsignacion
+// arma un objeto con uid9() nuevo, así que asignar la misma plantilla a N
+// usuarios (llamadas independientes del modal) siempre produce N filas
+// propias, nunca una fila compartida. Sin edición de una asignación
+// existente: si algo cambió, se crea una nueva y la vieja se desactiva. ────
+let _cuestAsigFichaPlantillaId=null; // fija cuando el modal se abrió desde la ficha de una plantilla
+function cuestAsigPlantillaLabel(id){const p=cuestPlantillas.find(function(x){return x.id===id;});return p?p.nombre:'(plantilla eliminada)';}
+function cuestAsigUsuarioLabel(id){const u=(_userProfilesCache||[]).find(function(x){return x.user_id===id;});return u?(u.display_name||u.email):id;}
+function cuestAsigGeocercaLabel(id){if(!id)return '—';const g=cuestGeocercas.find(function(x){return x.id===id;});return g?g.nombre:'(geocerca eliminada)';}
+async function cuestSaveAsignacion(a){return sbUpsert('cuest_asignaciones',{id:a.id,plantilla_id:a.plantillaId,asignado_a:a.asignadoA,geocerca_id:a.geocercaId,requiere_estar_dentro:!!a.requiereEstarDentro,fecha_programada:a.fechaProgramada,activo:a.activo!==false});}
+function populateCuestAsigFiltros(){
+  const pSel=document.getElementById('cuest-asig-filter-plantilla');
+  if(pSel){const cur=pSel.value;pSel.innerHTML='<option value="">Todas las plantillas</option>'+cuestPlantillas.map(function(p){return '<option value="'+p.id+'"'+(p.id===cur?' selected':'')+'>'+escHtml(p.nombre)+'</option>';}).join('');pSel.value=cur;}
+  const uSel=document.getElementById('cuest-asig-filter-usuario');
+  if(uSel){const cur=uSel.value;uSel.innerHTML='<option value="">Todos los usuarios</option>'+(_userProfilesCache||[]).map(function(u){return '<option value="'+u.user_id+'"'+(u.user_id===cur?' selected':'')+'>'+escHtml(u.display_name||u.email)+'</option>';}).join('');uSel.value=cur;}
+}
+function renderCuestAsignaciones(){
+  populateCuestAsigFiltros();
+  const plantillaF=document.getElementById('cuest-asig-filter-plantilla')?.value||'';
+  const usuarioF=document.getElementById('cuest-asig-filter-usuario')?.value||'';
+  const showInactivas=document.getElementById('cuest-asig-show-inactivas')?.checked;
+  let asigs=[...cuestAsignaciones];
+  if(!showInactivas)asigs=asigs.filter(function(a){return a.activo!==false;});
+  if(plantillaF)asigs=asigs.filter(function(a){return a.plantillaId===plantillaF;});
+  if(usuarioF)asigs=asigs.filter(function(a){return a.asignadoA===usuarioF;});
+  asigs.sort(function(a,b){return new Date(b.createdAt||0)-new Date(a.createdAt||0);});
+  const tbody=document.getElementById('cuest-asig-tbody');if(!tbody)return;
+  if(!asigs.length){tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><i class="ti ti-user-check"></i><p>Sin asignaciones registradas.</p></div></td></tr>';return;}
+  tbody.innerHTML=asigs.map(function(a){
+    const activo=a.activo!==false;
+    return '<tr'+(activo?'':' style="opacity:.5"')+'>'+
+      '<td>'+escHtml(cuestAsigPlantillaLabel(a.plantillaId))+'</td>'+
+      '<td>'+escHtml(cuestAsigUsuarioLabel(a.asignadoA))+'</td>'+
+      '<td>'+escHtml(cuestAsigGeocercaLabel(a.geocercaId))+'</td>'+
+      '<td>'+(a.geocercaId?(a.requiereEstarDentro?'Sí':'No'):'—')+'</td>'+
+      '<td>'+(a.fechaProgramada?new Date(a.fechaProgramada).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}):'—')+'</td>'+
+      '<td><span class="badge '+(activo?'badge-green':'badge-gray')+'">'+(activo?'Activa':'Inactiva')+'</span></td>'+
+      '<td><button class="btn-sm btn-ghost" onclick="cuestAsignacionToggleActivo(\''+a.id+'\')" title="'+(activo?'Desactivar':'Activar')+'"><i class="ti ti-'+(activo?'eye':'eye-off')+'"></i></button></td>'+
+    '</tr>';
+  }).join('');
+}
+// plantillaId viene fijo cuando se abre desde el botón "Asignar" de la ficha
+// de una plantilla (selector oculto); sin argumento, se abre desde la lista
+// general de Asignaciones con el selector de plantilla habilitado.
+async function openAddCuestAsignacion(plantillaId){
+  if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
+  document.getElementById('cuestasigf-usuario').innerHTML='<option value="">— Selecciona —</option>'+(_userProfilesCache||[]).map(function(u){return '<option value="'+u.user_id+'">'+escHtml(u.display_name||u.email)+'</option>';}).join('');
+  document.getElementById('cuestasigf-geocerca').innerHTML='<option value="">— Sin geocerca —</option>'+cuestGeocercas.filter(function(g){return g.activo!==false;}).map(function(g){return '<option value="'+g.id+'">'+escHtml(g.nombre)+'</option>';}).join('');
+  document.getElementById('cuestasigf-requiere-dentro').checked=false;
+  document.getElementById('cuestasigf-fecha').value='';
+  cuestAsigToggleDentro();
+  const plantillaSel=document.getElementById('cuestasigf-plantilla');
+  const plantillaWrap=document.getElementById('cuestasigf-plantilla-wrap');
+  if(plantillaId){
+    _cuestAsigFichaPlantillaId=plantillaId;
+    plantillaWrap.style.display='none';
+    plantillaSel.innerHTML='<option value="'+plantillaId+'">'+escHtml(cuestAsigPlantillaLabel(plantillaId))+'</option>';
+    document.getElementById('cuestasig-modal-title').textContent='Asignar: '+cuestAsigPlantillaLabel(plantillaId);
+  }else{
+    _cuestAsigFichaPlantillaId=null;
+    plantillaWrap.style.display='';
+    plantillaSel.innerHTML='<option value="">— Selecciona —</option>'+cuestPlantillas.filter(function(p){return p.activo;}).map(function(p){return '<option value="'+p.id+'">'+escHtml(p.nombre)+'</option>';}).join('');
+    document.getElementById('cuestasig-modal-title').textContent='Nueva asignación';
+  }
+  openModal('modal-cuest-asignacion');
+}
+function cuestAsigToggleDentro(){
+  const geoSel=document.getElementById('cuestasigf-geocerca');
+  const wrap=document.getElementById('cuestasigf-dentro-wrap');
+  if(!geoSel||!wrap)return;
+  const tieneGeo=!!geoSel.value;
+  wrap.style.display=tieneGeo?'':'none';
+  if(!tieneGeo)document.getElementById('cuestasigf-requiere-dentro').checked=false;
+}
+async function saveCuestAsignacion(){
+  const plantillaId=_cuestAsigFichaPlantillaId||document.getElementById('cuestasigf-plantilla')?.value;
+  if(!plantillaId){toast('Selecciona una plantilla.','error');return;}
+  const asignadoA=document.getElementById('cuestasigf-usuario')?.value;
+  if(!asignadoA){toast('Selecciona un usuario.','error');return;}
+  const geocercaId=document.getElementById('cuestasigf-geocerca')?.value||null;
+  const requiereDentro=geocercaId?!!document.getElementById('cuestasigf-requiere-dentro').checked:false;
+  // Igual que spf-fecha-inicio (Solicitudes de Personal): se guarda el valor
+  // crudo del datetime-local, sin convertir a ISO — mismo patrón ya usado en
+  // el proyecto para timestamptz capturados así.
+  const fechaProgramada=document.getElementById('cuestasigf-fecha')?.value||null;
+  setBtn('save-cuestasig-btn',true);
+  // id nuevo SIEMPRE (uid9() propio) — nunca reutiliza el de otra asignación,
+  // así que asignar la misma plantilla a 2 usuarios en 2 llamadas separadas
+  // de este modal genera 2 filas independientes en cuest_asignaciones.
+  const a={id:uid9(),plantillaId,asignadoA,geocercaId,requiereEstarDentro:requiereDentro,fechaProgramada,activo:true};
+  const ok=await cuestSaveAsignacion(a);
+  setBtn('save-cuestasig-btn',false);
+  if(!ok)return;
+  cuestAsignaciones.push(a);
+  auditLog('crear','cuest_asignaciones',a.id,'Asignación: '+cuestAsigPlantillaLabel(plantillaId)+' → '+cuestAsigUsuarioLabel(asignadoA));
+  closeModal('modal-cuest-asignacion');
+  renderCuestAsignaciones();
+  toast('Asignación creada ✓');
+}
+async function cuestAsignacionToggleActivo(id){
+  const a=cuestAsignaciones.find(function(x){return x.id===id;});if(!a)return;
+  const updated={...a,activo:a.activo===false};
+  const ok=await cuestSaveAsignacion(updated);
+  if(!ok)return;
+  const idx=cuestAsignaciones.findIndex(function(x){return x.id===id;});
+  if(idx!==-1)cuestAsignaciones[idx]=updated;
+  auditLog(updated.activo?'activar':'desactivar','cuest_asignaciones',id,updated.activo?'Asignación activada':'Asignación desactivada');
+  renderCuestAsignaciones();
+  toast(updated.activo?'Asignación activada.':'Asignación desactivada.','info');
 }
 
 </script>
