@@ -3367,6 +3367,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <button class="org-view-btn active" id="cuest-tab-vw-plantillas" onclick="cuestSetTopTab('plantillas',this)"><i class="ti ti-clipboard-list"></i> Plantillas</button>
           <button class="org-view-btn" id="cuest-tab-vw-geocercas" onclick="cuestSetTopTab('geocercas',this)"><i class="ti ti-map-pin"></i> Geocercas</button>
           <button class="org-view-btn" id="cuest-tab-vw-asignaciones" onclick="cuestSetTopTab('asignaciones',this)"><i class="ti ti-user-check"></i> Asignaciones</button>
+          <button class="org-view-btn" id="cuest-tab-vw-responder" onclick="cuestSetTopTab('responder',this)"><i class="ti ti-clipboard-check"></i> Responder</button>
         </div>
 
         <div id="cuest-tab-plantillas">
@@ -3468,6 +3469,45 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                 <thead><tr><th>Plantilla</th><th>Usuario</th><th>Geocerca</th><th>Requiere estar dentro</th><th>Fecha programada</th><th>Estado</th><th></th></tr></thead>
                 <tbody id="cuest-asig-tbody"></tbody>
               </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Responder (cuest_respuestas/cuest_respuestas_detalle) — "Mis
+             asignaciones" pendientes del usuario actual + wizard de captura
+             pregunta por pregunta. Construido desde cero (no había wizard
+             previo en el proyecto); el guardado es click explícito
+             ("Guardar y salir"), inspirado en saveEvalDraft de Evaluaciones
+             pero sin reutilizar su código (tablas y forma distintas). -->
+        <div id="cuest-tab-responder" style="display:none">
+          <div id="cuest-resp-lista-wrap">
+            <div class="section-card">
+              <div class="section-header"><div class="section-title"><i class="ti ti-clipboard-check" style="margin-right:6px"></i>Mis asignaciones</div></div>
+              <div class="section-body">
+                <div id="cuest-resp-lista"></div>
+              </div>
+            </div>
+          </div>
+          <div id="cuest-resp-wizard-wrap" style="display:none">
+            <div class="section-card">
+              <div class="section-header">
+                <button class="btn-sm btn-ghost" onclick="cuestWizCerrarConfirm()"><i class="ti ti-arrow-left"></i> Salir</button>
+                <span id="cuest-wiz-progreso" style="font-size:12px;font-weight:700;margin-left:auto"></span>
+              </div>
+              <div class="section-body">
+                <div id="cuest-wiz-seccion-titulo" style="font-size:11px;font-weight:700;color:var(--cp-gray-400);text-transform:uppercase;letter-spacing:.03em;margin-bottom:10px"></div>
+                <div id="cuest-wiz-pregunta-body"></div>
+                <div style="display:flex;justify-content:space-between;margin-top:22px;gap:8px;flex-wrap:wrap">
+                  <div style="display:flex;gap:8px">
+                    <button class="btn-sm btn-ghost" id="cuest-wiz-ant-btn" onclick="cuestWizAnterior()"><i class="ti ti-chevron-left"></i> Anterior</button>
+                    <button class="btn-sm btn-ghost" id="cuest-wiz-sig-btn" onclick="cuestWizSiguiente()">Siguiente <i class="ti ti-chevron-right"></i></button>
+                  </div>
+                  <div style="display:flex;gap:8px">
+                    <button class="btn-sm btn-ghost" id="cuest-wiz-guardar-btn" onclick="cuestWizGuardarYSalir()"><i class="ti ti-device-floppy"></i> Guardar y salir</button>
+                    <button class="btn-sm btn-blue" id="cuest-wiz-finalizar-btn" onclick="cuestWizFinalizar()" disabled><i class="ti ti-check"></i> Finalizar</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -30313,7 +30353,7 @@ function sortEvalTeamTable(colIdx){
 // cuest_secciones, cuest_preguntas, cuest_geocercas, cuest_asignaciones,
 // cuest_respuestas (esquema confirmado 19/8, no inventado).
 
-let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[];
+let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[], cuestRespuestas=[];
 let _cuestConfigCache=null;
 let _cuestFichaPlantillaId=null; // plantilla actualmente abierta en la ficha, o null si estamos en la lista
 let _cuestPreguntasExpandidas={}; // {preguntaId:true} — estado de expandido en memoria, no persistido
@@ -30384,9 +30424,9 @@ async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,s
 
 // ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
 async function cuestLoad(){
-  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw]=await Promise.all([
+  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw,respRaw]=await Promise.all([
     sbGetAll('cuest_plantillas'), sbGetAll('cuest_secciones'), sbGetAll('cuest_preguntas'),
-    sbGetAll('cuest_geocercas'), sbGetAll('cuest_asignaciones')
+    sbGetAll('cuest_geocercas'), sbGetAll('cuest_asignaciones'), sbGetAll('cuest_respuestas')
   ]);
   // Se cargan TODAS (activas e inactivas) — renderCuestPlantillas() ya filtra
   // por el checkbox "Ver inactivas"; filtrar aquí las dejaría fuera del estado
@@ -30410,6 +30450,14 @@ async function cuestLoad(){
   // explícito para que el formulario y el badge de estado no concatenen.
   cuestGeocercas=geoRaw.map(function(r){return {id:r.id,nombre:r.nombre,lat:r.lat!=null?Number(r.lat):null,lng:r.lng!=null?Number(r.lng):null,radioMetros:r.radio_metros!=null?Number(r.radio_metros):100,encargadoId:r.encargado_id||null,fotoUrl:r.foto_url||null,activo:r.activo!==false,createdAt:r.created_at};});
   cuestAsignaciones=asigRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,asignadoA:r.asignado_a,geocercaId:r.geocerca_id||null,requiereEstarDentro:!!r.requiere_estar_dentro,fechaProgramada:r.fecha_programada||null,activo:r.activo!==false,createdAt:r.created_at};});
+  // cuest_respuestas es pequeña (1 fila por intento de asignación) y hace
+  // falta completa para "Mis asignaciones" (saber si ya hay una completada o
+  // una en_progreso para retomar), así que sí entra al Promise.all de arriba.
+  // cuest_respuestas_detalle NO se carga aquí a propósito — puede crecer
+  // mucho (1 fila por pregunta por respuesta) y solo hace falta la de UNA
+  // respuesta a la vez al abrir el wizard; se trae acotada por respuesta_id
+  // en cuestRespWizLoadDetalle, mismo criterio anti-egress de sbGetAllPaged.
+  cuestRespuestas=respRaw.map(function(r){return {id:r.id,asignacionId:r.asignacion_id,usuarioId:r.usuario_id,estado:r.estado,fechaInicio:r.fecha_inicio||null,fechaFin:r.fecha_fin||null,ubicacionInicio:r.ubicacion_inicio||null,ubicacionFin:r.ubicacion_fin||null,dentroGeocerca:r.dentro_geocerca!=null?r.dentro_geocerca:null};});
 }
 function cuestNormalizaOpcionesEmocional(opciones){
   return (Array.isArray(opciones)?opciones:[]).map(function(op){
@@ -30916,15 +30964,23 @@ async function cuestDeletePregunta(preguntaId,seccionId,plantillaId){
 
 // ── Tabs de nivel superior de view-cuest: Plantillas / Geocercas / Asignaciones ──
 async function cuestSetTopTab(tab,btn){
-  document.querySelectorAll('#cuest-tab-vw-plantillas,#cuest-tab-vw-geocercas,#cuest-tab-vw-asignaciones').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('#cuest-tab-vw-plantillas,#cuest-tab-vw-geocercas,#cuest-tab-vw-asignaciones,#cuest-tab-vw-responder').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
   document.getElementById('cuest-tab-plantillas').style.display=tab==='plantillas'?'':'none';
   document.getElementById('cuest-tab-geocercas').style.display=tab==='geocercas'?'':'none';
   document.getElementById('cuest-tab-asignaciones').style.display=tab==='asignaciones'?'':'none';
+  document.getElementById('cuest-tab-responder').style.display=tab==='responder'?'':'none';
   if(tab==='geocercas')renderCuestGeocercas();
   else if(tab==='asignaciones'){
     if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
     renderCuestAsignaciones();
+  }else if(tab==='responder'){
+    if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
+    // Al volver a este tab (ej. después de responder y salir) siempre se
+    // muestra la lista, nunca el wizard a medias.
+    document.getElementById('cuest-resp-wizard-wrap').style.display='none';
+    document.getElementById('cuest-resp-lista-wrap').style.display='';
+    renderCuestResponder();
   }
 }
 
@@ -31239,6 +31295,338 @@ async function cuestAsignacionToggleActivo(id){
   auditLog(updated.activo?'activar':'desactivar','cuest_asignaciones',id,updated.activo?'Asignación activada':'Asignación desactivada');
   renderCuestAsignaciones();
   toast(updated.activo?'Asignación activada.':'Asignación desactivada.','info');
+}
+
+// ── Responder (cuest_respuestas / cuest_respuestas_detalle) ────────────────
+// Wizard de captura construido desde cero — no había ningún patrón de wizard
+// en el proyecto que reutilizar (confirmado por investigación previa). El
+// guardado es por click explícito ("Guardar y salir"/"Finalizar"), MISMO
+// criterio que saveEvalDraft de Evaluaciones (línea ~29663: bulk-upsert de
+// lo respondido hasta ahora, sin autosave por campo), pero es código propio
+// — tablas y forma de las preguntas son distintas.
+//
+// Estado del wizard en memoria (solo existe mientras el wizard está abierto):
+let _cuestWizRespuestaId=null;
+let _cuestWizAsignacionId=null;
+let _cuestWizPreguntasOrdenadas=[]; // [{pregunta,seccion}], aplanado en orden sección→pregunta
+let _cuestWizIndex=0;
+let _cuestWizValores={}; // {preguntaId: valor jsonb} — se actualiza en memoria al tocar un control, se persiste solo al guardar
+let _cuestWizDetalleIds={}; // {preguntaId: id de la fila en cuest_respuestas_detalle} — estable durante la sesión para que sbUpsert actualice en vez de insertar una fila nueva cada "Guardar y salir"
+
+async function cuestSaveRespuesta(r){return sbUpsert('cuest_respuestas',{id:r.id,asignacion_id:r.asignacionId,usuario_id:r.usuarioId,estado:r.estado,fecha_inicio:r.fechaInicio||null,fecha_fin:r.fechaFin||null,ubicacion_inicio:r.ubicacionInicio||null,ubicacion_fin:r.ubicacionFin||null,dentro_geocerca:r.dentroGeocerca!=null?r.dentroGeocerca:null});}
+async function cuestSaveRespuestaDetalle(preguntaId,valor){
+  const id=_cuestWizDetalleIds[preguntaId]||uid9();
+  const ok=await sbUpsert('cuest_respuestas_detalle',{id,respuesta_id:_cuestWizRespuestaId,pregunta_id:preguntaId,valor,evidencias:[]});
+  if(ok)_cuestWizDetalleIds[preguntaId]=id;
+  return ok;
+}
+async function cuestSaveFolio(f){return sbUpsert('cuest_folios',{id:f.id,respuesta_id:f.respuestaId,pregunta_id:f.preguntaId,tipo:f.tipo,sla_horas:f.slaHoras,fecha_limite:f.fechaLimite,estado:f.estado,asignado_a:f.asignadoA});}
+// Query acotada por respuesta_id (NUNCA sbGetAll completo de la tabla) — ver
+// nota en cuestLoad. Mismo patrón que prospDocsLoad (línea ~13195).
+async function cuestRespWizLoadDetalle(respuestaId){
+  const {data,error}=await sb.from('cuest_respuestas_detalle').select('*').eq('respuesta_id',respuestaId);
+  if(error){console.error('cuestRespWizLoadDetalle',error);return [];}
+  return (data||[]).map(function(r){return {id:r.id,respuestaId:r.respuesta_id,preguntaId:r.pregunta_id,valor:r.valor,evidencias:Array.isArray(r.evidencias)?r.evidencias:[]};});
+}
+
+// "Mis asignaciones" pendientes: asignado_a=usuario actual, activo=true, sin
+// una respuesta 'completado' propia ya existente para esa asignación.
+function cuestMisAsignacionesPendientes(){
+  const uid=state.currentUser?.id;if(!uid)return [];
+  return cuestAsignaciones.filter(function(a){
+    if(a.activo===false)return false;
+    if(a.asignadoA!==uid)return false;
+    const yaCompletada=cuestRespuestas.some(function(r){return r.asignacionId===a.id&&r.usuarioId===uid&&r.estado==='completado';});
+    return !yaCompletada;
+  });
+}
+function renderCuestResponder(){
+  const el=document.getElementById('cuest-resp-lista');if(!el)return;
+  const uid=state.currentUser?.id;
+  const pendientes=cuestMisAsignacionesPendientes();
+  if(!pendientes.length){el.innerHTML='<div class="empty-state"><i class="ti ti-clipboard-check"></i><p>No tienes cuestionarios asignados pendientes.</p></div>';return;}
+  el.innerHTML=pendientes.map(function(a){
+    const enProgreso=cuestRespuestas.some(function(r){return r.asignacionId===a.id&&r.usuarioId===uid&&r.estado==='en_progreso';});
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--cp-gray-100)">'+
+      '<div style="flex:1">'+
+        '<div style="font-size:13px;font-weight:600;color:var(--cp-navy)">'+escHtml(cuestAsigPlantillaLabel(a.plantillaId))+'</div>'+
+        '<div style="font-size:11px;color:var(--cp-gray-400)">'+(a.geocercaId?escHtml(cuestAsigGeocercaLabel(a.geocercaId)):'Sin ubicación')+(a.fechaProgramada?' · '+new Date(a.fechaProgramada).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}):'')+'</div>'+
+      '</div>'+
+      (enProgreso?'<span class="badge badge-amber">En progreso</span>':'')+
+      '<button class="btn-sm btn-blue" onclick="cuestWizAbrir(\''+a.id+'\')"><i class="ti ti-'+(enProgreso?'player-play':'pencil')+'"></i> '+(enProgreso?'Continuar':'Responder')+'</button>'+
+    '</div>';
+  }).join('');
+}
+function cuestWizBuildPreguntasOrdenadas(plantillaId){
+  const secciones=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId;}).sort(function(a,b){return a.orden-b.orden;});
+  const out=[];
+  secciones.forEach(function(s){
+    cuestPreguntas.filter(function(q){return q.seccionId===s.id;}).sort(function(a,b){return a.orden-b.orden;}).forEach(function(q){out.push({pregunta:q,seccion:s});});
+  });
+  return out;
+}
+// Abre una asignación: retoma la respuesta 'en_progreso' del usuario actual
+// si ya existe (nunca crea una segunda), o crea una nueva en 'en_progreso'
+// con fecha_inicio=now(). ubicacion_inicio/fin y dentro_geocerca quedan
+// null — la web no evalúa geocerca (decisión ya tomada, fuera de alcance).
+async function cuestWizAbrir(asignacionId){
+  const asignacion=cuestAsignaciones.find(function(x){return x.id===asignacionId;});if(!asignacion)return;
+  const uid=state.currentUser?.id;if(!uid)return;
+  let resp=cuestRespuestas.find(function(r){return r.asignacionId===asignacionId&&r.usuarioId===uid&&r.estado==='en_progreso';});
+  if(!resp){
+    resp={id:uid9(),asignacionId:asignacionId,usuarioId:uid,estado:'en_progreso',fechaInicio:new Date().toISOString(),fechaFin:null,ubicacionInicio:null,ubicacionFin:null,dentroGeocerca:null};
+    const ok=await cuestSaveRespuesta(resp);
+    if(!ok){toast('No se pudo iniciar el cuestionario.','error');return;}
+    cuestRespuestas.push(resp);
+  }
+  _cuestWizRespuestaId=resp.id;
+  _cuestWizAsignacionId=asignacionId;
+  _cuestWizValores={};
+  _cuestWizDetalleIds={};
+  const detalle=await cuestRespWizLoadDetalle(resp.id);
+  detalle.forEach(function(d){_cuestWizValores[d.preguntaId]=d.valor;_cuestWizDetalleIds[d.preguntaId]=d.id;});
+  _cuestWizPreguntasOrdenadas=cuestWizBuildPreguntasOrdenadas(asignacion.plantillaId);
+  _cuestWizIndex=0;
+  document.getElementById('cuest-resp-lista-wrap').style.display='none';
+  document.getElementById('cuest-resp-wizard-wrap').style.display='';
+  cuestWizRenderPregunta();
+}
+function cuestWizCerrarConfirm(){
+  if(!confirm('¿Salir? Lo que ya guardaste con "Guardar y salir" se conserva; lo que no hayas guardado en esta sesión se pierde.'))return;
+  cuestWizCerrar();
+}
+function cuestWizCerrar(){
+  _cuestWizRespuestaId=null;_cuestWizAsignacionId=null;
+  _cuestWizValores={};_cuestWizDetalleIds={};_cuestWizPreguntasOrdenadas=[];_cuestWizIndex=0;
+  document.getElementById('cuest-resp-wizard-wrap').style.display='none';
+  document.getElementById('cuest-resp-lista-wrap').style.display='';
+  renderCuestResponder();
+}
+
+// ¿La pregunta q tiene un valor capturado válido según su tipo? (para el
+// chequeo de obligatorias y para habilitar "Finalizar")
+function cuestWizTieneValor(q,valor){
+  if(valor==null)return false;
+  if(q.tipoRespuesta==='si_no'||q.tipoRespuesta==='iconos')return typeof valor.valor==='boolean';
+  if(q.tipoRespuesta==='lista')return !!(valor.opcion&&String(valor.opcion).trim());
+  if(q.tipoRespuesta==='multiple')return Array.isArray(valor.opciones)&&valor.opciones.length>0;
+  if(q.tipoRespuesta==='emocional')return !!(valor.valor&&String(valor.valor).trim());
+  if(q.tipoRespuesta==='abierta')return !!(valor.texto&&String(valor.texto).trim());
+  return false;
+}
+function cuestWizObligatoriasFaltantes(){
+  return _cuestWizPreguntasOrdenadas.filter(function(item){
+    return item.pregunta.obligatoria&&!cuestWizTieneValor(item.pregunta,_cuestWizValores[item.pregunta.id]);
+  }).length;
+}
+function cuestWizUpdateFinalizarBtn(){
+  const btn=document.getElementById('cuest-wiz-finalizar-btn');if(!btn)return;
+  btn.disabled=cuestWizObligatoriasFaltantes()>0;
+}
+
+function cuestWizRenderPregunta(){
+  const total=_cuestWizPreguntasOrdenadas.length;
+  const progEl=document.getElementById('cuest-wiz-progreso');
+  if(!total){
+    document.getElementById('cuest-wiz-pregunta-body').innerHTML='<div class="empty-state"><i class="ti ti-info-circle"></i><p>Esta plantilla no tiene preguntas todavía.</p></div>';
+    if(progEl)progEl.textContent='';
+    document.getElementById('cuest-wiz-ant-btn').style.display='none';
+    document.getElementById('cuest-wiz-sig-btn').style.display='none';
+    return;
+  }
+  if(_cuestWizIndex<0)_cuestWizIndex=0;
+  if(_cuestWizIndex>=total)_cuestWizIndex=total-1;
+  const item=_cuestWizPreguntasOrdenadas[_cuestWizIndex];
+  const q=item.pregunta,seccion=item.seccion;
+  document.getElementById('cuest-wiz-seccion-titulo').textContent=seccion.nombre||'';
+  if(progEl)progEl.textContent='Pregunta '+(_cuestWizIndex+1)+' de '+total;
+  let html='<div style="margin-bottom:16px"><div style="height:6px;background:var(--cp-gray-100);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+Math.round(((_cuestWizIndex+1)/total)*100)+'%;background:var(--cp-accent);transition:width .2s"></div></div></div>';
+  html+='<div style="font-size:15px;font-weight:600;color:var(--cp-navy);margin-bottom:12px">'+escHtml(q.texto||'')+(q.obligatoria?' <span style="color:var(--cp-red)">*</span>':'')+'</div>';
+  html+=cuestWizRenderControl(q,_cuestWizValores[q.id]);
+  document.getElementById('cuest-wiz-pregunta-body').innerHTML=html;
+  const antBtn=document.getElementById('cuest-wiz-ant-btn'),sigBtn=document.getElementById('cuest-wiz-sig-btn');
+  antBtn.style.display='';antBtn.disabled=_cuestWizIndex===0;
+  sigBtn.style.display=_cuestWizIndex===total-1?'none':'';
+  cuestWizUpdateFinalizarBtn();
+}
+// Renderiza el CONTROL de respuesta según tipo_respuesta — reutiliza las
+// mismas constantes/forma de datos del constructor (CUEST_TIPOS_RESPUESTA,
+// CUEST_ICONOS_EMOCIONAL, cuestNormalizaOpcionesEmocional para el compat de
+// opciones emocional en formato viejo) en vez de reinventar el set de
+// íconos o la forma de {texto,icono}. Usa value/checked/dataset + eventos
+// (no JSON.stringify embebido en onclick) para no romper el HTML si una
+// opción trae comillas.
+function cuestWizRenderControl(q,valor){
+  const tipo=q.tipoRespuesta;
+  if(tipo==='si_no'||tipo==='iconos'){
+    const val=(valor&&typeof valor.valor==='boolean')?valor.valor:null;
+    return '<div style="display:flex;gap:10px">'+
+      '<button type="button" class="btn-sm '+(val===true?'btn-blue':'btn-ghost')+'" onclick="cuestWizSetValorBool(\''+q.id+'\',true)"><i class="ti ti-check"></i> Sí / Cumple</button>'+
+      '<button type="button" class="btn-sm '+(val===false?'btn-blue':'btn-ghost')+'" onclick="cuestWizSetValorBool(\''+q.id+'\',false)"><i class="ti ti-x"></i> No / No cumple</button>'+
+    '</div>';
+  }
+  if(tipo==='lista'){
+    const val=(valor&&typeof valor.opcion==='string')?valor.opcion:null;
+    const opciones=q.opciones||[];
+    if(!opciones.length)return '<div style="font-size:12px;color:var(--cp-gray-400)">Esta pregunta no tiene opciones configuradas.</div>';
+    return opciones.map(function(op){
+      return '<label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;font-size:13px"><input type="radio" name="cuest-wiz-lista" value="'+escHtml(op)+'" '+(val===op?'checked':'')+' onchange="cuestWizSetValorLista(\''+q.id+'\',this.value)"> '+escHtml(op)+'</label>';
+    }).join('');
+  }
+  if(tipo==='multiple'){
+    const val=(valor&&Array.isArray(valor.opciones))?valor.opciones:[];
+    const opciones=q.opciones||[];
+    if(!opciones.length)return '<div style="font-size:12px;color:var(--cp-gray-400)">Esta pregunta no tiene opciones configuradas.</div>';
+    return opciones.map(function(op){
+      return '<label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;font-size:13px"><input type="checkbox" class="cuest-wiz-multiple-chk" value="'+escHtml(op)+'" '+(val.indexOf(op)>=0?'checked':'')+' onchange="cuestWizSyncMultiple(\''+q.id+'\')"> '+escHtml(op)+'</label>';
+    }).join('');
+  }
+  if(tipo==='emocional'){
+    const val=(valor&&typeof valor.valor==='string')?valor.valor:null;
+    const opciones=cuestNormalizaOpcionesEmocional(q.opciones||[]);
+    if(!opciones.length)return '<div style="font-size:12px;color:var(--cp-gray-400)">Esta pregunta no tiene opciones configuradas.</div>';
+    return '<div style="display:flex;gap:10px;flex-wrap:wrap">'+opciones.map(function(op){
+      const selected=val===op.texto;
+      return '<button type="button" class="btn-sm '+(selected?'btn-blue':'btn-ghost')+'" style="flex-direction:column;gap:4px;padding:10px 14px" data-valor="'+escHtml(op.texto)+'" onclick="cuestWizSetValorEmocional(\''+q.id+'\',this.dataset.valor)"><i class="ti '+(op.icono?escHtml(op.icono):'ti-mood-neutral')+'" style="font-size:20px"></i><span style="font-size:11px">'+escHtml(op.texto)+'</span></button>';
+    }).join('')+'</div>';
+  }
+  // abierta
+  const texto=(valor&&typeof valor.texto==='string')?valor.texto:'';
+  return '<textarea class="form-input" rows="4" placeholder="Escribe tu respuesta…" oninput="cuestWizSetValorAbierta(\''+q.id+'\',this.value)">'+escHtml(texto)+'</textarea>';
+}
+function cuestWizSetValorBool(preguntaId,v){_cuestWizValores[preguntaId]={valor:v};cuestWizRenderPregunta();}
+function cuestWizSetValorLista(preguntaId,v){_cuestWizValores[preguntaId]={opcion:v};cuestWizUpdateFinalizarBtn();}
+function cuestWizSetValorEmocional(preguntaId,v){_cuestWizValores[preguntaId]={valor:v};cuestWizRenderPregunta();}
+function cuestWizSetValorAbierta(preguntaId,v){_cuestWizValores[preguntaId]={texto:v};cuestWizUpdateFinalizarBtn();}
+function cuestWizSyncMultiple(preguntaId){
+  const vals=[];
+  document.querySelectorAll('.cuest-wiz-multiple-chk:checked').forEach(function(cb){vals.push(cb.value);});
+  _cuestWizValores[preguntaId]={opciones:vals};
+  cuestWizUpdateFinalizarBtn();
+}
+function cuestWizAnterior(){if(_cuestWizIndex>0){_cuestWizIndex--;cuestWizRenderPregunta();}}
+function cuestWizSiguiente(){if(_cuestWizIndex<_cuestWizPreguntasOrdenadas.length-1){_cuestWizIndex++;cuestWizRenderPregunta();}}
+
+async function cuestWizGuardarTodasLasRespuestas(){
+  let allOk=true;
+  for(const preguntaId in _cuestWizValores){
+    const valor=_cuestWizValores[preguntaId];
+    if(valor==null)continue;
+    const ok=await cuestSaveRespuestaDetalle(preguntaId,valor);
+    if(!ok)allOk=false;
+  }
+  return allOk;
+}
+async function cuestWizGuardarYSalir(){
+  setBtn('cuest-wiz-guardar-btn',true);
+  const ok=await cuestWizGuardarTodasLasRespuestas();
+  setBtn('cuest-wiz-guardar-btn',false);
+  if(!ok){toast('Algunas respuestas no se guardaron. Intenta de nuevo.','error');return;}
+  toast('Progreso guardado ✓','success');
+  cuestWizCerrar();
+}
+
+// Compara el valor capturado contra pregunta.respuestaCorrecta y devuelve
+// una fracción de acierto 0..1, o null si NO es evaluable (sin
+// respuesta_correcta configurada para esa pregunta, o sin valor capturado).
+// Usada TANTO por el cálculo de calificación (peso × fracción) COMO por la
+// regla de disparo de folios (dispara si fracción<1) — un solo lugar que
+// lee pregunta.tipoRespuesta/opciones/respuestaCorrecta REALES de
+// cuest_preguntas, nunca un resultado hardcodeado por pregunta.
+function cuestWizFraccionCorrecta(pregunta,valor){
+  const rc=pregunta.respuestaCorrecta,tipo=pregunta.tipoRespuesta;
+  if(tipo==='si_no'||tipo==='iconos'){
+    if(!rc||typeof rc.valor!=='boolean'||!valor||typeof valor.valor!=='boolean')return null;
+    return valor.valor===rc.valor?1:0;
+  }
+  if(tipo==='lista'){
+    const rcOp=(rc&&typeof rc.opcion==='string')?rc.opcion:((rc&&typeof rc.valor==='string')?rc.valor:null);
+    if(rcOp==null||!valor||typeof valor.opcion!=='string')return null;
+    return valor.opcion===rcOp?1:0;
+  }
+  if(tipo==='emocional'){
+    const rcVal=(rc&&typeof rc.valor==='string')?rc.valor:null;
+    if(rcVal==null||!valor||typeof valor.valor!=='string')return null;
+    return valor.valor===rcVal?1:0;
+  }
+  if(tipo==='multiple'){
+    const rcOpciones=(rc&&Array.isArray(rc.opciones))?rc.opciones:null;
+    if(!rcOpciones||!rcOpciones.length||!valor||!Array.isArray(valor.opciones))return null;
+    const seleccion=valor.opciones;
+    const aciertos=seleccion.filter(function(o){return rcOpciones.indexOf(o)>=0;}).length;
+    const errores=seleccion.filter(function(o){return rcOpciones.indexOf(o)<0;}).length;
+    return Math.max(0,(aciertos-errores)/rcOpciones.length);
+  }
+  return null; // 'abierta' u otro tipo: nunca evaluable por comparación exacta
+}
+// calificacion = suma_de_pesos_correctos / suma_de_pesos_evaluados * 100.
+// Recorre _cuestWizPreguntasOrdenadas (las preguntas REALES de la plantilla
+// abierta) — solo entran al numerador/denominador las que cuentan para
+// calificación, no son 'abierta', y son evaluables (respuesta_correcta
+// configurada + valor capturado). Sin denominador → null, nunca /0.
+function cuestWizCalcularCalificacion(){
+  let sumaEval=0,sumaCorrectos=0;
+  _cuestWizPreguntasOrdenadas.forEach(function(item){
+    const q=item.pregunta;
+    if(!q.cuentaParaCalificacion||q.tipoRespuesta==='abierta')return;
+    const frac=cuestWizFraccionCorrecta(q,_cuestWizValores[q.id]);
+    if(frac==null)return;
+    sumaEval+=q.peso||0;
+    sumaCorrectos+=(q.peso||0)*frac;
+  });
+  return sumaEval>0?Math.round((sumaCorrectos/sumaEval)*10000)/100:null;
+}
+// Evalúa dispara.genera_folio pregunta por pregunta (datos reales de
+// cuest_preguntas, mismo cuestWizFraccionCorrecta que la calificación) y
+// crea la fila en cuest_folios cuando corresponde. Asignación: geocerca de
+// la asignación → su encargado_id; si no, dispara.notifica_a; si no, null
+// (folio sin dueño, visible para admin).
+async function cuestWizEvaluarDisparos(){
+  const asignacion=cuestAsignaciones.find(function(x){return x.id===_cuestWizAsignacionId;});
+  const geocerca=(asignacion&&asignacion.geocercaId)?cuestGeocercas.find(function(x){return x.id===asignacion.geocercaId;}):null;
+  for(const item of _cuestWizPreguntasOrdenadas){
+    const q=item.pregunta;
+    if(!q.dispara||!q.dispara.genera_folio)continue;
+    const valor=_cuestWizValores[q.id];
+    let dispara;
+    if(q.tipoRespuesta==='abierta')dispara=true; // abierta: dispara siempre (regla acordada)
+    else if(!q.respuestaCorrecta)dispara=true; // sin respuesta_correcta configurada: dispara siempre
+    else{
+      const frac=cuestWizFraccionCorrecta(q,valor);
+      // frac null aquí (con respuesta_correcta SÍ configurada) solo puede
+      // significar "no se contestó" — se trata como "dispara" por el mismo
+      // criterio conservador que las dos reglas de arriba (no hay evidencia
+      // de que esté bien, así que se dispara).
+      dispara=(frac==null)?true:(frac<1);
+    }
+    if(!dispara)continue;
+    const asignadoA=(geocerca&&geocerca.encargadoId)?geocerca.encargadoId:(q.dispara.notifica_a||null);
+    const slaHoras=q.dispara.sla_horas!=null?q.dispara.sla_horas:null;
+    const fechaLimite=slaHoras!=null?new Date(Date.now()+slaHoras*3600000).toISOString():null;
+    await cuestSaveFolio({id:uid9(),respuestaId:_cuestWizRespuestaId,preguntaId:q.id,tipo:q.dispara.tipo||'incidencia',slaHoras:slaHoras,fechaLimite:fechaLimite,estado:'abierto',asignadoA:asignadoA}).catch(function(){});
+  }
+}
+// NOTA: el esquema dado para cuest_respuestas NO tiene columna de
+// calificación — se calcula y se muestra en el toast de cierre, pero no se
+// persiste todavía (no hay dónde). Si se agrega la columna más adelante,
+// cuestWizCalcularCalificacion() ya devuelve el número listo para guardar.
+async function cuestWizFinalizar(){
+  if(cuestWizObligatoriasFaltantes()>0){toast('Faltan preguntas obligatorias por responder.','error');return;}
+  setBtn('cuest-wiz-finalizar-btn',true);
+  const guardadoOk=await cuestWizGuardarTodasLasRespuestas();
+  if(!guardadoOk){setBtn('cuest-wiz-finalizar-btn',false);toast('No se pudieron guardar todas las respuestas.','error');return;}
+  const calificacion=cuestWizCalcularCalificacion();
+  await cuestWizEvaluarDisparos();
+  const resp=cuestRespuestas.find(function(r){return r.id===_cuestWizRespuestaId;});
+  const updated=Object.assign({},resp,{estado:'completado',fechaFin:new Date().toISOString()});
+  const ok=await cuestSaveRespuesta(updated);
+  setBtn('cuest-wiz-finalizar-btn',false);
+  if(!ok){toast('Error al finalizar.','error');return;}
+  const idx=cuestRespuestas.findIndex(function(r){return r.id===updated.id;});
+  if(idx!==-1)cuestRespuestas[idx]=updated;
+  auditLog('completar','cuest_respuestas',updated.id,'Cuestionario completado'+(calificacion!=null?' — calificación '+calificacion+'%':''));
+  cuestWizCerrar();
+  toast('Cuestionario finalizado ✓'+(calificacion!=null?' Calificación: '+calificacion+'%':' (sin preguntas calificables evaluables)'),'success');
 }
 
 </script>
