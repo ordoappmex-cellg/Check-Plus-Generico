@@ -30554,7 +30554,7 @@ async function cuestLoad(){
 // solo se LEE de vuelta tal como quedó guardada.
 function cuestMapFolioRow(r){
   const resp=cuestRespuestas.find(function(x){return x.id===r.respuesta_id;});
-  return {id:r.id,respuestaId:r.respuesta_id,preguntaId:r.pregunta_id,tipo:r.tipo,asignadoA:r.asignado_a,slaHoras:r.sla_horas!=null?Number(r.sla_horas):null,fechaLimite:r.fecha_limite||null,estado:r.estado,createdAt:r.created_at,resolucionTexto:r.resolucion_texto||'',resolucionEvidencias:Array.isArray(r.resolucion_evidencias)?r.resolucion_evidencias:[],aprobadoPor:r.aprobado_por||null,fechaAprobacion:r.fecha_aprobacion||null,motivoRechazo:r.motivo_rechazo||null,numeroFolio:r.numero_folio||null,aprobadorId:resp?resp.usuarioId:null};
+  return {id:r.id,respuestaId:r.respuesta_id,preguntaId:r.pregunta_id,tipo:r.tipo,asignadoA:r.asignado_a,slaHoras:r.sla_horas!=null?Number(r.sla_horas):null,fechaLimite:r.fecha_limite||null,estado:r.estado,createdAt:r.created_at,resolucionTexto:r.resolucion_texto||'',resolucionEvidencias:Array.isArray(r.resolucion_evidencias)?r.resolucion_evidencias:[],aprobadoPor:r.aprobado_por||null,fechaAprobacion:r.fecha_aprobacion||null,motivoRechazo:r.motivo_rechazo||null,numeroFolio:r.numero_folio||null,contexto5w2h:(r.contexto_5w2h&&typeof r.contexto_5w2h==='object')?r.contexto_5w2h:{},reportePdfUrl:r.reporte_pdf_url||null,aprobadorId:resp?resp.usuarioId:null};
 }
 function cuestNormalizaOpcionesEmocional(opciones){
   return (Array.isArray(opciones)?opciones:[]).map(function(op){
@@ -31138,6 +31138,10 @@ async function cuestSetTopTab(tab,btn){
   document.getElementById('cuest-tab-asignaciones').style.display=tab==='asignaciones'?'':'none';
   document.getElementById('cuest-tab-responder').style.display=tab==='responder'?'':'none';
   document.getElementById('cuest-tab-folios').style.display=tab==='folios'?'':'none';
+  // Reloj de cuenta regresiva: solo debe correr mientras el tab Folios está
+  // a la vista — se limpia al cambiar a CUALQUIER otro tab, para no dejarlo
+  // corriendo huérfano en memoria.
+  if(tab!=='folios'&&_cuestFolioCountdownInterval){clearInterval(_cuestFolioCountdownInterval);_cuestFolioCountdownInterval=null;}
   if(tab==='geocercas')renderCuestGeocercas();
   else if(tab==='asignaciones'){
     if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
@@ -31154,6 +31158,12 @@ async function cuestSetTopTab(tab,btn){
     const todosBtn=document.getElementById('cuest-folio-tab-todos');
     if(todosBtn)todosBtn.style.display=state.currentUser?.role==='admin'?'':'none';
     renderCuestFolios();
+    // Cada minuto (no cada segundo, no hace falta esa precisión) — vuelve a
+    // pintar la tabla completa, que ya lee f.fechaLimite en vivo contra
+    // Date.now() en cada render. Reinicia el timer si ya había uno (volver
+    // a este mismo tab no debe apilar intervalos).
+    if(_cuestFolioCountdownInterval)clearInterval(_cuestFolioCountdownInterval);
+    _cuestFolioCountdownInterval=setInterval(renderCuestFolios,60000);
   }
 }
 
@@ -31485,6 +31495,8 @@ let _cuestWizPreguntasOrdenadas=[]; // [{pregunta,seccion}], aplanado en orden s
 let _cuestWizIndex=0;
 let _cuestWizValores={}; // {preguntaId: valor jsonb} — se actualiza en memoria al tocar un control, se persiste solo al guardar
 let _cuestWizDetalleIds={}; // {preguntaId: id de la fila en cuest_respuestas_detalle} — estable durante la sesión para que sbUpsert actualice en vez de insertar una fila nueva cada "Guardar y salir"
+let _cuestWizContexto5w2h={}; // {preguntaId: {que,por_que,cuando,donde,quien,como,cuanto,observaciones}} — TODO opcional, solo vive en memoria hasta cuestWizEvaluarDisparos (no hay folio antes de finalizar, así que no hay dónde persistirlo a medio wizard)
+let _cuestWizAvisoFolioEstado={preguntaId:null,visible:false}; // evita reconstruir el banner+formulario 5W2H si nada cambió (perdería el foco/lo tecleado)
 
 async function cuestSaveRespuesta(r){return sbUpsert('cuest_respuestas',{id:r.id,asignacion_id:r.asignacionId,usuario_id:r.usuarioId,estado:r.estado,fecha_inicio:r.fechaInicio||null,fecha_fin:r.fechaFin||null,ubicacion_inicio:r.ubicacionInicio||null,ubicacion_fin:r.ubicacionFin||null,dentro_geocerca:r.dentroGeocerca!=null?r.dentroGeocerca:null});}
 async function cuestSaveRespuestaDetalle(preguntaId,valor){
@@ -31493,7 +31505,110 @@ async function cuestSaveRespuestaDetalle(preguntaId,valor){
   if(ok)_cuestWizDetalleIds[preguntaId]=id;
   return ok;
 }
-async function cuestSaveFolio(f){return sbUpsert('cuest_folios',{id:f.id,respuesta_id:f.respuestaId,pregunta_id:f.preguntaId,tipo:f.tipo,sla_horas:f.slaHoras,fecha_limite:f.fechaLimite,estado:f.estado,asignado_a:f.asignadoA});}
+async function cuestSaveFolio(f){return sbUpsert('cuest_folios',{id:f.id,respuesta_id:f.respuestaId,pregunta_id:f.preguntaId,tipo:f.tipo,sla_horas:f.slaHoras,fecha_limite:f.fechaLimite,estado:f.estado,asignado_a:f.asignadoA,contexto_5w2h:f.contexto5w2h||{}});}
+// Clon del patrón REST directo ya usado en el módulo (uploadCuestGeoFoto/
+// uploadProspDocFile) — bucket PÚBLICO ya existente 'crm-documentos', ruta
+// 'folios/<folioId>/reporte-<timestamp>.pdf'. Recibe un Blob (jsPDF
+// doc.output('blob')), no un File de <input> — mismo fetch, sin checkFileSize
+// (el PDF lo genera el propio código, no lo sube el usuario).
+async function uploadCuestFolioReporte(blob,folioId){
+  const session=await sbGetSession();
+  const token=session?.access_token||state.currentUser?.token;
+  const path='folios/'+folioId+'/reporte-'+Date.now()+'.pdf';
+  const encodedPath=path.split('/').map(encodeURIComponent).join('/');
+  const res=await fetch(SUPABASE_URL+'/storage/v1/object/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath,{
+    method:'POST',
+    headers:{apikey:SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/pdf','x-upsert':'true'},
+    body:blob
+  });
+  if(!res.ok){const e=await res.json().catch(function(){return {};});throw new Error(e.message||e.error||'Error al subir el PDF. Verifica que el bucket "'+CRM_DOC_STORAGE_BUCKET+'" exista en Supabase Storage.');}
+  return SUPABASE_URL+'/storage/v1/object/public/'+CRM_DOC_STORAGE_BUCKET+'/'+encodedPath;
+}
+// Reporte PDF de un folio — MISMO patrón que crmCotizExportPdf (línea
+// ~13711: jsPDF + cpAccentHex() para el color de marca vía canvas/PDF donde
+// var() no sirve, logo de companyInfo.logoDataUrl con caja 22mm, nombre de
+// la empresa al pie) — jsPDF ya estaba cargado en este proyecto (línea
+// ~6191, jsdelivr) para las cotizaciones, no hubo que agregarlo. Única
+// diferencia real: NO usa doc.save() (no descarga) — devuelve un Blob que
+// se sube a Storage, y la función retorna la URL pública ya subida.
+async function cuestFolioGenerarReportePdf(folio){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'letter'});
+  const marginX=14;
+  let y=16;
+  const accentRgb=_hexToRgbString(cpAccentHex()).split(',').map(Number);
+
+  let hasLogo=false;
+  const LOGO_BOX=22;
+  const logoTop=y-6;
+  if(companyInfo.logoDataUrl){
+    try{
+      const props=doc.getImageProperties(companyInfo.logoDataUrl);
+      let w=LOGO_BOX,h=LOGO_BOX;
+      if(props&&props.width&&props.height){
+        const ratio=props.width/props.height;
+        if(ratio>=1)h=LOGO_BOX/ratio;else w=LOGO_BOX*ratio;
+      }
+      let fmt='PNG';
+      const m=/^data:image\/(\w+);base64,/.exec(companyInfo.logoDataUrl);
+      if(m)fmt=(m[1].toUpperCase()==='JPG'?'JPEG':m[1].toUpperCase());
+      doc.setFillColor(255,255,255);
+      doc.rect(marginX,logoTop,LOGO_BOX,LOGO_BOX,'F');
+      doc.addImage(companyInfo.logoDataUrl,fmt,marginX+(LOGO_BOX-w)/2,logoTop+(LOGO_BOX-h)/2,w,h,undefined,'NONE');
+      hasLogo=true;
+    }catch(e){console.warn('cuestFolioGenerarReportePdf logo',e);}
+  }
+  if(hasLogo)y=logoTop+LOGO_BOX+2;
+
+  doc.setDrawColor(200);doc.line(marginX,y,196,y);y+=8;
+
+  doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.setTextColor(accentRgb[0],accentRgb[1],accentRgb[2]);
+  doc.text('Plan de acción #'+(folio.numeroFolio||'(sin número)'),marginX,y);y+=8;
+  doc.setTextColor(0,0,0);
+
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  const ubicacion=cuestFolioUbicacionLabel(folio);
+  const lineas=['Plantilla: '+cuestFolioPlantillaLabel(folio),'Pregunta: '+cuestFolioPreguntaLabel(folio.preguntaId)];
+  if(ubicacion&&ubicacion!=='—')lineas.push('Ubicación: '+ubicacion);
+  lineas.push('Fecha: '+new Date().toLocaleDateString('es-MX'));
+  lineas.push('Asignado a: '+(folio.asignadoA?cuestAsigUsuarioLabel(folio.asignadoA):'— Sin asignar —'));
+  lineas.forEach(function(line){
+    const split=doc.splitTextToSize(line,182);
+    doc.text(split,marginX,y);y+=split.length*5;
+  });
+  y+=3;
+
+  // Contexto 5W2H — omite los campos vacíos, nunca imprime "Qué: (vacío)".
+  const ctx=folio.contexto5w2h||{};
+  const camposConValor=CUEST_5W2H_CAMPOS.filter(function(c){return ctx[c.id];});
+  if(camposConValor.length||ctx.observaciones){
+    doc.setDrawColor(220);doc.line(marginX,y,196,y);y+=6;
+    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text('Contexto',marginX,y);y+=6;
+    doc.setFont('helvetica','normal');doc.setFontSize(10);
+    camposConValor.forEach(function(c){
+      const split=doc.splitTextToSize(c.label+': '+ctx[c.id],182);
+      doc.text(split,marginX,y);y+=split.length*5+1;
+    });
+    if(ctx.observaciones){
+      y+=2;
+      doc.setFont('helvetica','bold');doc.text('Observaciones',marginX,y);y+=5;
+      doc.setFont('helvetica','normal');
+      const split=doc.splitTextToSize(ctx.observaciones,182);
+      doc.text(split,marginX,y);y+=split.length*5;
+    }
+  }
+
+  if(companyInfo.nombre){
+    const pageH=doc.internal.pageSize.getHeight();
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(150,150,150);
+    doc.text(companyInfo.nombre,marginX,pageH-10);
+    doc.setTextColor(0,0,0);
+  }
+
+  const blob=doc.output('blob');
+  return uploadCuestFolioReporte(blob,folio.id);
+}
 // Query acotada por respuesta_id (NUNCA sbGetAll completo de la tabla) — ver
 // nota en cuestLoad. Mismo patrón que prospDocsLoad (línea ~13195).
 async function cuestRespWizLoadDetalle(respuestaId){
@@ -31575,6 +31690,8 @@ async function cuestWizAbrir(asignacionId){
   _cuestWizAsignacionId=asignacionId;
   _cuestWizValores={};
   _cuestWizDetalleIds={};
+  _cuestWizContexto5w2h={};
+  _cuestWizAvisoFolioEstado={preguntaId:null,visible:false};
   const detalle=await cuestRespWizLoadDetalle(resp.id);
   detalle.forEach(function(d){_cuestWizValores[d.preguntaId]=d.valor;_cuestWizDetalleIds[d.preguntaId]=d.id;});
   _cuestWizPreguntasOrdenadas=cuestWizBuildPreguntasOrdenadas(asignacion.plantillaId);
@@ -31590,6 +31707,7 @@ function cuestWizCerrarConfirm(){
 function cuestWizCerrar(){
   _cuestWizRespuestaId=null;_cuestWizAsignacionId=null;
   _cuestWizValores={};_cuestWizDetalleIds={};_cuestWizPreguntasOrdenadas=[];_cuestWizIndex=0;
+  _cuestWizContexto5w2h={};_cuestWizAvisoFolioEstado={preguntaId:null,visible:false};
   document.getElementById('cuest-resp-wizard-wrap').style.display='none';
   document.getElementById('cuest-resp-lista-wrap').style.display='';
   renderCuestResponder();
@@ -31640,16 +31758,72 @@ function cuestWizAvisoFolioAsignadoLabel(q){
 // Se llama en cada cambio de respuesta (no solo al navegar) — banner
 // discreto, no bloqueante, que aparece/desaparece según la respuesta actual
 // dispare o no. Nunca se "queda pegado": si no dispara, limpia el contenedor.
+// Reconstruye el banner SOLO si algo relevante cambió (pregunta distinta, o
+// pasó de no-dispara a sí-dispara o viceversa) — si ya estaba mostrando el
+// aviso para la MISMA pregunta, no toca el DOM: evita perder el foco/lo
+// tecleado en el formulario 5W2H si el usuario lo tiene abierto.
 function cuestWizActualizarAvisoFolio(){
   const cont=document.getElementById('cuest-wiz-folio-aviso');if(!cont)return;
   const item=_cuestWizPreguntasOrdenadas[_cuestWizIndex];
-  if(!item){cont.innerHTML='';return;}
+  if(!item){cont.innerHTML='';_cuestWizAvisoFolioEstado={preguntaId:null,visible:false};return;}
   const q=item.pregunta;
-  if(!q.dispara||!q.dispara.genera_folio){cont.innerHTML='';return;}
-  const valor=_cuestWizValores[q.id];
-  if(!cuestWizAvisoFolioDispararia(q,valor)){cont.innerHTML='';return;}
+  const debeMostrar=!!(q.dispara&&q.dispara.genera_folio)&&cuestWizAvisoFolioDispararia(q,_cuestWizValores[q.id]);
+  if(!debeMostrar){
+    if(_cuestWizAvisoFolioEstado.visible||_cuestWizAvisoFolioEstado.preguntaId!==q.id)cont.innerHTML='';
+    _cuestWizAvisoFolioEstado={preguntaId:q.id,visible:false};
+    return;
+  }
+  if(_cuestWizAvisoFolioEstado.visible&&_cuestWizAvisoFolioEstado.preguntaId===q.id)return; // sin cambios reales, no reconstruye
   const nombre=cuestWizAvisoFolioAsignadoLabel(q);
-  cont.innerHTML='<div style="display:flex;align-items:center;gap:8px;background:var(--cp-amber-light);color:#78350f;border-radius:8px;padding:8px 10px;font-size:12px;margin-top:12px"><i class="ti ti-alert-triangle"></i> Esto generará un plan de acción para <b>'+escHtml(nombre)+'</b>.</div>';
+  cont.innerHTML='<div style="background:var(--cp-amber-light);color:#78350f;border-radius:8px;padding:10px;margin-top:12px">'+
+    '<div style="display:flex;align-items:center;gap:8px;font-size:12px;flex-wrap:wrap">'+
+      '<i class="ti ti-alert-triangle"></i><span style="flex:1">Esto generará un plan de acción para <b>'+escHtml(nombre)+'</b>.</span>'+
+      '<button type="button" class="btn-sm btn-ghost" style="padding:2px 8px;font-size:11px;color:#78350f;border-color:#78350f" onclick="cuestWiz5w2hToggle(\''+q.id+'\')"><i class="ti ti-plus"></i> Agregar detalles</button>'+
+    '</div>'+
+    '<div id="cuest-wiz-5w2h-form-'+q.id+'" style="display:none;margin-top:10px"></div>'+
+  '</div>';
+  _cuestWizAvisoFolioEstado={preguntaId:q.id,visible:true};
+}
+// ── Formulario 5W2H opcional (expande el banner de aviso) ──────────────────
+// TODOS los campos son opcionales, sin validación — nunca bloquea Siguiente
+// ni Finalizar. Se guarda en _cuestWizContexto5w2h (memoria, por preguntaId)
+// y viaja como contexto_5w2h al crear el folio en cuestWizEvaluarDisparos.
+const CUEST_5W2H_CAMPOS=[
+  {id:'que',label:'Qué'},{id:'por_que',label:'Por qué'},{id:'cuando',label:'Cuándo'},
+  {id:'donde',label:'Dónde'},{id:'quien',label:'Quién'},{id:'como',label:'Cómo'},{id:'cuanto',label:'Cuánto'}
+];
+// Renderizado perezoso: el HTML del formulario se arma una sola vez, la
+// primera vez que se expande (dataset.built) — así no se reconstruye ni se
+// pierde el foco cada vez que se abre/cierra con el mismo botón.
+function cuestWiz5w2hToggle(preguntaId){
+  const wrap=document.getElementById('cuest-wiz-5w2h-form-'+preguntaId);if(!wrap)return;
+  if(wrap.style.display==='none'){
+    if(!wrap.dataset.built){wrap.innerHTML=cuestWiz5w2hFormHtml(preguntaId);wrap.dataset.built='1';}
+    wrap.style.display='';
+  }else{
+    wrap.style.display='none';
+  }
+}
+function cuestWiz5w2hFormHtml(preguntaId){
+  const ctx=_cuestWizContexto5w2h[preguntaId]||{};
+  let html='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  CUEST_5W2H_CAMPOS.forEach(function(c){
+    html+='<div class="form-field"><label class="form-label" style="color:#78350f">'+c.label+'</label><input type="text" class="form-input" style="font-size:12px" value="'+escHtml(ctx[c.id]||'')+'" oninput="cuestWiz5w2hSetCampo(\''+preguntaId+'\',\''+c.id+'\',this.value)"></div>';
+  });
+  html+='</div>';
+  html+='<div class="form-field full" style="margin-top:8px"><label class="form-label" style="color:#78350f">Observaciones</label><textarea class="form-input" rows="2" style="font-size:12px" oninput="cuestWiz5w2hSetCampo(\''+preguntaId+'\',\'observaciones\',this.value)">'+escHtml(ctx.observaciones||'')+'</textarea></div>';
+  return html;
+}
+// Escribe directo a memoria en cada tecla (igual que _cuestWizValores) — así
+// el dato sobrevive aunque el banner se reconstruya después por cualquier
+// otro motivo. Campo vacío se BORRA de _cuestWizContexto5w2h[preguntaId] en
+// vez de guardarse como '' — así un formulario nunca tocado, o vaciado por
+// completo, queda como {} real (regla explícita del prompt).
+function cuestWiz5w2hSetCampo(preguntaId,campo,valor){
+  if(!_cuestWizContexto5w2h[preguntaId])_cuestWizContexto5w2h[preguntaId]={};
+  const v=(valor||'').trim();
+  if(v)_cuestWizContexto5w2h[preguntaId][campo]=v;
+  else delete _cuestWizContexto5w2h[preguntaId][campo];
 }
 
 function cuestWizRenderPregunta(){
@@ -31852,7 +32026,9 @@ async function cuestWizEvaluarDisparos(){
     const asignadoA=(geocerca&&geocerca.encargadoId)?geocerca.encargadoId:(q.dispara.notifica_a||null);
     const slaHoras=q.dispara.sla_horas!=null?q.dispara.sla_horas:null;
     const fechaLimite=slaHoras!=null?new Date(Date.now()+slaHoras*3600000).toISOString():null;
-    const folio={id:uid9(),respuestaId:_cuestWizRespuestaId,preguntaId:q.id,tipo:q.dispara.tipo||'incidencia',slaHoras:slaHoras,fechaLimite:fechaLimite,estado:'abierto',asignadoA:asignadoA,resolucionTexto:'',resolucionEvidencias:[],aprobadoPor:null,fechaAprobacion:null,motivoRechazo:null,aprobadorId:respuesta?respuesta.usuarioId:null};
+    // contexto5w2h: lo que se haya capturado en el formulario opcional del
+    // banner para ESTA pregunta específica — {} si nunca se abrió/llenó.
+    const folio={id:uid9(),respuestaId:_cuestWizRespuestaId,preguntaId:q.id,tipo:q.dispara.tipo||'incidencia',slaHoras:slaHoras,fechaLimite:fechaLimite,estado:'abierto',asignadoA:asignadoA,contexto5w2h:_cuestWizContexto5w2h[q.id]||{},resolucionTexto:'',resolucionEvidencias:[],aprobadoPor:null,fechaAprobacion:null,motivoRechazo:null,aprobadorId:respuesta?respuesta.usuarioId:null};
     // BUGFIX: antes no se empujaba a cuestFolios tras crearlo — el folio
     // quedaba bien guardado en la base (confirmado en Table Editor:
     // asignado_a correcto) pero invisible en la pestaña "Folios" hasta el
@@ -31878,7 +32054,22 @@ async function cuestWizFinalizar(){
   // Recarga los folios de esta respuesta desde la base DESPUÉS de crearlos
   // — es la única forma de conocer numero_folio real (lo asigna la
   // SEQUENCE al insertar, cuestSaveFolio nunca lo envía ni lo calcula).
-  await cuestFolioWizRecargarPorRespuesta(_cuestWizRespuestaId);
+  const foliosCreados=await cuestFolioWizRecargarPorRespuesta(_cuestWizRespuestaId);
+  // PDF de reporte por cada folio recién creado — YA con numero_folio real.
+  // Cortesía, nunca bloquea el cierre: si un PDF falla (Storage, jsPDF,
+  // etc.) el folio sigue existiendo y funcionando sin reporte_pdf_url —
+  // renderCuestFolios/cuestFolioDetalleHtml ya lo tratan como opcional.
+  for(const f of foliosCreados){
+    try{
+      const url=await cuestFolioGenerarReportePdf(f);
+      const okPdf=await sbUpsert('cuest_folios',{id:f.id,reporte_pdf_url:url});
+      if(okPdf){
+        f.reportePdfUrl=url;
+        const idxF=cuestFolios.findIndex(function(x){return x.id===f.id;});
+        if(idxF!==-1)cuestFolios[idxF].reportePdfUrl=url;
+      }
+    }catch(err){console.warn('cuestFolioGenerarReportePdf',f.id,err);}
+  }
   const resp=cuestRespuestas.find(function(r){return r.id===_cuestWizRespuestaId;});
   const fechaInicio=resp?resp.fechaInicio:null;
   const fechaFin=new Date().toISOString();
@@ -31944,6 +32135,7 @@ const CUEST_FOLIO_ESTADO_LABELS={abierto:'Abierto',en_proceso:'En proceso',pendi
 const CUEST_FOLIO_ESTADO_BADGE={abierto:'badge-gray',en_proceso:'badge-blue',pendiente_aprobacion:'badge-amber',resuelto:'badge-green',vencido:'badge-red'};
 let _cuestFoliosVista='asignados';
 let _cuestFolioDetalleId=null;
+let _cuestFolioCountdownInterval=null; // reloj de "Vence en/Vencido hace", arrancado al entrar al tab Folios y limpiado al salir (cuestSetTopTab)
 
 function cuestFolioPreguntaLabel(preguntaId){const q=cuestPreguntas.find(function(x){return x.id===preguntaId;});return q?q.texto:'(pregunta eliminada)';}
 function cuestFolioRespuesta(folio){return cuestRespuestas.find(function(r){return r.id===folio.respuestaId;});}
@@ -31952,6 +32144,17 @@ function cuestFolioUbicacionLabel(folio){const asig=cuestFolioAsignacion(folio);
 function cuestFolioPlantillaLabel(folio){const asig=cuestFolioAsignacion(folio);return asig?cuestAsigPlantillaLabel(asig.plantillaId):'—';}
 // Vencido es SOLO visual — nunca se escribe estado='vencido' desde aquí.
 function cuestFolioEstaVencido(folio){return folio.estado!=='resuelto'&&!!folio.fechaLimite&&new Date(folio.fechaLimite).getTime()<Date.now();}
+// "Vence en 2h 15min" / "Vencido hace 3h 10min" — en minutos, nunca segundos
+// (no hace falta esa precisión). null si no aplica (sin fecha límite, o ya
+// resuelto — mismo criterio que cuestFolioEstaVencido).
+function cuestFolioCuentaRegresivaLabel(folio){
+  if(!folio.fechaLimite||folio.estado==='resuelto')return null;
+  const diffMs=new Date(folio.fechaLimite).getTime()-Date.now();
+  const totalMin=Math.round(Math.abs(diffMs)/60000);
+  const h=Math.floor(totalMin/60),m=totalMin%60;
+  const texto=(h>0?h+'h ':'')+m+'min';
+  return diffMs>=0?{texto:'Vence en '+texto,vencido:false}:{texto:'Vencido hace '+texto,vencido:true};
+}
 function cuestFolioPuedeActuarEncargado(f){return state.currentUser?.role==='admin'||f.asignadoA===state.currentUser?.id;}
 function cuestFolioPuedeActuarAprobador(f){return state.currentUser?.role==='admin'||f.aprobadorId===state.currentUser?.id;}
 
@@ -31991,13 +32194,20 @@ function renderCuestFolios(){
     const vencido=cuestFolioEstaVencido(f);
     const estadoBadge=CUEST_FOLIO_ESTADO_BADGE[f.estado]||'badge-gray';
     const estadoLabel=CUEST_FOLIO_ESTADO_LABELS[f.estado]||f.estado;
+    const cuenta=cuestFolioCuentaRegresivaLabel(f);
+    const cuentaHtml=cuenta?'<div style="font-size:11px;'+(cuenta.vencido?'color:var(--cp-red);font-weight:600':'color:var(--cp-gray-400)')+'">'+escHtml(cuenta.texto)+'</div>':'';
     return '<tr>'+
       '<td><div style="font-size:13px;font-weight:600;color:var(--cp-navy)">'+escHtml(cuestFolioPlantillaLabel(f))+'</div><div style="font-size:11px;color:var(--cp-gray-400)">'+escHtml(cuestFolioPreguntaLabel(f.preguntaId))+'</div></td>'+
       '<td>'+escHtml(cuestFolioUbicacionLabel(f))+'</td>'+
       '<td>'+escHtml(cuestAsigUsuarioLabel(f.asignadoA))+'</td>'+
       '<td><span class="badge '+estadoBadge+'">'+escHtml(estadoLabel)+'</span></td>'+
-      '<td>'+(f.fechaLimite?('<span'+(vencido?' style="color:var(--cp-red);font-weight:700"':'')+'>'+new Date(f.fechaLimite).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'})+'</span>'):'—')+(vencido?' <span class="badge badge-red" style="margin-left:4px">Vencido</span>':'')+'</td>'+
-      '<td><button class="btn-sm btn-ghost" onclick="openCuestFolioDetalle(\''+f.id+'\')"><i class="ti ti-eye"></i> Ver</button></td>'+
+      '<td>'+(f.fechaLimite?('<span'+(vencido?' style="color:var(--cp-red);font-weight:700"':'')+'>'+new Date(f.fechaLimite).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'})+'</span>'+cuentaHtml):'—')+(vencido?' <span class="badge badge-red" style="margin-left:4px">Vencido</span>':'')+'</td>'+
+      '<td style="display:flex;gap:4px;white-space:nowrap">'+
+        '<button class="btn-sm btn-ghost" onclick="openCuestFolioDetalle(\''+f.id+'\')"><i class="ti ti-eye"></i> Ver</button>'+
+        // Folios de antes de este cambio no tienen reporte_pdf_url — el
+        // botón simplemente no se pinta, nunca truena por PDF faltante.
+        (f.reportePdfUrl?'<a href="'+escHtml(f.reportePdfUrl)+'" target="_blank" rel="noopener" class="btn-sm btn-ghost" title="Ver reporte PDF"><i class="ti ti-file-type-pdf"></i></a>':'')+
+      '</td>'+
     '</tr>';
   }).join('');
 }
@@ -32016,7 +32226,12 @@ function cuestFolioDetalleHtml(f){
   html+='<span><i class="ti ti-user"></i> '+escHtml(cuestAsigUsuarioLabel(f.asignadoA))+'</span>';
   if(f.fechaLimite)html+='<span'+(vencido?' style="color:var(--cp-red);font-weight:700"':'')+'><i class="ti ti-clock"></i> '+new Date(f.fechaLimite).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'})+(vencido?' (Vencido)':'')+'</span>';
   html+='</div>';
-  html+='<div style="margin-bottom:12px"><span class="badge '+(CUEST_FOLIO_ESTADO_BADGE[f.estado]||'badge-gray')+'">'+escHtml(CUEST_FOLIO_ESTADO_LABELS[f.estado]||f.estado)+'</span></div>';
+  html+='<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">';
+  html+='<span class="badge '+(CUEST_FOLIO_ESTADO_BADGE[f.estado]||'badge-gray')+'">'+escHtml(CUEST_FOLIO_ESTADO_LABELS[f.estado]||f.estado)+'</span>';
+  // Folios de antes de este cambio no tienen reporte_pdf_url — el enlace
+  // simplemente no se pinta, nunca truena por PDF faltante.
+  if(f.reportePdfUrl)html+='<a href="'+escHtml(f.reportePdfUrl)+'" target="_blank" rel="noopener" style="font-size:12px;color:var(--cp-accent);display:flex;align-items:center;gap:4px"><i class="ti ti-file-type-pdf"></i> Ver reporte PDF</a>';
+  html+='</div>';
   if(f.motivoRechazo)html+='<div style="background:var(--cp-red-light);color:#7f1d1d;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:12px"><b>Rechazado:</b> '+escHtml(f.motivoRechazo)+'</div>';
   if(f.estado==='abierto'){
     html+=esEncargado
