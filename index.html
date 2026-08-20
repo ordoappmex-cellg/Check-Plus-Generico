@@ -30203,6 +30203,18 @@ const CUEST_TIPOS_RESPUESTA=[
 ];
 function cuestTipoRespuestaLabel(id){const t=CUEST_TIPOS_RESPUESTA.find(function(x){return x.id===id;});return t?t.label:id;}
 
+// Set de íconos Tabler "mood" para opciones de tipo emocional — igual que
+// CUEST_TIPOS_RESPUESTA, es un set fijo de la librería de íconos ya cargada
+// en la app (no un catálogo de negocio), así que se hardcodea a propósito.
+const CUEST_ICONOS_EMOCIONAL=[
+  {id:'ti-mood-cry',label:'Muy mal'},
+  {id:'ti-mood-sad',label:'Mal'},
+  {id:'ti-mood-confuzed',label:'Regular'},
+  {id:'ti-mood-neutral',label:'Neutral'},
+  {id:'ti-mood-smile',label:'Bien'},
+  {id:'ti-mood-happy',label:'Muy bien'}
+];
+
 // ── cuest_config — tabla propia del módulo, patrón clave/valor análogo a
 // app_config pero NUNCA reutilizarla: es una tabla distinta (clave/valor,
 // no id/config). ──────────────────────────────────────────────────────────
@@ -30255,7 +30267,20 @@ async function cuestLoad(){
   // (mismo gotcha ya documentado en _crmCotizNum/_crmCotizComputeTotal para
   // otra tabla de este proyecto); Number() explícito o la suma del peso
   // total concatenaría en vez de sumar.
-  cuestPreguntas=pregRaw.map(function(r){return {id:r.id,seccionId:r.seccion_id,orden:r.orden||0,texto:r.texto,tipoRespuesta:r.tipo_respuesta,opciones:Array.isArray(r.opciones)?r.opciones:[],obligatoria:r.obligatoria!==false,evidencia:r.evidencia||{tipos:[],obligatoria:false},dispara:r.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:r.peso!=null?Number(r.peso):0,cuentaParaCalificacion:r.cuenta_para_calificacion!==false,respuestaCorrecta:r.respuesta_correcta||null};});
+  cuestPreguntas=pregRaw.map(function(r){
+    let opciones=Array.isArray(r.opciones)?r.opciones:[];
+    // Compat: opciones de emocional guardadas en el formato viejo (string
+    // plano) se normalizan a {texto,icono:null} en memoria — se re-guardan
+    // ya en el formato nuevo la próxima vez que se edite la pregunta.
+    if(r.tipo_respuesta==='emocional')opciones=cuestNormalizaOpcionesEmocional(opciones);
+    return {id:r.id,seccionId:r.seccion_id,orden:r.orden||0,texto:r.texto,tipoRespuesta:r.tipo_respuesta,opciones:opciones,obligatoria:r.obligatoria!==false,evidencia:r.evidencia||{tipos:[],obligatoria:false},dispara:r.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:r.peso!=null?Number(r.peso):0,cuentaParaCalificacion:r.cuenta_para_calificacion!==false,respuestaCorrecta:r.respuesta_correcta||null};
+  });
+}
+function cuestNormalizaOpcionesEmocional(opciones){
+  return (Array.isArray(opciones)?opciones:[]).map(function(op){
+    if(op&&typeof op==='object')return {texto:op.texto||'',icono:op.icono||null};
+    return {texto:String(op||''),icono:null};
+  });
 }
 
 function renderCuestPlantillas(){
@@ -30445,10 +30470,12 @@ function cuestRenderPreguntaForm(q,seccionId,plantillaId){
   html+='<label class="form-label">'+(q.tipoRespuesta==='emocional'?'Caras / etiquetas':'Opciones')+'</label>';
   html+='<div id="cuestq-opciones-list-'+q.id+'">';
   (q.opciones||[]).forEach(function(op){
-    html+='<div class="cuestq-opcion-row" style="display:flex;gap:6px;margin-bottom:4px">'+
-      '<input type="text" class="form-input cuestq-opcion-input" style="flex:1;font-size:12px;padding:4px 8px" value="'+escHtml(op)+'" oninput="cuestSyncRespuestaCorrecta(\''+q.id+'\')">'+
-      '<button type="button" class="btn-sm btn-ghost" style="padding:3px 8px" onclick="this.closest(\'.cuestq-opcion-row\').remove();cuestSyncRespuestaCorrecta(\''+q.id+'\')"><i class="ti ti-x"></i></button>'+
-    '</div>';
+    if(q.tipoRespuesta==='emocional'){
+      const opObj=(op&&typeof op==='object')?op:{texto:String(op||''),icono:null};
+      html+=cuestOpcionRowHtml(q.id,'emocional',opObj.texto,opObj.icono);
+    }else{
+      html+=cuestOpcionRowHtml(q.id,q.tipoRespuesta,op,null);
+    }
   });
   html+='</div>';
   html+='<button type="button" class="btn-sm btn-ghost" style="font-size:11px" onclick="cuestAddOpcionRow(\''+q.id+'\')"><i class="ti ti-plus"></i> Agregar opción</button>';
@@ -30501,6 +30528,9 @@ function cuestRenderPreguntaForm(q,seccionId,plantillaId){
 // fallback) para lista, {opciones:[...]} para multiple.
 function cuestRenderCorrectaBlock(preguntaId,tipo,opciones,rc){
   if(tipo==='abierta')return '';
+  // emocional guarda opciones como [{texto,icono}] — la respuesta correcta
+  // sigue matcheando solo por texto (el ícono es visual, no participa aquí).
+  if(tipo==='emocional')opciones=(opciones||[]).map(function(op){return(op&&typeof op==='object')?(op.texto||''):String(op||'');});
   let val=null,vals=[];
   if(tipo==='si_no'||tipo==='iconos'){val=(rc&&typeof rc.valor==='boolean')?rc.valor:null;}
   else if(tipo==='lista'){val=(rc&&typeof rc.opcion==='string')?rc.opcion:((rc&&typeof rc.valor==='string')?rc.valor:null);}
@@ -30552,22 +30582,41 @@ function cuestSyncRespuestaCorrecta(preguntaId){
   });
   wrap.innerHTML=cuestRenderCorrectaBlock(preguntaId,tipo,opciones,prevRc);
 }
+// Genera una fila de opción — texto siempre, + selector de ícono cuando
+// tipo==='emocional' (grid/dropdown de CUEST_ICONOS_EMOCIONAL). lista/multiple
+// se quedan solo con el input de texto, sin cambios de comportamiento.
+function cuestOpcionRowHtml(preguntaId,tipo,texto,icono){
+  texto=texto||'';icono=icono||'';
+  let html='<div class="cuestq-opcion-row" style="display:flex;gap:6px;margin-bottom:4px;align-items:center">';
+  html+='<input type="text" class="form-input cuestq-opcion-input" style="flex:1;font-size:12px;padding:4px 8px" value="'+escHtml(texto)+'" oninput="cuestSyncRespuestaCorrecta(\''+preguntaId+'\')">';
+  if(tipo==='emocional'){
+    html+='<i class="ti '+(icono?escHtml(icono):'ti-mood-neutral')+' cuestq-opcion-icon-preview" style="font-size:18px;color:var(--cp-gray-400);width:20px;text-align:center;flex-shrink:0"></i>';
+    html+='<select class="form-input cuestq-opcion-icono" style="width:130px;font-size:12px;padding:4px 6px;flex-shrink:0" onchange="cuestOpcionIconoChange(this)">';
+    html+='<option value="">— Sin ícono —</option>';
+    html+=CUEST_ICONOS_EMOCIONAL.map(function(ic){return '<option value="'+ic.id+'"'+(icono===ic.id?' selected':'')+'>'+escHtml(ic.label)+'</option>';}).join('');
+    html+='</select>';
+  }
+  html+='<button type="button" class="btn-sm btn-ghost" style="padding:3px 8px" onclick="this.closest(\'.cuestq-opcion-row\').remove();cuestSyncRespuestaCorrecta(\''+preguntaId+'\')"><i class="ti ti-x"></i></button>';
+  html+='</div>';
+  return html;
+}
+// Sincroniza el ícono de vista previa (junto al select) cuando cambia la selección.
+function cuestOpcionIconoChange(sel){
+  const row=sel.closest('.cuestq-opcion-row');
+  const preview=row&&row.querySelector('.cuestq-opcion-icon-preview');
+  if(preview)preview.className='ti '+(sel.value||'ti-mood-neutral')+' cuestq-opcion-icon-preview';
+}
 function cuestAddOpcionRow(preguntaId){
   const list=document.getElementById('cuestq-opciones-list-'+preguntaId);
   if(!list)return;
-  const row=document.createElement('div');
-  row.className='cuestq-opcion-row';
-  row.style.cssText='display:flex;gap:6px;margin-bottom:4px';
-  const inp=document.createElement('input');
-  inp.type='text';inp.className='form-input cuestq-opcion-input';inp.style.cssText='flex:1;font-size:12px;padding:4px 8px';
-  inp.addEventListener('input',function(){cuestSyncRespuestaCorrecta(preguntaId);});
-  const btn=document.createElement('button');
-  btn.type='button';btn.className='btn-sm btn-ghost';btn.style.cssText='padding:3px 8px';
-  btn.innerHTML='<i class="ti ti-x"></i>';
-  btn.addEventListener('click',function(){row.remove();cuestSyncRespuestaCorrecta(preguntaId);});
-  row.appendChild(inp);row.appendChild(btn);
+  const tipoSel=document.getElementById('cuestq-tipo-'+preguntaId);
+  const tipo=tipoSel?tipoSel.value:'';
+  const wrapper=document.createElement('div');
+  wrapper.innerHTML=cuestOpcionRowHtml(preguntaId,tipo,'',null);
+  const row=wrapper.firstElementChild;
   list.appendChild(row);
-  inp.focus();
+  const inp=row.querySelector('.cuestq-opcion-input');
+  if(inp)inp.focus();
 }
 // "Peso total" en la cabecera de la ficha — suma en vivo el peso de las
 // preguntas con cuenta_para_calificacion=true de la plantilla abierta. Si una
@@ -30603,6 +30652,18 @@ function cuestOnTipoRespuestaChange(preguntaId){
     const label=wrap.querySelector('.form-label');
     if(label)label.textContent=tipo==='emocional'?'Caras / etiquetas':'Opciones';
   }
+  // Al cambiar de tipo, reconstruye las filas de opciones ya tecleadas para
+  // que ganen/pierdan el selector de ícono (emocional) sin perder el texto.
+  const list=document.getElementById('cuestq-opciones-list-'+preguntaId);
+  if(list){
+    const rows=[];
+    list.querySelectorAll('.cuestq-opcion-row').forEach(function(row){
+      const inp=row.querySelector('.cuestq-opcion-input');
+      const iconoSel=row.querySelector('.cuestq-opcion-icono');
+      rows.push({texto:inp?inp.value:'',icono:iconoSel?iconoSel.value:null});
+    });
+    list.innerHTML=rows.map(function(r){return cuestOpcionRowHtml(preguntaId,tipo,r.texto,r.icono);}).join('');
+  }
   cuestSyncRespuestaCorrecta(preguntaId);
   const cuentaCb=document.getElementById('cuestq-cuenta-'+preguntaId);
   if(cuentaCb){
@@ -30637,9 +30698,19 @@ async function cuestGuardarPregunta(preguntaId,seccionId,plantillaId){
   const tipoRespuesta=document.getElementById('cuestq-tipo-'+preguntaId)?.value||'abierta';
   const obligatoria=!!document.getElementById('cuestq-obligatoria-'+preguntaId)?.checked;
   let opciones=[];
-  if(tipoRespuesta==='lista'||tipoRespuesta==='multiple'||tipoRespuesta==='emocional'){
+  if(tipoRespuesta==='lista'||tipoRespuesta==='multiple'){
     document.querySelectorAll('#cuestq-opciones-list-'+preguntaId+' .cuestq-opcion-input').forEach(function(inp){
       const v=inp.value.trim();if(v)opciones.push(v);
+    });
+  }else if(tipoRespuesta==='emocional'){
+    // Opciones emocional = [{texto,icono}] — icono queda null si no se
+    // eligió, nunca bloquea el guardado (regla del prompt).
+    document.querySelectorAll('#cuestq-opciones-list-'+preguntaId+' .cuestq-opcion-row').forEach(function(row){
+      const inp=row.querySelector('.cuestq-opcion-input');
+      const v=inp?inp.value.trim():'';
+      if(!v)return;
+      const iconoSel=row.querySelector('.cuestq-opcion-icono');
+      opciones.push({texto:v,icono:(iconoSel&&iconoSel.value)?iconoSel.value:null});
     });
   }
   const evTipos=[];
