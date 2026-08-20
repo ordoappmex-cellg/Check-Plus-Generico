@@ -3369,6 +3369,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <button class="org-view-btn" id="cuest-tab-vw-asignaciones" onclick="cuestSetTopTab('asignaciones',this)"><i class="ti ti-user-check"></i> Asignaciones</button>
           <button class="org-view-btn" id="cuest-tab-vw-responder" onclick="cuestSetTopTab('responder',this)"><i class="ti ti-clipboard-check"></i> Responder</button>
           <button class="org-view-btn" id="cuest-tab-vw-folios" onclick="cuestSetTopTab('folios',this)"><i class="ti ti-flag"></i> Folios</button>
+          <button class="org-view-btn" id="cuest-tab-vw-jerarquia" onclick="cuestSetTopTab('jerarquia',this)"><i class="ti ti-sitemap"></i> Jerarquía</button>
         </div>
 
         <div id="cuest-tab-plantillas">
@@ -3464,6 +3465,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                 <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--cp-gray-600);cursor:pointer;white-space:nowrap">
                   <input type="checkbox" id="cuest-asig-show-inactivas" onchange="renderCuestAsignaciones()"> Ver inactivas
                 </label>
+                <div id="cuest-asig-vercomo"></div>
                 <button class="btn-sm btn-blue" id="btn-nueva-cuest-asignacion" onclick="openAddCuestAsignacion()"><i class="ti ti-plus"></i> Nueva asignación</button>
               </div>
               <table class="emp-table">
@@ -3483,7 +3485,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
         <div id="cuest-tab-responder" style="display:none">
           <div id="cuest-resp-lista-wrap">
             <div class="section-card">
-              <div class="section-header"><div class="section-title"><i class="ti ti-clipboard-check" style="margin-right:6px"></i>Mis asignaciones</div></div>
+              <div class="section-header"><div class="section-title"><i class="ti ti-clipboard-check" style="margin-right:6px"></i>Mis asignaciones</div><div id="cuest-resp-vercomo" style="margin-left:auto"></div></div>
               <div class="section-body">
                 <div id="cuest-resp-lista"></div>
               </div>
@@ -3531,11 +3533,33 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                 <button class="org-view-btn" id="cuest-folio-tab-compartidos" onclick="cuestSetFoliosVista('compartidos',this)">Compartidos conmigo</button>
                 <button class="org-view-btn" id="cuest-folio-tab-todos" onclick="cuestSetFoliosVista('todos',this)" style="display:none">Todos</button>
               </div>
+              <div id="cuest-folio-vercomo" style="margin-left:auto"></div>
             </div>
             <div class="section-body">
               <table class="emp-table">
                 <thead><tr><th>Plantilla / Pregunta</th><th>Ubicación</th><th>Asignado a</th><th>Estado</th><th>Fecha límite</th><th></th></tr></thead>
                 <tbody id="cuest-folio-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Jerarquía (cuest_jerarquia) — catálogo simple: usuario/rol_cuest/
+             supervisor, edición inline (mismo criterio que el editor de
+             catálogos de Dirección), solo admin puede escribir. El
+             supervisor disponible se filtra por el rol_cuest de la fila:
+             operario→supervisor, supervisor→gerente, gerente→sin supervisor. -->
+        <div id="cuest-tab-jerarquia" style="display:none">
+          <div class="section-card">
+            <div class="section-header"><div class="section-title"><i class="ti ti-sitemap" style="margin-right:6px"></i>Jerarquía de usuarios</div></div>
+            <div class="section-body">
+              <div class="search-bar" id="cuest-jer-add-wrap" style="display:none">
+                <select class="form-input" id="cuest-jer-add-usuario" style="width:260px"><option value="">— Selecciona usuario —</option></select>
+                <button class="btn-sm btn-blue" onclick="cuestJerarquiaAgregar()"><i class="ti ti-plus"></i> Agregar a la jerarquía</button>
+              </div>
+              <table class="emp-table">
+                <thead><tr><th>Usuario</th><th>Rol</th><th>Supervisor</th><th></th></tr></thead>
+                <tbody id="cuest-jer-tbody"></tbody>
               </table>
             </div>
           </div>
@@ -30404,7 +30428,7 @@ function sortEvalTeamTable(colIdx){
 // cuest_secciones, cuest_preguntas, cuest_geocercas, cuest_asignaciones,
 // cuest_respuestas (esquema confirmado 19/8, no inventado).
 
-let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[], cuestRespuestas=[], cuestFolios=[], cuestFolioCompartidos=[];
+let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[], cuestRespuestas=[], cuestFolios=[], cuestFolioCompartidos=[], cuestJerarquia=[];
 let _cuestConfigCache=null;
 let _cuestFichaPlantillaId=null; // plantilla actualmente abierta en la ficha, o null si estamos en la lista
 let _cuestPreguntasExpandidas={}; // {preguntaId:true} — estado de expandido en memoria, no persistido
@@ -30498,10 +30522,10 @@ async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,s
 
 // ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
 async function cuestLoad(){
-  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw,respRaw,folioRaw,compRaw]=await Promise.all([
+  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw,respRaw,folioRaw,compRaw,jerRaw]=await Promise.all([
     sbGetAll('cuest_plantillas'), sbGetAll('cuest_secciones'), sbGetAll('cuest_preguntas'),
     sbGetAll('cuest_geocercas'), sbGetAll('cuest_asignaciones'), sbGetAll('cuest_respuestas'),
-    sbGetAll('cuest_folios'), sbGetAll('cuest_folio_compartidos')
+    sbGetAll('cuest_folios'), sbGetAll('cuest_folio_compartidos'), sbGetAll('cuest_jerarquia')
   ]);
   // Se cargan TODAS (activas e inactivas) — renderCuestPlantillas() ya filtra
   // por el checkbox "Ver inactivas"; filtrar aquí las dejaría fuera del estado
@@ -30529,7 +30553,7 @@ async function cuestLoad(){
   // devolviendo numeric como string (ver comentario de peso arriba), Number()
   // explícito para que el formulario y el badge de estado no concatenen.
   cuestGeocercas=geoRaw.map(function(r){return {id:r.id,nombre:r.nombre,lat:r.lat!=null?Number(r.lat):null,lng:r.lng!=null?Number(r.lng):null,radioMetros:r.radio_metros!=null?Number(r.radio_metros):100,encargadoId:r.encargado_id||null,fotoUrl:r.foto_url||null,activo:r.activo!==false,createdAt:r.created_at};});
-  cuestAsignaciones=asigRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,asignadoA:r.asignado_a,geocercaId:r.geocerca_id||null,requiereEstarDentro:!!r.requiere_estar_dentro,fechaProgramada:r.fecha_programada||null,activo:r.activo!==false,createdAt:r.created_at};});
+  cuestAsignaciones=asigRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,asignadoA:r.asignado_a,asignadoPor:r.asignado_por||null,geocercaId:r.geocerca_id||null,requiereEstarDentro:!!r.requiere_estar_dentro,fechaProgramada:r.fecha_programada||null,activo:r.activo!==false,createdAt:r.created_at};});
   // cuest_respuestas es pequeña (1 fila por intento de asignación) y hace
   // falta completa para "Mis asignaciones" (saber si ya hay una completada o
   // una en_progreso para retomar), así que sí entra al Promise.all de arriba.
@@ -30549,6 +30573,9 @@ async function cuestLoad(){
   // compartió) — pequeña, se carga completa igual que el resto de tablas
   // chicas del módulo. Usada por la vista "Compartidos conmigo".
   cuestFolioCompartidos=compRaw.map(function(r){return {id:r.id,folioId:r.folio_id,usuarioId:r.usuario_id,compartidoPor:r.compartido_por,createdAt:r.created_at};});
+  // cuest_jerarquia: quién supervisa a quién dentro del módulo — chica,
+  // se carga completa igual que el resto de tablas chicas.
+  cuestJerarquia=jerRaw.map(function(r){return {id:r.id,usuarioId:r.usuario_id,rolCuest:r.rol_cuest,supervisorId:r.supervisor_id||null};});
 }
 // Mapeo compartido de una fila cruda de cuest_folios → objeto en memoria.
 // Extraído para reutilizarlo TAL CUAL en cuestFolioWizRecargarPorRespuesta
@@ -31136,13 +31163,14 @@ async function cuestDeletePregunta(preguntaId,seccionId,plantillaId){
 
 // ── Tabs de nivel superior de view-cuest: Plantillas / Geocercas / Asignaciones ──
 async function cuestSetTopTab(tab,btn){
-  document.querySelectorAll('#cuest-tab-vw-plantillas,#cuest-tab-vw-geocercas,#cuest-tab-vw-asignaciones,#cuest-tab-vw-responder,#cuest-tab-vw-folios').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('#cuest-tab-vw-plantillas,#cuest-tab-vw-geocercas,#cuest-tab-vw-asignaciones,#cuest-tab-vw-responder,#cuest-tab-vw-folios,#cuest-tab-vw-jerarquia').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
   document.getElementById('cuest-tab-plantillas').style.display=tab==='plantillas'?'':'none';
   document.getElementById('cuest-tab-geocercas').style.display=tab==='geocercas'?'':'none';
   document.getElementById('cuest-tab-asignaciones').style.display=tab==='asignaciones'?'':'none';
   document.getElementById('cuest-tab-responder').style.display=tab==='responder'?'':'none';
   document.getElementById('cuest-tab-folios').style.display=tab==='folios'?'':'none';
+  document.getElementById('cuest-tab-jerarquia').style.display=tab==='jerarquia'?'':'none';
   // Reloj de cuenta regresiva: solo debe correr mientras el tab Folios está
   // a la vista — se limpia al cambiar a CUALQUIER otro tab, para no dejarlo
   // corriendo huérfano en memoria.
@@ -31169,6 +31197,9 @@ async function cuestSetTopTab(tab,btn){
     // a este mismo tab no debe apilar intervalos).
     if(_cuestFolioCountdownInterval)clearInterval(_cuestFolioCountdownInterval);
     _cuestFolioCountdownInterval=setInterval(renderCuestFolios,60000);
+  }else if(tab==='jerarquia'){
+    if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
+    renderCuestJerarquia();
   }
 }
 
@@ -31383,7 +31414,7 @@ let _cuestAsigFichaPlantillaId=null; // fija cuando el modal se abrió desde la 
 function cuestAsigPlantillaLabel(id){const p=cuestPlantillas.find(function(x){return x.id===id;});return p?p.nombre:'(plantilla eliminada)';}
 function cuestAsigUsuarioLabel(id){const u=(_userProfilesCache||[]).find(function(x){return x.user_id===id;});return u?(u.display_name||u.email):id;}
 function cuestAsigGeocercaLabel(id){if(!id)return '—';const g=cuestGeocercas.find(function(x){return x.id===id;});return g?g.nombre:'(geocerca eliminada)';}
-async function cuestSaveAsignacion(a){return sbUpsert('cuest_asignaciones',{id:a.id,plantilla_id:a.plantillaId,asignado_a:a.asignadoA,geocerca_id:a.geocercaId,requiere_estar_dentro:!!a.requiereEstarDentro,fecha_programada:a.fechaProgramada,activo:a.activo!==false});}
+async function cuestSaveAsignacion(a){return sbUpsert('cuest_asignaciones',{id:a.id,plantilla_id:a.plantillaId,asignado_a:a.asignadoA,asignado_por:a.asignadoPor||null,geocerca_id:a.geocercaId,requiere_estar_dentro:!!a.requiereEstarDentro,fecha_programada:a.fechaProgramada,activo:a.activo!==false});}
 function populateCuestAsigFiltros(){
   const pSel=document.getElementById('cuest-asig-filter-plantilla');
   if(pSel){const cur=pSel.value;pSel.innerHTML='<option value="">Todas las plantillas</option>'+cuestPlantillas.map(function(p){return '<option value="'+p.id+'"'+(p.id===cur?' selected':'')+'>'+escHtml(p.nombre)+'</option>';}).join('');pSel.value=cur;}
@@ -31392,6 +31423,8 @@ function populateCuestAsigFiltros(){
 }
 function renderCuestAsignaciones(){
   populateCuestAsigFiltros();
+  const vercomoEl=document.getElementById('cuest-asig-vercomo');
+  if(vercomoEl)vercomoEl.innerHTML=cuestRenderVerComoSelector();
   const plantillaF=document.getElementById('cuest-asig-filter-plantilla')?.value||'';
   const usuarioF=document.getElementById('cuest-asig-filter-usuario')?.value||'';
   const showInactivas=document.getElementById('cuest-asig-show-inactivas')?.checked;
@@ -31463,7 +31496,7 @@ async function saveCuestAsignacion(){
   // id nuevo SIEMPRE (uid9() propio) — nunca reutiliza el de otra asignación,
   // así que asignar la misma plantilla a 2 usuarios en 2 llamadas separadas
   // de este modal genera 2 filas independientes en cuest_asignaciones.
-  const a={id:uid9(),plantillaId,asignadoA,geocercaId,requiereEstarDentro:requiereDentro,fechaProgramada,activo:true};
+  const a={id:uid9(),plantillaId,asignadoA,asignadoPor:state.currentUser?.id||null,geocercaId,requiereEstarDentro:requiereDentro,fechaProgramada,activo:true};
   const ok=await cuestSaveAsignacion(a);
   setBtn('save-cuestasig-btn',false);
   if(!ok)return;
@@ -31645,7 +31678,7 @@ async function cuestFolioWizRecargarPorRespuesta(respuestaId){
 // "Mis asignaciones" pendientes: asignado_a=usuario actual, activo=true, sin
 // una respuesta 'completado' propia ya existente para esa asignación.
 function cuestMisAsignacionesPendientes(){
-  const uid=state.currentUser?.id;if(!uid)return [];
+  const uid=cuestVerComoEfectivoUid();if(!uid)return [];
   return cuestAsignaciones.filter(function(a){
     if(a.activo===false)return false;
     if(a.asignadoA!==uid)return false;
@@ -31655,7 +31688,14 @@ function cuestMisAsignacionesPendientes(){
 }
 function renderCuestResponder(){
   const el=document.getElementById('cuest-resp-lista');if(!el)return;
-  const uid=state.currentUser?.id;
+  const vercomoEl=document.getElementById('cuest-resp-vercomo');if(vercomoEl)vercomoEl.innerHTML=cuestRenderVerComoSelector();
+  const uid=cuestVerComoEfectivoUid();
+  // Viendo la lista de alguien más: es SOLO lectura — el botón Responder no
+  // se pinta. cuestWizAbrir crea/retoma la respuesta a nombre de
+  // state.currentUser.id real, así que dejarlo activo aquí respondería "por"
+  // el subordinado en vez de mostrar su cola — fuera de lo que pide esta
+  // sub-tarea (navegación, no delegar la respuesta).
+  const viendoComoOtro=!!_cuestVerComoUserId;
   const pendientes=cuestMisAsignacionesPendientes();
   if(!pendientes.length){el.innerHTML='<div class="empty-state"><i class="ti ti-clipboard-check"></i><p>No tienes cuestionarios asignados pendientes.</p></div>';return;}
   el.innerHTML=pendientes.map(function(a){
@@ -31666,7 +31706,7 @@ function renderCuestResponder(){
         '<div style="font-size:11px;color:var(--cp-gray-400)">'+(a.geocercaId?escHtml(cuestAsigGeocercaLabel(a.geocercaId)):'Sin ubicación')+(a.fechaProgramada?' · '+new Date(a.fechaProgramada).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'}):'')+'</div>'+
       '</div>'+
       (enProgreso?'<span class="badge badge-amber">En progreso</span>':'')+
-      '<button class="btn-sm btn-blue" onclick="cuestWizAbrir(\''+a.id+'\')"><i class="ti ti-'+(enProgreso?'player-play':'pencil')+'"></i> '+(enProgreso?'Continuar':'Responder')+'</button>'+
+      (viendoComoOtro?'<span class="badge badge-gray">Solo lectura</span>':'<button class="btn-sm btn-blue" onclick="cuestWizAbrir(\''+a.id+'\')"><i class="ti ti-'+(enProgreso?'player-play':'pencil')+'"></i> '+(enProgreso?'Continuar':'Responder')+'</button>')+
     '</div>';
   }).join('');
 }
@@ -32221,6 +32261,9 @@ function cuestSetFoliosVista(vista,btn){
 // da true, y un folio compartido conmigo (que no sea también mi asignación
 // o mi aprobación) no cumple ninguna de las dos — no hace falta un chequeo
 // extra aquí para "ocultar acciones".
+// "Ver como" solo afecta la vista 'asignados' (la única con concepto de
+// "mío" delegable a un subordinado) — aprobación/compartidos/todos siguen
+// atados a la identidad REAL de state.currentUser.id siempre.
 function cuestFoliosFiltrados(){
   const uid=state.currentUser?.id;
   if(_cuestFoliosVista==='todos')return (state.currentUser?.role==='admin')?[...cuestFolios]:[];
@@ -32229,7 +32272,8 @@ function cuestFoliosFiltrados(){
     const folioIds=cuestFolioCompartidos.filter(function(c){return c.usuarioId===uid;}).map(function(c){return c.folioId;});
     return cuestFolios.filter(function(f){return folioIds.indexOf(f.id)>=0;});
   }
-  return cuestFolios.filter(function(f){return f.asignadoA===uid;});
+  const uidAsignados=cuestVerComoEfectivoUid();
+  return cuestFolios.filter(function(f){return f.asignadoA===uidAsignados;});
 }
 // Vencidos primero, luego por fecha_límite ascendente (más urgente primero); sin fecha límite, al final.
 function cuestFoliosOrdenados(list){
@@ -32243,6 +32287,8 @@ function cuestFoliosOrdenados(list){
 }
 function renderCuestFolios(){
   const tbody=document.getElementById('cuest-folio-tbody');if(!tbody)return;
+  const vercomoEl=document.getElementById('cuest-folio-vercomo');
+  if(vercomoEl)vercomoEl.innerHTML=_cuestFoliosVista==='asignados'?cuestRenderVerComoSelector():'';
   const list=cuestFoliosOrdenados(cuestFoliosFiltrados());
   if(!list.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><i class="ti ti-flag"></i><p>No hay folios aquí.</p></div></td></tr>';return;}
   tbody.innerHTML=list.map(function(f){
@@ -32369,6 +32415,147 @@ async function cuestFolioConfirmarRechazo(id){
   cuestFolioAplicarActualizacion(updated);
   auditLog('rechazar','cuest_folios',id,'Folio rechazado: '+motivo);
   toast('Folio rechazado — regresa al encargado.','info');
+}
+
+// ── Jerarquía (cuest_jerarquia) ──────────────────────────────────────────
+// Catálogo simple usuario→rol_cuest→supervisor. Edición inline (selects con
+// onchange, auto-guardado) — mismo espíritu que el editor de catálogos de
+// Dirección (línea ~25630), solo que sobre una tabla real en vez de un
+// jsonb de app_config. Solo admin escribe (mismo patrón guardAdmin del
+// resto del módulo); cualquiera puede VER la tabla.
+const CUEST_ROLES_JERARQUIA=[{id:'operario',label:'Operario'},{id:'supervisor',label:'Supervisor'},{id:'gerente',label:'Gerente'}];
+function cuestJerarquiaRolLabel(rol){const r=CUEST_ROLES_JERARQUIA.find(function(x){return x.id===rol;});return r?r.label:rol;}
+async function cuestSaveJerarquia(j){return sbUpsert('cuest_jerarquia',{id:j.id,usuario_id:j.usuarioId,rol_cuest:j.rolCuest,supervisor_id:j.supervisorId||null});}
+// Regla de la sub-tarea: operario→solo supervisores; supervisor→solo
+// gerentes; gerente→ninguno (sin supervisor por encima dentro del módulo).
+function cuestJerarquiaSupervisoresPara(rolCuest){
+  const rolBuscado=rolCuest==='operario'?'supervisor':(rolCuest==='supervisor'?'gerente':null);
+  if(!rolBuscado)return [];
+  return cuestJerarquia.filter(function(j){return j.rolCuest===rolBuscado;});
+}
+function cuestJerarquiaUsuariosDisponibles(){
+  const yaEn=cuestJerarquia.map(function(j){return j.usuarioId;});
+  return (_userProfilesCache||[]).filter(function(u){return yaEn.indexOf(u.user_id)<0;});
+}
+function cuestJerarquiaPopulateAddSelect(){
+  const sel=document.getElementById('cuest-jer-add-usuario');if(!sel)return;
+  sel.innerHTML='<option value="">— Selecciona usuario —</option>'+cuestJerarquiaUsuariosDisponibles().map(function(u){return '<option value="'+u.user_id+'">'+escHtml(u.display_name||u.email)+'</option>';}).join('');
+}
+function renderCuestJerarquia(){
+  const tbody=document.getElementById('cuest-jer-tbody');if(!tbody)return;
+  const isAdmin=state.currentUser?.role==='admin';
+  const addWrap=document.getElementById('cuest-jer-add-wrap');
+  if(addWrap){addWrap.style.display=isAdmin?'':'none';if(isAdmin)cuestJerarquiaPopulateAddSelect();}
+  if(!cuestJerarquia.length){tbody.innerHTML='<tr><td colspan="4"><div class="empty-state"><i class="ti ti-sitemap"></i><p>Sin usuarios en la jerarquía todavía.</p></div></td></tr>';return;}
+  tbody.innerHTML=cuestJerarquia.map(function(j){
+    const supervisores=cuestJerarquiaSupervisoresPara(j.rolCuest);
+    const colRol=isAdmin
+      ?'<select class="form-input" style="font-size:12px" onchange="cuestJerarquiaSetRol(\''+j.id+'\',this.value)">'+CUEST_ROLES_JERARQUIA.map(function(r){return '<option value="'+r.id+'"'+(j.rolCuest===r.id?' selected':'')+'>'+r.label+'</option>';}).join('')+'</select>'
+      :escHtml(cuestJerarquiaRolLabel(j.rolCuest));
+    let colSupervisor;
+    if(j.rolCuest==='gerente'){
+      colSupervisor='<span style="font-size:12px;color:var(--cp-gray-400)">— Sin supervisor —</span>';
+    }else if(isAdmin){
+      colSupervisor='<select class="form-input" style="font-size:12px" onchange="cuestJerarquiaSetSupervisor(\''+j.id+'\',this.value)"><option value="">— Sin supervisor —</option>'+
+        supervisores.map(function(s){return '<option value="'+s.usuarioId+'"'+(j.supervisorId===s.usuarioId?' selected':'')+'>'+escHtml(cuestAsigUsuarioLabel(s.usuarioId))+'</option>';}).join('')+
+      '</select>';
+    }else{
+      colSupervisor=escHtml(j.supervisorId?cuestAsigUsuarioLabel(j.supervisorId):'—');
+    }
+    return '<tr>'+
+      '<td>'+escHtml(cuestAsigUsuarioLabel(j.usuarioId))+'</td>'+
+      '<td>'+colRol+'</td>'+
+      '<td>'+colSupervisor+'</td>'+
+      '<td>'+(isAdmin?'<button class="btn-sm btn-ghost" style="color:var(--cp-red)" onclick="cuestJerarquiaQuitar(\''+j.id+'\')" title="Quitar de la jerarquía"><i class="ti ti-trash"></i></button>':'')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+async function cuestJerarquiaAgregar(){
+  if(!guardAdmin('cuestJerarquiaAgregar'))return;
+  const usuarioId=document.getElementById('cuest-jer-add-usuario')?.value;
+  if(!usuarioId){toast('Selecciona un usuario.','error');return;}
+  const j={id:uid9(),usuarioId:usuarioId,rolCuest:'operario',supervisorId:null};
+  const ok=await cuestSaveJerarquia(j);
+  if(!ok){toast('No se pudo agregar a la jerarquía.','error');return;}
+  cuestJerarquia.push(j);
+  renderCuestJerarquia();
+  toast('Usuario agregado a la jerarquía ✓','success');
+}
+async function cuestJerarquiaSetRol(id,rol){
+  if(!guardAdmin('cuestJerarquiaSetRol'))return;
+  const j=cuestJerarquia.find(function(x){return x.id===id;});if(!j)return;
+  const updated=Object.assign({},j,{rolCuest:rol});
+  // Si el supervisor guardado ya no cumple la regla del nuevo rol (p.ej.
+  // pasa a gerente, o el supervisor no tiene el rol correcto para el nuevo
+  // nivel), se limpia — nunca deja un supervisor_id que ya no aplica.
+  const permitidos=cuestJerarquiaSupervisoresPara(rol).map(function(s){return s.usuarioId;});
+  if(!permitidos.includes(updated.supervisorId))updated.supervisorId=null;
+  const ok=await cuestSaveJerarquia(updated);
+  if(!ok){toast('No se pudo guardar.','error');return;}
+  const idx=cuestJerarquia.findIndex(function(x){return x.id===id;});
+  if(idx!==-1)cuestJerarquia[idx]=updated;
+  renderCuestJerarquia();
+  toast('Jerarquía actualizada ✓','success');
+}
+async function cuestJerarquiaSetSupervisor(id,supervisorId){
+  if(!guardAdmin('cuestJerarquiaSetSupervisor'))return;
+  const j=cuestJerarquia.find(function(x){return x.id===id;});if(!j)return;
+  const updated=Object.assign({},j,{supervisorId:supervisorId||null});
+  const ok=await cuestSaveJerarquia(updated);
+  if(!ok){toast('No se pudo guardar.','error');return;}
+  const idx=cuestJerarquia.findIndex(function(x){return x.id===id;});
+  if(idx!==-1)cuestJerarquia[idx]=updated;
+  renderCuestJerarquia();
+  toast('Jerarquía actualizada ✓','success');
+}
+// Sin FK conocida que la referencie (no es como cuest_preguntas) — DELETE
+// físico está bien aquí, pero SÍ revisa {error} de verdad (aprendizaje de
+// la sub-tarea del bug de cuestDeletePregunta: nunca un .catch(()=>{}) que
+// esconda el fallo).
+async function cuestJerarquiaQuitar(id){
+  if(!guardAdmin('cuestJerarquiaQuitar'))return;
+  if(!confirm('¿Quitar a este usuario de la jerarquía?'))return;
+  const {error}=await sb.from('cuest_jerarquia').delete().eq('id',id);
+  if(error){toast('No se pudo quitar: '+(error.message||error.code||''),'error');return;}
+  sbInvalidate('cuest_jerarquia');
+  cuestJerarquia=cuestJerarquia.filter(function(x){return x.id!==id;});
+  renderCuestJerarquia();
+  toast('Usuario quitado de la jerarquía','info');
+}
+
+// ── "Ver como" — navegación de supervisor/gerente sobre la vista de su
+// equipo. La RLS ya limita qué puede TRAER la consulta; esto es solo la UX
+// para no obligar a un supervisor a mirar la tabla cruda. Alcance
+// deliberadamente acotado: SOLO cambia qué se lista (asignaciones/folios
+// "asignados a mí"); NUNCA cambia quién puede actuar — cuestFolioPuede
+// ActuarEncargado/Aprobador y el botón Responder siguen atados a
+// state.currentUser.id real, nunca al "ver como".
+let _cuestVerComoUserId=null; // null = "Yo"
+// Solo subordinados DIRECTOS (un nivel: operario bajo ESE supervisor, o
+// supervisor bajo ESE gerente) — no todo el árbol recursivo.
+function cuestVerComoSubordinados(){
+  const uid=state.currentUser?.id;if(!uid)return [];
+  const propio=cuestJerarquia.find(function(j){return j.usuarioId===uid;});
+  if(!propio||(propio.rolCuest!=='supervisor'&&propio.rolCuest!=='gerente'))return [];
+  return cuestJerarquia.filter(function(j){return j.supervisorId===uid;});
+}
+function cuestVerComoEfectivoUid(){return _cuestVerComoUserId||state.currentUser?.id;}
+function cuestRenderVerComoSelector(){
+  const subordinados=cuestVerComoSubordinados();
+  if(!subordinados.length)return ''; // no es supervisor/gerente con equipo — no se muestra nada
+  return '<select class="form-input" style="width:210px;font-size:12px" onchange="cuestVerComoCambiar(this.value)">'+
+    '<option value="">Ver como: Yo</option>'+
+    subordinados.map(function(j){return '<option value="'+j.usuarioId+'"'+(_cuestVerComoUserId===j.usuarioId?' selected':'')+'>Ver como: '+escHtml(cuestAsigUsuarioLabel(j.usuarioId))+'</option>';}).join('')+
+  '</select>';
+}
+function cuestVerComoCambiar(userId){
+  _cuestVerComoUserId=userId||null;
+  renderCuestResponder();
+  renderCuestFolios();
+  // Asignaciones no tiene concepto de "mío" — "Ver como" solo preselecciona
+  // su filtro de usuario ya existente, no duplica la lógica de filtrado.
+  const asigUsuarioSel=document.getElementById('cuest-asig-filter-usuario');
+  if(asigUsuarioSel){asigUsuarioSel.value=_cuestVerComoUserId||'';renderCuestAsignaciones();}
 }
 
 </script>
