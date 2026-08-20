@@ -30480,8 +30480,8 @@ async function cuestEnsureTiposEvidencia(){
 // ── Helpers de guardado (patrón evalSavePlantilla/evalSavePilar/evalSaveCriterio,
 // mismo idioma sbUpsert — código propio, no compartido con Evaluaciones) ──────
 async function cuestSavePlantilla(p){return sbUpsert('cuest_plantillas',{id:p.id,nombre:p.nombre,descripcion:p.descripcion||null,tipo:p.tipo||'evento',activo:p.activo!==false,creado_por:p.creadoPor||null});}
-async function cuestSaveSeccion(s){return sbUpsert('cuest_secciones',{id:s.id,plantilla_id:s.plantillaId,nombre:s.nombre,orden:s.orden||0});}
-async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,seccion_id:q.seccionId,orden:q.orden||0,texto:q.texto,tipo_respuesta:q.tipoRespuesta,opciones:q.opciones||[],obligatoria:q.obligatoria!==false,evidencia:q.evidencia||{tipos:[],obligatoria:false},dispara:q.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:q.peso||0,cuenta_para_calificacion:q.tipoRespuesta==='abierta'?false:!!q.cuentaParaCalificacion,respuesta_correcta:q.respuestaCorrecta||null});}
+async function cuestSaveSeccion(s){return sbUpsert('cuest_secciones',{id:s.id,plantilla_id:s.plantillaId,nombre:s.nombre,orden:s.orden||0,activo:s.activo!==false});}
+async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,seccion_id:q.seccionId,orden:q.orden||0,texto:q.texto,tipo_respuesta:q.tipoRespuesta,opciones:q.opciones||[],obligatoria:q.obligatoria!==false,evidencia:q.evidencia||{tipos:[],obligatoria:false},dispara:q.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:q.peso||0,cuenta_para_calificacion:q.tipoRespuesta==='abierta'?false:!!q.cuentaParaCalificacion,respuesta_correcta:q.respuestaCorrecta||null,activo:q.activo!==false});}
 
 // ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
 async function cuestLoad(){
@@ -30494,7 +30494,9 @@ async function cuestLoad(){
   // por el checkbox "Ver inactivas"; filtrar aquí las dejaría fuera del estado
   // en memoria y ese checkbox nunca mostraría nada.
   cuestPlantillas=plantRaw.map(function(r){return {id:r.id,nombre:r.nombre,descripcion:r.descripcion||'',tipo:r.tipo||'evento',activo:r.activo!==false,creadoPor:r.creado_por,createdAt:r.created_at,updatedAt:r.updated_at};});
-  cuestSecciones=seccRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,nombre:r.nombre,orden:r.orden||0};});
+  // activo (soft-delete) — cuestDeleteSeccion ya no hace DELETE físico, ver
+  // esa función para el porqué (violación de FK contra cuest_respuestas_detalle).
+  cuestSecciones=seccRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,nombre:r.nombre,orden:r.orden||0,activo:r.activo!==false};});
   // r.peso viene de una columna numeric — PostgREST la devuelve como STRING
   // (mismo gotcha ya documentado en _crmCotizNum/_crmCotizComputeTotal para
   // otra tabla de este proyecto); Number() explícito o la suma del peso
@@ -30505,7 +30507,10 @@ async function cuestLoad(){
     // plano) se normalizan a {texto,icono:null} en memoria — se re-guardan
     // ya en el formato nuevo la próxima vez que se edite la pregunta.
     if(r.tipo_respuesta==='emocional')opciones=cuestNormalizaOpcionesEmocional(opciones);
-    return {id:r.id,seccionId:r.seccion_id,orden:r.orden||0,texto:r.texto,tipoRespuesta:r.tipo_respuesta,opciones:opciones,obligatoria:r.obligatoria!==false,evidencia:r.evidencia||{tipos:[],obligatoria:false},dispara:r.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:r.peso!=null?Number(r.peso):0,cuentaParaCalificacion:r.cuenta_para_calificacion!==false,respuestaCorrecta:r.respuesta_correcta||null};
+    // activo (soft-delete) — cuestDeletePregunta ya no hace DELETE físico,
+    // ver esa función para el porqué (violación de FK contra
+    // cuest_respuestas_detalle si la pregunta ya tiene respuestas).
+    return {id:r.id,seccionId:r.seccion_id,orden:r.orden||0,texto:r.texto,tipoRespuesta:r.tipo_respuesta,opciones:opciones,obligatoria:r.obligatoria!==false,evidencia:r.evidencia||{tipos:[],obligatoria:false},dispara:r.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:r.peso!=null?Number(r.peso):0,cuentaParaCalificacion:r.cuenta_para_calificacion!==false,respuestaCorrecta:r.respuesta_correcta||null,activo:r.activo!==false};
   });
   // lat/lng/radio_metros son columnas numeric/int — mismo gotcha de PostgREST
   // devolviendo numeric como string (ver comentario de peso arriba), Number()
@@ -30626,10 +30631,14 @@ async function cuestGuardarPlantilla(){
 // ── Secciones (equivalente a pilares) ──────────────────────────────────────
 function renderCuestSecciones(plantillaId){
   const el=document.getElementById('cuestf-secciones-editor');if(!el)return;
-  const secciones=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId;}).sort(function(a,b){return a.orden-b.orden;});
+  // activo!==false: las secciones/preguntas desactivadas (soft-delete) dejan
+  // de mostrarse aquí, igual que antes con el DELETE físico — el historial
+  // de respuestas ya dadas sigue intacto en la base, solo se ocultan de la
+  // ficha/wizard.
+  const secciones=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId&&s.activo!==false;}).sort(function(a,b){return a.orden-b.orden;});
   let html='';
   secciones.forEach(function(sec,si){
-    const pregs=cuestPreguntas.filter(function(q){return q.seccionId===sec.id;}).sort(function(a,b){return a.orden-b.orden;});
+    const pregs=cuestPreguntas.filter(function(q){return q.seccionId===sec.id&&q.activo!==false;}).sort(function(a,b){return a.orden-b.orden;});
     html+='<div style="border:1px solid var(--cp-gray-100);border-radius:var(--radius-md);margin-bottom:12px;overflow:hidden">';
     html+='<div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--cp-purple-light);border-bottom:1px solid var(--cp-gray-100)">';
     html+='<span style="font-size:11px;font-weight:700;color:var(--cp-purple);flex-shrink:0;min-width:20px">S'+(si+1)+'</span>';
@@ -30652,7 +30661,7 @@ function renderCuestSecciones(plantillaId){
 
 async function cuestAddSeccion(plantillaId){
   const orden=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId;}).length;
-  const sec={id:uid9(),plantillaId,nombre:'Nueva sección',orden};
+  const sec={id:uid9(),plantillaId,nombre:'Nueva sección',orden,activo:true};
   await cuestSaveSeccion(sec).catch(function(){});
   cuestSecciones.push(sec);
   renderCuestSecciones(plantillaId);
@@ -30667,7 +30676,10 @@ async function cuestSaveSeccionNombre(seccionId,plantillaId){
   toast('Sección guardada ✓','success');
 }
 async function cuestMoveSeccion(seccionId,dir,plantillaId){
-  const sorted=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId;}).sort(function(a,b){return a.orden-b.orden;});
+  // Solo reordena entre secciones ACTIVAS — si una desactivada quedara entre
+  // dos visibles en el orden guardado, "mover arriba/abajo" intercambiaría
+  // con una fila invisible en vez de con la siguiente que se ve.
+  const sorted=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId&&s.activo!==false;}).sort(function(a,b){return a.orden-b.orden;});
   const idx=sorted.findIndex(function(s){return s.id===seccionId;});
   const swapIdx=idx+dir;
   if(swapIdx<0||swapIdx>=sorted.length)return;
@@ -30676,16 +30688,36 @@ async function cuestMoveSeccion(seccionId,dir,plantillaId){
   await Promise.all([cuestSaveSeccion(a).catch(function(){}),cuestSaveSeccion(b).catch(function(){})]);
   renderCuestSecciones(plantillaId);
 }
+// SOFT-DELETE (bugfix): el DELETE físico violaba la FK de
+// cuest_respuestas_detalle.pregunta_id en cuanto una pregunta de la sección
+// ya tenía respuestas guardadas — y el error quedaba escondido por un
+// .catch(()=>{}) que nunca revisaba {error}, así que la sección "se
+// eliminaba" en la UI pero seguía intacta en la base. Ahora: se marca
+// activo=false en la sección Y en cada una de sus preguntas activas (nunca
+// DELETE), así el historial de respuestas queda íntegro. Si el guardado de
+// la sección falla, se avisa y NO se toca nada en memoria ni se re-renderiza
+// — la sección sigue visible porque sigue activa de verdad.
 async function cuestDeleteSeccion(seccionId,plantillaId){
   if(!guardAdmin('cuestDeleteSeccion'))return;
-  if(!confirm('¿Eliminar esta sección y todas sus preguntas?'))return;
-  await sb.from('cuest_preguntas').delete().eq('seccion_id',seccionId).catch(function(){});
-  await sb.from('cuest_secciones').delete().eq('id',seccionId).catch(function(){});
-  sbInvalidate('cuest_secciones');sbInvalidate('cuest_preguntas');
-  cuestPreguntas=cuestPreguntas.filter(function(q){return q.seccionId!==seccionId;});
-  cuestSecciones=cuestSecciones.filter(function(s){return s.id!==seccionId;});
+  if(!confirm('¿Desactivar esta sección y todas sus preguntas? Dejan de mostrarse en la ficha y en "Responder", pero el historial de respuestas ya dadas se conserva.'))return;
+  const sec=cuestSecciones.find(function(s){return s.id===seccionId;});if(!sec)return;
+  const seccionActualizada=Object.assign({},sec,{activo:false});
+  const ok=await cuestSaveSeccion(seccionActualizada);
+  if(!ok){toast('No se pudo desactivar la sección.','error');return;} // sbUpsert ya mostró el detalle del error
+  const idxSec=cuestSecciones.findIndex(function(s){return s.id===seccionId;});
+  if(idxSec!==-1)cuestSecciones[idxSec]=seccionActualizada;
+  const preguntasSeccion=cuestPreguntas.filter(function(q){return q.seccionId===seccionId&&q.activo!==false;});
+  for(const q of preguntasSeccion){
+    const qActualizada=Object.assign({},q,{activo:false});
+    const okQ=await cuestSavePregunta(qActualizada);
+    if(okQ){
+      const idxQ=cuestPreguntas.findIndex(function(x){return x.id===q.id;});
+      if(idxQ!==-1)cuestPreguntas[idxQ]=qActualizada;
+    }
+  }
+  delete _cuestPreguntasExpandidas[seccionId];
   renderCuestSecciones(plantillaId);
-  toast('Sección eliminada','info');
+  toast('Sección desactivada','info');
 }
 
 // ── Preguntas (equivalente a criterios, con muchos más campos) ────────────
@@ -30907,7 +30939,12 @@ function cuestUpdatePesoTotal(plantillaId){
   plantillaId=plantillaId||_cuestFichaPlantillaId;
   const el=document.getElementById('cuestf-peso-total');if(!el||!plantillaId)return;
   let total=0;
+  // activo!==false: una pregunta desactivada (soft-delete) ya no tiene
+  // inputs en el DOM (renderCuestSecciones la oculta), así que sin este
+  // filtro su peso viejo se contaría igual desde cuestPreguntas — el "Peso
+  // total" quedaría inflado con preguntas fantasma.
   cuestPreguntas.filter(function(q){
+    if(q.activo===false)return false;
     const sec=cuestSecciones.find(function(s){return s.id===q.seccionId;});
     return sec&&sec.plantillaId===plantillaId;
   }).forEach(function(q){
@@ -30964,7 +31001,7 @@ function cuestTogglePregunta(preguntaId,plantillaId){
 
 async function cuestAddPregunta(seccionId,plantillaId){
   const orden=cuestPreguntas.filter(function(q){return q.seccionId===seccionId;}).length;
-  const q={id:uid9(),seccionId,orden,texto:'',tipoRespuesta:'abierta',opciones:[],obligatoria:true,evidencia:{tipos:[],obligatoria:false},dispara:{notifica_a:null,genera_folio:false,sla_horas:null},peso:0,cuentaParaCalificacion:false,respuestaCorrecta:null};
+  const q={id:uid9(),seccionId,orden,texto:'',tipoRespuesta:'abierta',opciones:[],obligatoria:true,evidencia:{tipos:[],obligatoria:false},dispara:{notifica_a:null,genera_folio:false,sla_horas:null},peso:0,cuentaParaCalificacion:false,respuestaCorrecta:null,activo:true};
   await cuestSavePregunta(q).catch(function(){});
   cuestPreguntas.push(q);
   _cuestPreguntasExpandidas[q.id]=true;
@@ -31038,7 +31075,8 @@ async function cuestGuardarPregunta(preguntaId,seccionId,plantillaId){
 }
 
 async function cuestMovePregunta(preguntaId,dir,seccionId,plantillaId){
-  const sorted=cuestPreguntas.filter(function(q){return q.seccionId===seccionId;}).sort(function(a,b){return a.orden-b.orden;});
+  // Solo entre preguntas ACTIVAS — mismo motivo que cuestMoveSeccion.
+  const sorted=cuestPreguntas.filter(function(q){return q.seccionId===seccionId&&q.activo!==false;}).sort(function(a,b){return a.orden-b.orden;});
   const idx=sorted.findIndex(function(q){return q.id===preguntaId;});
   const swapIdx=idx+dir;
   if(swapIdx<0||swapIdx>=sorted.length)return;
@@ -31047,15 +31085,28 @@ async function cuestMovePregunta(preguntaId,dir,seccionId,plantillaId){
   await Promise.all([cuestSavePregunta(a).catch(function(){}),cuestSavePregunta(b).catch(function(){})]);
   renderCuestSecciones(plantillaId);
 }
+// SOFT-DELETE (bugfix): el DELETE físico violaba la FK de
+// cuest_respuestas_detalle.pregunta_id en cuanto la pregunta ya tenía
+// respuestas guardadas (confirmado en Table Editor: la fila seguía en
+// cuest_preguntas y cuest_respuestas_detalle tenía una fila con ese
+// pregunta_id) — y el .catch(()=>{}) escondía el error por completo: nunca
+// revisaba {error} de la respuesta, así que el código seguía de largo,
+// borraba la pregunta del array en memoria y volvía a pintar como si
+// hubiera funcionado. Ahora: marca activo=false en vez de DELETE, y si el
+// guardado falla, avisa y NO toca el array en memoria ni re-renderiza — la
+// pregunta se queda visible porque sigue existiendo de verdad.
 async function cuestDeletePregunta(preguntaId,seccionId,plantillaId){
   if(!guardAdmin('cuestDeletePregunta'))return;
-  if(!confirm('¿Eliminar esta pregunta?'))return;
-  await sb.from('cuest_preguntas').delete().eq('id',preguntaId).catch(function(){});
-  sbInvalidate('cuest_preguntas');
-  cuestPreguntas=cuestPreguntas.filter(function(q){return q.id!==preguntaId;});
+  if(!confirm('¿Desactivar esta pregunta? Deja de mostrarse en la ficha y en "Responder", pero el historial de respuestas ya dadas se conserva.'))return;
+  const q=cuestPreguntas.find(function(x){return x.id===preguntaId;});if(!q)return;
+  const actualizada=Object.assign({},q,{activo:false});
+  const ok=await cuestSavePregunta(actualizada);
+  if(!ok){toast('No se pudo desactivar la pregunta.','error');return;} // sbUpsert ya mostró el detalle del error
+  const idx=cuestPreguntas.findIndex(function(x){return x.id===preguntaId;});
+  if(idx!==-1)cuestPreguntas[idx]=actualizada;
   delete _cuestPreguntasExpandidas[preguntaId];
   renderCuestSecciones(plantillaId);
-  toast('Pregunta eliminada','info');
+  toast('Pregunta desactivada','info');
 }
 
 // ── Tabs de nivel superior de view-cuest: Plantillas / Geocercas / Asignaciones ──
@@ -31459,11 +31510,14 @@ function renderCuestResponder(){
     '</div>';
   }).join('');
 }
+// activo!==false en ambos niveles: una sección/pregunta desactivada
+// (soft-delete) no debe aparecer en un wizard nuevo, aunque respuestas
+// viejas que ya la contestaron sigan íntegras en cuest_respuestas_detalle.
 function cuestWizBuildPreguntasOrdenadas(plantillaId){
-  const secciones=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId;}).sort(function(a,b){return a.orden-b.orden;});
+  const secciones=cuestSecciones.filter(function(s){return s.plantillaId===plantillaId&&s.activo!==false;}).sort(function(a,b){return a.orden-b.orden;});
   const out=[];
   secciones.forEach(function(s){
-    cuestPreguntas.filter(function(q){return q.seccionId===s.id;}).sort(function(a,b){return a.orden-b.orden;}).forEach(function(q){out.push({pregunta:q,seccion:s});});
+    cuestPreguntas.filter(function(q){return q.seccionId===s.id&&q.activo!==false;}).sort(function(a,b){return a.orden-b.orden;}).forEach(function(q){out.push({pregunta:q,seccion:s});});
   });
   return out;
 }
@@ -31694,6 +31748,11 @@ function cuestWizCalcularCalificacion(){
 async function cuestWizEvaluarDisparos(){
   const asignacion=cuestAsignaciones.find(function(x){return x.id===_cuestWizAsignacionId;});
   const geocerca=(asignacion&&asignacion.geocercaId)?cuestGeocercas.find(function(x){return x.id===asignacion.geocercaId;}):null;
+  // aprobadorId (mismo JOIN en memoria que cuestLoad, aquí contra la
+  // respuesta que se está finalizando ahora mismo) — se necesita para que un
+  // folio recién creado ya funcione en "Para mi aprobación" sin esperar a un
+  // cuestLoad() nuevo (F5).
+  const respuesta=cuestRespuestas.find(function(r){return r.id===_cuestWizRespuestaId;});
   for(const item of _cuestWizPreguntasOrdenadas){
     const q=item.pregunta;
     if(!q.dispara||!q.dispara.genera_folio)continue;
@@ -31713,7 +31772,16 @@ async function cuestWizEvaluarDisparos(){
     const asignadoA=(geocerca&&geocerca.encargadoId)?geocerca.encargadoId:(q.dispara.notifica_a||null);
     const slaHoras=q.dispara.sla_horas!=null?q.dispara.sla_horas:null;
     const fechaLimite=slaHoras!=null?new Date(Date.now()+slaHoras*3600000).toISOString():null;
-    await cuestSaveFolio({id:uid9(),respuestaId:_cuestWizRespuestaId,preguntaId:q.id,tipo:q.dispara.tipo||'incidencia',slaHoras:slaHoras,fechaLimite:fechaLimite,estado:'abierto',asignadoA:asignadoA}).catch(function(){});
+    const folio={id:uid9(),respuestaId:_cuestWizRespuestaId,preguntaId:q.id,tipo:q.dispara.tipo||'incidencia',slaHoras:slaHoras,fechaLimite:fechaLimite,estado:'abierto',asignadoA:asignadoA,resolucionTexto:'',resolucionEvidencias:[],aprobadoPor:null,fechaAprobacion:null,motivoRechazo:null,aprobadorId:respuesta?respuesta.usuarioId:null};
+    // BUGFIX: antes no se empujaba a cuestFolios tras crearlo — el folio
+    // quedaba bien guardado en la base (confirmado en Table Editor:
+    // asignado_a correcto) pero invisible en la pestaña "Folios" hasta el
+    // próximo cuestLoad() completo (F5), porque cuestFoliosFiltrados lee del
+    // array en memoria, no de la base directamente. La comparación
+    // f.asignadoA===uid en sí siempre fue correcta (mismo camelCase en
+    // cuestLoad y en el filtro) — el bug no era de nombres de campo.
+    const ok=await cuestSaveFolio(folio);
+    if(ok)cuestFolios.push(folio);
   }
 }
 // NOTA: el esquema dado para cuest_respuestas NO tiene columna de
