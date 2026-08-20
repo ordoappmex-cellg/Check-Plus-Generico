@@ -3368,6 +3368,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <button class="org-view-btn" id="cuest-tab-vw-geocercas" onclick="cuestSetTopTab('geocercas',this)"><i class="ti ti-map-pin"></i> Geocercas</button>
           <button class="org-view-btn" id="cuest-tab-vw-asignaciones" onclick="cuestSetTopTab('asignaciones',this)"><i class="ti ti-user-check"></i> Asignaciones</button>
           <button class="org-view-btn" id="cuest-tab-vw-responder" onclick="cuestSetTopTab('responder',this)"><i class="ti ti-clipboard-check"></i> Responder</button>
+          <button class="org-view-btn" id="cuest-tab-vw-folios" onclick="cuestSetTopTab('folios',this)"><i class="ti ti-flag"></i> Folios</button>
         </div>
 
         <div id="cuest-tab-plantillas">
@@ -3508,6 +3509,33 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Folios (cuest_folios) — bandeja de incidencias/planes de acción
+             disparados por el wizard de Responder. 3 vistas: "Asignados a
+             mí" (encargado), "Para mi aprobación" (aprobador = usuario_id
+             de la cuest_respuestas que lo generó, resuelto vía JOIN en
+             memoria en cuestLoad — aprobadorId denormalizado por folio) y
+             "Todos" (solo admin, bypass total). Vencido es SOLO indicador
+             visual (fecha_limite<now() y no resuelto) — nunca escribe
+             estado='vencido' desde el cliente (eso requeriría cron/trigger,
+             fuera de alcance). -->
+        <div id="cuest-tab-folios" style="display:none">
+          <div class="section-card">
+            <div class="section-header">
+              <div class="org-view-toggle">
+                <button class="org-view-btn active" id="cuest-folio-tab-asignados" onclick="cuestSetFoliosVista('asignados',this)">Asignados a mí</button>
+                <button class="org-view-btn" id="cuest-folio-tab-aprobacion" onclick="cuestSetFoliosVista('aprobacion',this)">Para mi aprobación</button>
+                <button class="org-view-btn" id="cuest-folio-tab-todos" onclick="cuestSetFoliosVista('todos',this)" style="display:none">Todos</button>
+              </div>
+            </div>
+            <div class="section-body">
+              <table class="emp-table">
+                <thead><tr><th>Plantilla / Pregunta</th><th>Ubicación</th><th>Asignado a</th><th>Estado</th><th>Fecha límite</th><th></th></tr></thead>
+                <tbody id="cuest-folio-tbody"></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -5319,6 +5347,16 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
       <button class="btn-sm btn-ghost" onclick="closeModal('modal-cuest-asignacion')">Cancelar</button>
       <button class="btn-sm btn-blue" id="save-cuestasig-btn" onclick="saveCuestAsignacion()"><i class="ti ti-check"></i> Guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- DETALLE DE FOLIO (cuest_folios) — un solo modal, contenido y botones de
+     acción cambian según estado + si el usuario actual es el encargado, el
+     aprobador, o admin (cuestFolioDetalleHtml arma todo el body). -->
+<div class="modal-overlay" id="modal-cuest-folio">
+  <div class="modal" style="width:480px">
+    <div class="modal-header"><div class="modal-title">Folio</div><button class="modal-close" onclick="closeModal('modal-cuest-folio')"><i class="ti ti-x"></i></button></div>
+    <div class="modal-body" id="cuest-folio-detalle-body"></div>
   </div>
 </div>
 
@@ -30353,7 +30391,7 @@ function sortEvalTeamTable(colIdx){
 // cuest_secciones, cuest_preguntas, cuest_geocercas, cuest_asignaciones,
 // cuest_respuestas (esquema confirmado 19/8, no inventado).
 
-let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[], cuestRespuestas=[];
+let cuestPlantillas=[], cuestSecciones=[], cuestPreguntas=[], cuestGeocercas=[], cuestAsignaciones=[], cuestRespuestas=[], cuestFolios=[];
 let _cuestConfigCache=null;
 let _cuestFichaPlantillaId=null; // plantilla actualmente abierta en la ficha, o null si estamos en la lista
 let _cuestPreguntasExpandidas={}; // {preguntaId:true} — estado de expandido en memoria, no persistido
@@ -30447,9 +30485,10 @@ async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,s
 
 // ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
 async function cuestLoad(){
-  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw,respRaw]=await Promise.all([
+  const [plantRaw,seccRaw,pregRaw,geoRaw,asigRaw,respRaw,folioRaw]=await Promise.all([
     sbGetAll('cuest_plantillas'), sbGetAll('cuest_secciones'), sbGetAll('cuest_preguntas'),
-    sbGetAll('cuest_geocercas'), sbGetAll('cuest_asignaciones'), sbGetAll('cuest_respuestas')
+    sbGetAll('cuest_geocercas'), sbGetAll('cuest_asignaciones'), sbGetAll('cuest_respuestas'),
+    sbGetAll('cuest_folios')
   ]);
   // Se cargan TODAS (activas e inactivas) — renderCuestPlantillas() ya filtra
   // por el checkbox "Ver inactivas"; filtrar aquí las dejaría fuera del estado
@@ -30481,6 +30520,16 @@ async function cuestLoad(){
   // respuesta a la vez al abrir el wizard; se trae acotada por respuesta_id
   // en cuestRespWizLoadDetalle, mismo criterio anti-egress de sbGetAllPaged.
   cuestRespuestas=respRaw.map(function(r){return {id:r.id,asignacionId:r.asignacion_id,usuarioId:r.usuario_id,estado:r.estado,fechaInicio:r.fecha_inicio||null,fechaFin:r.fecha_fin||null,ubicacionInicio:r.ubicacion_inicio||null,ubicacionFin:r.ubicacion_fin||null,dentroGeocerca:r.dentro_geocerca!=null?r.dentro_geocerca:null};});
+  // "aprobador" NO es una columna directa de cuest_folios — es el usuario_id
+  // de la cuest_respuestas ligada por respuesta_id. cuestRespuestas ya está
+  // mapeado arriba (mismo Promise.all), así que el JOIN se resuelve aquí en
+  // memoria (aprobadorId denormalizado por folio) en vez de un embed de
+  // PostgREST — mismo criterio que el resto del módulo (cuestAsigPlantillaLabel
+  // etc. ya resuelven relaciones así, contra arrays hermanos ya cargados).
+  cuestFolios=folioRaw.map(function(r){
+    const resp=cuestRespuestas.find(function(x){return x.id===r.respuesta_id;});
+    return {id:r.id,respuestaId:r.respuesta_id,preguntaId:r.pregunta_id,tipo:r.tipo,asignadoA:r.asignado_a,slaHoras:r.sla_horas!=null?Number(r.sla_horas):null,fechaLimite:r.fecha_limite||null,estado:r.estado,createdAt:r.created_at,resolucionTexto:r.resolucion_texto||'',resolucionEvidencias:Array.isArray(r.resolucion_evidencias)?r.resolucion_evidencias:[],aprobadoPor:r.aprobado_por||null,fechaAprobacion:r.fecha_aprobacion||null,motivoRechazo:r.motivo_rechazo||null,aprobadorId:resp?resp.usuarioId:null};
+  });
 }
 function cuestNormalizaOpcionesEmocional(opciones){
   return (Array.isArray(opciones)?opciones:[]).map(function(op){
@@ -31011,12 +31060,13 @@ async function cuestDeletePregunta(preguntaId,seccionId,plantillaId){
 
 // ── Tabs de nivel superior de view-cuest: Plantillas / Geocercas / Asignaciones ──
 async function cuestSetTopTab(tab,btn){
-  document.querySelectorAll('#cuest-tab-vw-plantillas,#cuest-tab-vw-geocercas,#cuest-tab-vw-asignaciones,#cuest-tab-vw-responder').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('#cuest-tab-vw-plantillas,#cuest-tab-vw-geocercas,#cuest-tab-vw-asignaciones,#cuest-tab-vw-responder,#cuest-tab-vw-folios').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
   document.getElementById('cuest-tab-plantillas').style.display=tab==='plantillas'?'':'none';
   document.getElementById('cuest-tab-geocercas').style.display=tab==='geocercas'?'':'none';
   document.getElementById('cuest-tab-asignaciones').style.display=tab==='asignaciones'?'':'none';
   document.getElementById('cuest-tab-responder').style.display=tab==='responder'?'':'none';
+  document.getElementById('cuest-tab-folios').style.display=tab==='folios'?'':'none';
   if(tab==='geocercas')renderCuestGeocercas();
   else if(tab==='asignaciones'){
     if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
@@ -31028,6 +31078,11 @@ async function cuestSetTopTab(tab,btn){
     document.getElementById('cuest-resp-wizard-wrap').style.display='none';
     document.getElementById('cuest-resp-lista-wrap').style.display='';
     renderCuestResponder();
+  }else if(tab==='folios'){
+    if(!(_userProfilesCache||[]).length)await loadAllUserProfiles().catch(function(){});
+    const todosBtn=document.getElementById('cuest-folio-tab-todos');
+    if(todosBtn)todosBtn.style.display=state.currentUser?.role==='admin'?'':'none';
+    renderCuestFolios();
   }
 }
 
@@ -31682,6 +31737,173 @@ async function cuestWizFinalizar(){
   auditLog('completar','cuest_respuestas',updated.id,'Cuestionario completado'+(calificacion!=null?' — calificación '+calificacion+'%':''));
   cuestWizCerrar();
   toast('Cuestionario finalizado ✓'+(calificacion!=null?' Calificación: '+calificacion+'%':' (sin preguntas calificables evaluables)'),'success');
+}
+
+// ── Folios (cuest_folios) — bandeja + flujo de aprobación ───────────────────
+// "aprobador" no es columna directa: aprobadorId ya viene denormalizado por
+// folio desde cuestLoad (JOIN en memoria contra cuestRespuestas.usuario_id).
+// Bypass de admin: state.currentUser.role==='admin' — mismo patrón client-side
+// que el resto de la app (línea ~8308 etc.); el bypass real de datos lo hace
+// cuest_is_admin() del lado de la base (RLS), esto es solo la UI.
+const CUEST_FOLIO_ESTADO_LABELS={abierto:'Abierto',en_proceso:'En proceso',pendiente_aprobacion:'Pendiente de aprobación',resuelto:'Resuelto',vencido:'Vencido'};
+const CUEST_FOLIO_ESTADO_BADGE={abierto:'badge-gray',en_proceso:'badge-blue',pendiente_aprobacion:'badge-amber',resuelto:'badge-green',vencido:'badge-red'};
+let _cuestFoliosVista='asignados';
+let _cuestFolioDetalleId=null;
+
+function cuestFolioPreguntaLabel(preguntaId){const q=cuestPreguntas.find(function(x){return x.id===preguntaId;});return q?q.texto:'(pregunta eliminada)';}
+function cuestFolioRespuesta(folio){return cuestRespuestas.find(function(r){return r.id===folio.respuestaId;});}
+function cuestFolioAsignacion(folio){const resp=cuestFolioRespuesta(folio);return resp?cuestAsignaciones.find(function(a){return a.id===resp.asignacionId;}):null;}
+function cuestFolioUbicacionLabel(folio){const asig=cuestFolioAsignacion(folio);return (asig&&asig.geocercaId)?cuestAsigGeocercaLabel(asig.geocercaId):'—';}
+function cuestFolioPlantillaLabel(folio){const asig=cuestFolioAsignacion(folio);return asig?cuestAsigPlantillaLabel(asig.plantillaId):'—';}
+// Vencido es SOLO visual — nunca se escribe estado='vencido' desde aquí.
+function cuestFolioEstaVencido(folio){return folio.estado!=='resuelto'&&!!folio.fechaLimite&&new Date(folio.fechaLimite).getTime()<Date.now();}
+function cuestFolioPuedeActuarEncargado(f){return state.currentUser?.role==='admin'||f.asignadoA===state.currentUser?.id;}
+function cuestFolioPuedeActuarAprobador(f){return state.currentUser?.role==='admin'||f.aprobadorId===state.currentUser?.id;}
+
+async function cuestSaveFolioUpdate(f){return sbUpsert('cuest_folios',{id:f.id,respuesta_id:f.respuestaId,pregunta_id:f.preguntaId,tipo:f.tipo,asignado_a:f.asignadoA,sla_horas:f.slaHoras,fecha_limite:f.fechaLimite,estado:f.estado,resolucion_texto:f.resolucionTexto||null,resolucion_evidencias:f.resolucionEvidencias||[],aprobado_por:f.aprobadoPor||null,fecha_aprobacion:f.fechaAprobacion||null,motivo_rechazo:f.motivoRechazo||null});}
+
+function cuestSetFoliosVista(vista,btn){
+  _cuestFoliosVista=vista;
+  document.querySelectorAll('#cuest-folio-tab-asignados,#cuest-folio-tab-aprobacion,#cuest-folio-tab-todos').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  renderCuestFolios();
+}
+// Las 3 vistas son LITERALES (asignado_a / aprobadorId de cada folio) para
+// cualquier usuario, incluido admin — el bypass de admin para VER todo vive
+// en la pestaña "Todos", y para ACTUAR sobre cualquier folio vive en
+// cuestFolioPuedeActuarEncargado/Aprobador (punto 4, no aquí).
+function cuestFoliosFiltrados(){
+  const uid=state.currentUser?.id;
+  if(_cuestFoliosVista==='todos')return (state.currentUser?.role==='admin')?[...cuestFolios]:[];
+  if(_cuestFoliosVista==='aprobacion')return cuestFolios.filter(function(f){return f.estado==='pendiente_aprobacion'&&f.aprobadorId===uid;});
+  return cuestFolios.filter(function(f){return f.asignadoA===uid;});
+}
+// Vencidos primero, luego por fecha_límite ascendente (más urgente primero); sin fecha límite, al final.
+function cuestFoliosOrdenados(list){
+  return list.slice().sort(function(a,b){
+    const av=cuestFolioEstaVencido(a)?0:1,bv=cuestFolioEstaVencido(b)?0:1;
+    if(av!==bv)return av-bv;
+    const at=a.fechaLimite?new Date(a.fechaLimite).getTime():Infinity;
+    const bt=b.fechaLimite?new Date(b.fechaLimite).getTime():Infinity;
+    return at-bt;
+  });
+}
+function renderCuestFolios(){
+  const tbody=document.getElementById('cuest-folio-tbody');if(!tbody)return;
+  const list=cuestFoliosOrdenados(cuestFoliosFiltrados());
+  if(!list.length){tbody.innerHTML='<tr><td colspan="6"><div class="empty-state"><i class="ti ti-flag"></i><p>No hay folios aquí.</p></div></td></tr>';return;}
+  tbody.innerHTML=list.map(function(f){
+    const vencido=cuestFolioEstaVencido(f);
+    const estadoBadge=CUEST_FOLIO_ESTADO_BADGE[f.estado]||'badge-gray';
+    const estadoLabel=CUEST_FOLIO_ESTADO_LABELS[f.estado]||f.estado;
+    return '<tr>'+
+      '<td><div style="font-size:13px;font-weight:600;color:var(--cp-navy)">'+escHtml(cuestFolioPlantillaLabel(f))+'</div><div style="font-size:11px;color:var(--cp-gray-400)">'+escHtml(cuestFolioPreguntaLabel(f.preguntaId))+'</div></td>'+
+      '<td>'+escHtml(cuestFolioUbicacionLabel(f))+'</td>'+
+      '<td>'+escHtml(cuestAsigUsuarioLabel(f.asignadoA))+'</td>'+
+      '<td><span class="badge '+estadoBadge+'">'+escHtml(estadoLabel)+'</span></td>'+
+      '<td>'+(f.fechaLimite?('<span'+(vencido?' style="color:var(--cp-red);font-weight:700"':'')+'>'+new Date(f.fechaLimite).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'})+'</span>'):'—')+(vencido?' <span class="badge badge-red" style="margin-left:4px">Vencido</span>':'')+'</td>'+
+      '<td><button class="btn-sm btn-ghost" onclick="openCuestFolioDetalle(\''+f.id+'\')"><i class="ti ti-eye"></i> Ver</button></td>'+
+    '</tr>';
+  }).join('');
+}
+
+// Body del modal — TODO el contenido/botones cambian según f.estado y según
+// si el usuario actual puede actuar como encargado/aprobador/admin de ESTE
+// folio en particular (no de la pestaña en la que lo esté viendo).
+function cuestFolioDetalleHtml(f){
+  const vencido=cuestFolioEstaVencido(f);
+  const esEncargado=cuestFolioPuedeActuarEncargado(f);
+  const esAprobador=cuestFolioPuedeActuarAprobador(f);
+  let html='';
+  html+='<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--cp-gray-400);text-transform:uppercase;font-weight:700">'+escHtml(cuestFolioPlantillaLabel(f))+'</div><div style="font-size:14px;font-weight:600;color:var(--cp-navy)">'+escHtml(cuestFolioPreguntaLabel(f.preguntaId))+'</div></div>';
+  html+='<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--cp-gray-600)">';
+  html+='<span><i class="ti ti-map-pin"></i> '+escHtml(cuestFolioUbicacionLabel(f))+'</span>';
+  html+='<span><i class="ti ti-user"></i> '+escHtml(cuestAsigUsuarioLabel(f.asignadoA))+'</span>';
+  if(f.fechaLimite)html+='<span'+(vencido?' style="color:var(--cp-red);font-weight:700"':'')+'><i class="ti ti-clock"></i> '+new Date(f.fechaLimite).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'})+(vencido?' (Vencido)':'')+'</span>';
+  html+='</div>';
+  html+='<div style="margin-bottom:12px"><span class="badge '+(CUEST_FOLIO_ESTADO_BADGE[f.estado]||'badge-gray')+'">'+escHtml(CUEST_FOLIO_ESTADO_LABELS[f.estado]||f.estado)+'</span></div>';
+  if(f.motivoRechazo)html+='<div style="background:var(--cp-red-light);color:#7f1d1d;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:12px"><b>Rechazado:</b> '+escHtml(f.motivoRechazo)+'</div>';
+  if(f.estado==='abierto'){
+    html+=esEncargado
+      ?'<button class="btn-sm btn-blue" onclick="cuestFolioIniciar(\''+f.id+'\')"><i class="ti ti-player-play"></i> Iniciar</button>'
+      :'<div style="font-size:12px;color:var(--cp-gray-400)">Esperando a que el encargado lo inicie.</div>';
+  }else if(f.estado==='en_proceso'){
+    if(esEncargado){
+      html+='<div class="form-field full"><label class="form-label">Resolución</label><textarea class="form-input" id="cuestfoliof-resolucion" rows="4" placeholder="Describe cómo se resolvió…">'+escHtml(f.resolucionTexto||'')+'</textarea></div>';
+      html+='<button class="btn-sm btn-blue" style="margin-top:8px" onclick="cuestFolioEnviarAprobacion(\''+f.id+'\')"><i class="ti ti-send"></i> Enviar a aprobación</button>';
+    }else{
+      html+='<div style="font-size:12px;color:var(--cp-gray-400)">El encargado está trabajando en este folio.</div>';
+    }
+  }else if(f.estado==='pendiente_aprobacion'){
+    html+='<div class="form-field full"><label class="form-label">Resolución del encargado</label><div style="font-size:13px;color:var(--cp-navy);white-space:pre-wrap;background:var(--cp-gray-50);border-radius:8px;padding:8px 10px">'+escHtml(f.resolucionTexto||'(sin texto)')+'</div></div>';
+    if(esAprobador){
+      html+='<div style="display:flex;gap:8px;margin-top:10px">';
+      html+='<button class="btn-sm btn-blue" onclick="cuestFolioAprobar(\''+f.id+'\')"><i class="ti ti-check"></i> Aprobar</button>';
+      html+='<button class="btn-sm btn-red" onclick="cuestFolioAbrirRechazo()"><i class="ti ti-x"></i> Rechazar</button>';
+      html+='</div>';
+      html+='<div id="cuestfolio-rechazo-wrap" style="display:none;margin-top:10px"><div class="form-field full"><label class="form-label">Motivo del rechazo *</label><textarea class="form-input" id="cuestfoliof-motivo-rechazo" rows="3"></textarea></div><button class="btn-sm btn-red" style="margin-top:6px" onclick="cuestFolioConfirmarRechazo(\''+f.id+'\')"><i class="ti ti-check"></i> Confirmar rechazo</button></div>';
+    }else{
+      html+='<div style="font-size:12px;color:var(--cp-gray-400)">Esperando aprobación.</div>';
+    }
+  }else if(f.estado==='resuelto'){
+    html+='<div class="form-field full"><label class="form-label">Resolución</label><div style="font-size:13px;color:var(--cp-navy);white-space:pre-wrap;background:var(--cp-gray-50);border-radius:8px;padding:8px 10px">'+escHtml(f.resolucionTexto||'')+'</div></div>';
+    html+='<div style="font-size:12px;color:var(--cp-gray-400);margin-top:8px">Aprobado por '+escHtml(f.aprobadoPor?cuestAsigUsuarioLabel(f.aprobadoPor):'—')+(f.fechaAprobacion?(' · '+new Date(f.fechaAprobacion).toLocaleString('es-MX',{dateStyle:'short',timeStyle:'short'})):'')+'</div>';
+  }
+  return html;
+}
+function openCuestFolioDetalle(id){
+  const f=cuestFolios.find(function(x){return x.id===id;});if(!f)return;
+  _cuestFolioDetalleId=id;
+  document.getElementById('cuest-folio-detalle-body').innerHTML=cuestFolioDetalleHtml(f);
+  openModal('modal-cuest-folio');
+}
+function cuestFolioAplicarActualizacion(updated){
+  const idx=cuestFolios.findIndex(function(x){return x.id===updated.id;});
+  if(idx!==-1)cuestFolios[idx]=updated;
+  if(_cuestFolioDetalleId===updated.id){
+    const body=document.getElementById('cuest-folio-detalle-body');
+    if(body)body.innerHTML=cuestFolioDetalleHtml(updated);
+  }
+  renderCuestFolios();
+}
+async function cuestFolioIniciar(id){
+  const f=cuestFolios.find(function(x){return x.id===id;});if(!f||!cuestFolioPuedeActuarEncargado(f))return;
+  const updated=Object.assign({},f,{estado:'en_proceso'});
+  const ok=await cuestSaveFolioUpdate(updated);if(!ok){toast('Error al iniciar el folio.','error');return;}
+  cuestFolioAplicarActualizacion(updated);
+  auditLog('iniciar','cuest_folios',id,'Folio iniciado');
+  toast('Folio iniciado ✓','success');
+}
+async function cuestFolioEnviarAprobacion(id){
+  const f=cuestFolios.find(function(x){return x.id===id;});if(!f||!cuestFolioPuedeActuarEncargado(f))return;
+  const texto=sanitizeInput(document.getElementById('cuestfoliof-resolucion')?.value,2000);
+  if(!texto){toast('Describe la resolución antes de enviarla a aprobación.','error');return;}
+  const updated=Object.assign({},f,{estado:'pendiente_aprobacion',resolucionTexto:texto});
+  const ok=await cuestSaveFolioUpdate(updated);if(!ok){toast('Error al enviar a aprobación.','error');return;}
+  cuestFolioAplicarActualizacion(updated);
+  auditLog('enviar_aprobacion','cuest_folios',id,'Folio enviado a aprobación');
+  toast('Enviado a aprobación ✓','success');
+}
+async function cuestFolioAprobar(id){
+  const f=cuestFolios.find(function(x){return x.id===id;});if(!f||!cuestFolioPuedeActuarAprobador(f))return;
+  const updated=Object.assign({},f,{estado:'resuelto',aprobadoPor:state.currentUser.id,fechaAprobacion:new Date().toISOString(),motivoRechazo:null});
+  const ok=await cuestSaveFolioUpdate(updated);if(!ok){toast('Error al aprobar el folio.','error');return;}
+  cuestFolioAplicarActualizacion(updated);
+  auditLog('aprobar','cuest_folios',id,'Folio aprobado');
+  toast('Folio aprobado ✓','success');
+}
+function cuestFolioAbrirRechazo(){
+  const wrap=document.getElementById('cuestfolio-rechazo-wrap');if(wrap)wrap.style.display='';
+}
+async function cuestFolioConfirmarRechazo(id){
+  const f=cuestFolios.find(function(x){return x.id===id;});if(!f||!cuestFolioPuedeActuarAprobador(f))return;
+  const motivo=sanitizeInput(document.getElementById('cuestfoliof-motivo-rechazo')?.value,1000);
+  if(!motivo){toast('El motivo de rechazo es obligatorio.','error');return;}
+  const updated=Object.assign({},f,{estado:'en_proceso',motivoRechazo:motivo});
+  const ok=await cuestSaveFolioUpdate(updated);if(!ok){toast('Error al rechazar el folio.','error');return;}
+  cuestFolioAplicarActualizacion(updated);
+  auditLog('rechazar','cuest_folios',id,'Folio rechazado: '+motivo);
+  toast('Folio rechazado — regresa al encargado.','info');
 }
 
 </script>
