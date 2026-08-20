@@ -3388,6 +3388,7 @@ body.direccion-presenting #direccion-rm-scroll{zoom:1.2;}
           <div class="section-card">
             <div class="section-header">
               <button class="btn-sm btn-ghost" onclick="cuestCerrarFicha()"><i class="ti ti-arrow-left"></i> Volver a plantillas</button>
+              <span id="cuestf-peso-total" style="font-size:12px;font-weight:700;margin-left:auto;margin-right:10px"></span>
               <button class="btn-sm btn-ghost" id="cuestf-toggle-activa-btn" onclick="cuestTogglePlantillaActiva()" style="display:none"></button>
             </div>
             <div class="section-body">
@@ -30238,7 +30239,7 @@ async function cuestEnsureTiposEvidencia(){
 // mismo idioma sbUpsert — código propio, no compartido con Evaluaciones) ──────
 async function cuestSavePlantilla(p){return sbUpsert('cuest_plantillas',{id:p.id,nombre:p.nombre,descripcion:p.descripcion||null,tipo:p.tipo||'evento',activo:p.activo!==false,creado_por:p.creadoPor||null});}
 async function cuestSaveSeccion(s){return sbUpsert('cuest_secciones',{id:s.id,plantilla_id:s.plantillaId,nombre:s.nombre,orden:s.orden||0});}
-async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,seccion_id:q.seccionId,orden:q.orden||0,texto:q.texto,tipo_respuesta:q.tipoRespuesta,opciones:q.opciones||[],obligatoria:q.obligatoria!==false,evidencia:q.evidencia||{tipos:[],obligatoria:false},dispara:q.dispara||{notifica_a:null,genera_folio:false,sla_horas:null}});}
+async function cuestSavePregunta(q){return sbUpsert('cuest_preguntas',{id:q.id,seccion_id:q.seccionId,orden:q.orden||0,texto:q.texto,tipo_respuesta:q.tipoRespuesta,opciones:q.opciones||[],obligatoria:q.obligatoria!==false,evidencia:q.evidencia||{tipos:[],obligatoria:false},dispara:q.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:q.peso||0,cuenta_para_calificacion:q.tipoRespuesta==='abierta'?false:!!q.cuentaParaCalificacion,respuesta_correcta:q.respuestaCorrecta||null});}
 
 // ── Carga (lazy, vía _loadModuleDataInner case 'cuest') ───────────────────
 async function cuestLoad(){
@@ -30250,7 +30251,11 @@ async function cuestLoad(){
   // en memoria y ese checkbox nunca mostraría nada.
   cuestPlantillas=plantRaw.map(function(r){return {id:r.id,nombre:r.nombre,descripcion:r.descripcion||'',tipo:r.tipo||'evento',activo:r.activo!==false,creadoPor:r.creado_por,createdAt:r.created_at,updatedAt:r.updated_at};});
   cuestSecciones=seccRaw.map(function(r){return {id:r.id,plantillaId:r.plantilla_id,nombre:r.nombre,orden:r.orden||0};});
-  cuestPreguntas=pregRaw.map(function(r){return {id:r.id,seccionId:r.seccion_id,orden:r.orden||0,texto:r.texto,tipoRespuesta:r.tipo_respuesta,opciones:Array.isArray(r.opciones)?r.opciones:[],obligatoria:r.obligatoria!==false,evidencia:r.evidencia||{tipos:[],obligatoria:false},dispara:r.dispara||{notifica_a:null,genera_folio:false,sla_horas:null}};});
+  // r.peso viene de una columna numeric — PostgREST la devuelve como STRING
+  // (mismo gotcha ya documentado en _crmCotizNum/_crmCotizComputeTotal para
+  // otra tabla de este proyecto); Number() explícito o la suma del peso
+  // total concatenaría en vez de sumar.
+  cuestPreguntas=pregRaw.map(function(r){return {id:r.id,seccionId:r.seccion_id,orden:r.orden||0,texto:r.texto,tipoRespuesta:r.tipo_respuesta,opciones:Array.isArray(r.opciones)?r.opciones:[],obligatoria:r.obligatoria!==false,evidencia:r.evidencia||{tipos:[],obligatoria:false},dispara:r.dispara||{notifica_a:null,genera_folio:false,sla_horas:null},peso:r.peso!=null?Number(r.peso):0,cuentaParaCalificacion:r.cuenta_para_calificacion!==false,respuestaCorrecta:r.respuesta_correcta||null};});
 }
 
 function renderCuestPlantillas(){
@@ -30281,6 +30286,7 @@ async function openAddCuestPlantilla(){
   document.getElementById('cuestf-tipo-evento').checked=true;
   document.getElementById('cuestf-secciones-editor').innerHTML='<div style="color:var(--cp-gray-400);font-size:12px">Guarda primero la plantilla para agregar secciones.</div>';
   const toggleBtn=document.getElementById('cuestf-toggle-activa-btn');if(toggleBtn)toggleBtn.style.display='none';
+  const pesoTotalEl=document.getElementById('cuestf-peso-total');if(pesoTotalEl)pesoTotalEl.textContent='';
   _cuestFichaPlantillaId=null;
   await Promise.all([cuestEnsureTiposEvidencia(),(!(_userProfilesCache||[]).length)?loadAllUserProfiles().catch(function(){}):Promise.resolve()]);
   document.getElementById('cuest-lista-wrap').style.display='none';
@@ -30358,6 +30364,7 @@ function renderCuestSecciones(plantillaId){
   });
   html+='<button class="btn-sm btn-blue" style="width:100%" onclick="cuestAddSeccion(\''+plantillaId+'\')"><i class="ti ti-plus"></i> Agregar sección</button>';
   el.innerHTML=html;
+  cuestUpdatePesoTotal(plantillaId);
 }
 
 async function cuestAddSeccion(plantillaId){
@@ -30424,7 +30431,8 @@ function cuestRenderPreguntaForm(q,seccionId,plantillaId){
   const disparaNotificaA=(q.dispara&&q.dispara.notifica_a)||'';
   const disparaFolio=!!(q.dispara&&q.dispara.genera_folio);
   const disparaSla=(q.dispara&&q.dispara.sla_horas!=null)?q.dispara.sla_horas:'';
-  const mostrarOpciones=q.tipoRespuesta==='lista'||q.tipoRespuesta==='multiple';
+  const mostrarOpciones=q.tipoRespuesta==='lista'||q.tipoRespuesta==='multiple'||q.tipoRespuesta==='emocional';
+  const cuentaDisabled=q.tipoRespuesta==='abierta';
   let html='<div style="padding:10px;border-top:1px solid var(--cp-gray-100)">';
   html+='<div class="form-field full" style="margin-bottom:8px"><label class="form-label">Texto de la pregunta *</label><textarea class="form-input" id="cuestq-texto-'+q.id+'" rows="2">'+escHtml(q.texto||'')+'</textarea></div>';
   html+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">';
@@ -30433,10 +30441,23 @@ function cuestRenderPreguntaForm(q,seccionId,plantillaId){
     '</select></div>';
   html+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;align-self:flex-end;padding-bottom:8px"><input type="checkbox" id="cuestq-obligatoria-'+q.id+'"'+(q.obligatoria?' checked':'')+'> Obligatoria</label>';
   html+='</div>';
-  html+='<div class="form-field full" id="cuestq-opciones-wrap-'+q.id+'" style="margin-bottom:8px;display:'+(mostrarOpciones?'block':'none')+'">'+
-    '<label class="form-label">Opciones (una por línea)</label>'+
-    '<textarea class="form-input" id="cuestq-opciones-'+q.id+'" rows="3" placeholder="Opción 1\nOpción 2">'+escHtml((q.opciones||[]).join('\n'))+'</textarea>'+
-  '</div>';
+  html+='<div class="form-field full" id="cuestq-opciones-wrap-'+q.id+'" style="margin-bottom:8px;display:'+(mostrarOpciones?'block':'none')+'">';
+  html+='<label class="form-label">'+(q.tipoRespuesta==='emocional'?'Caras / etiquetas':'Opciones')+'</label>';
+  html+='<div id="cuestq-opciones-list-'+q.id+'">';
+  (q.opciones||[]).forEach(function(op){
+    html+='<div class="cuestq-opcion-row" style="display:flex;gap:6px;margin-bottom:4px">'+
+      '<input type="text" class="form-input cuestq-opcion-input" style="flex:1;font-size:12px;padding:4px 8px" value="'+escHtml(op)+'" oninput="cuestSyncRespuestaCorrecta(\''+q.id+'\')">'+
+      '<button type="button" class="btn-sm btn-ghost" style="padding:3px 8px" onclick="this.closest(\'.cuestq-opcion-row\').remove();cuestSyncRespuestaCorrecta(\''+q.id+'\')"><i class="ti ti-x"></i></button>'+
+    '</div>';
+  });
+  html+='</div>';
+  html+='<button type="button" class="btn-sm btn-ghost" style="font-size:11px" onclick="cuestAddOpcionRow(\''+q.id+'\')"><i class="ti ti-plus"></i> Agregar opción</button>';
+  html+='</div>';
+  html+='<div class="form-field full" id="cuestq-correcta-wrap-'+q.id+'" style="margin-bottom:8px">'+cuestRenderCorrectaBlock(q.id,q.tipoRespuesta,q.opciones||[],q.respuestaCorrecta)+'</div>';
+  html+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;align-items:flex-end">';
+  html+='<div class="form-field" style="width:120px"><label class="form-label">Peso (%)</label><input type="number" class="form-input" id="cuestq-peso-'+q.id+'" min="0" max="100" step="0.01" value="'+escHtml(String(q.peso!=null?q.peso:0))+'" oninput="cuestUpdatePesoTotal()"></div>';
+  html+='<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:'+(cuentaDisabled?'not-allowed':'pointer')+';padding-bottom:8px;color:'+(cuentaDisabled?'var(--cp-gray-400)':'inherit')+'"><input type="checkbox" id="cuestq-cuenta-'+q.id+'"'+(!cuentaDisabled&&q.cuentaParaCalificacion?' checked':'')+(cuentaDisabled?' disabled':'')+' onchange="cuestUpdatePesoTotal()"> Cuenta para calificación'+(cuentaDisabled?' (bloqueado: abierta no califica)':'')+'</label>';
+  html+='</div>';
   html+='<div style="margin-bottom:8px">';
   html+='<label class="form-label">Evidencia requerida</label>';
   html+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">';
@@ -30472,11 +30493,123 @@ function cuestRenderPreguntaForm(q,seccionId,plantillaId){
   return html;
 }
 
+// Bloque "Respuesta correcta" — su forma depende del tipo de respuesta.
+// abierta no muestra nada (bloqueado por el CHECK de cuenta_para_calificacion,
+// no tendría sentido). `rc` es el objeto guardado (respuesta_correcta) o, en
+// vivo, el objeto de preservación armado por cuestSyncRespuestaCorrecta — en
+// ambos casos {valor} para si_no/iconos/emocional, {opcion} (o {valor} como
+// fallback) para lista, {opciones:[...]} para multiple.
+function cuestRenderCorrectaBlock(preguntaId,tipo,opciones,rc){
+  if(tipo==='abierta')return '';
+  let val=null,vals=[];
+  if(tipo==='si_no'||tipo==='iconos'){val=(rc&&typeof rc.valor==='boolean')?rc.valor:null;}
+  else if(tipo==='lista'){val=(rc&&typeof rc.opcion==='string')?rc.opcion:((rc&&typeof rc.valor==='string')?rc.valor:null);}
+  else if(tipo==='emocional'){val=(rc&&typeof rc.valor==='string')?rc.valor:null;}
+  else if(tipo==='multiple'){vals=(rc&&Array.isArray(rc.opciones))?rc.opciones:[];}
+  let html='<label class="form-label">Respuesta correcta</label><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">';
+  if(tipo==='si_no'||tipo==='iconos'){
+    html+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="cuestq-correcta-'+preguntaId+'" value="true"'+(val===true?' checked':'')+'> Sí / Cumple</label>';
+    html+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="cuestq-correcta-'+preguntaId+'" value="false"'+(val===false?' checked':'')+'> No / No cumple</label>';
+  }else if(tipo==='lista'||tipo==='emocional'){
+    if(!opciones.length)html+='<span style="font-size:12px;color:var(--cp-gray-400)">Agrega opciones primero.</span>';
+    opciones.forEach(function(op){
+      html+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="cuestq-correcta-'+preguntaId+'" value="'+escHtml(op)+'"'+(val===op?' checked':'')+'> '+escHtml(op)+'</label>';
+    });
+  }else if(tipo==='multiple'){
+    if(!opciones.length)html+='<span style="font-size:12px;color:var(--cp-gray-400)">Agrega opciones primero.</span>';
+    opciones.forEach(function(op){
+      html+='<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="checkbox" class="cuestq-correcta-check-'+preguntaId+'" value="'+escHtml(op)+'"'+(vals.indexOf(op)>=0?' checked':'')+'> '+escHtml(op)+'</label>';
+    });
+  }
+  html+='</div>';
+  return html;
+}
+// Recalcula el bloque de respuesta correcta a partir de las opciones tal
+// como están tecleadas AHORA MISMO en el DOM (sin guardar todavía) — se
+// dispara al agregar/quitar una opción o al escribir en una. Preserva la
+// selección previa por valor cuando es posible (si el texto de la opción
+// marcada no cambió).
+function cuestSyncRespuestaCorrecta(preguntaId){
+  const wrap=document.getElementById('cuestq-correcta-wrap-'+preguntaId);
+  if(!wrap)return;
+  const tipoSel=document.getElementById('cuestq-tipo-'+preguntaId);
+  const tipo=tipoSel?tipoSel.value:'abierta';
+  let prevRc=null;
+  if(tipo==='si_no'||tipo==='iconos'){
+    const checked=wrap.querySelector('input[name="cuestq-correcta-'+preguntaId+'"]:checked');
+    prevRc=checked?{valor:checked.value==='true'}:null;
+  }else if(tipo==='lista'||tipo==='emocional'){
+    const checked=wrap.querySelector('input[name="cuestq-correcta-'+preguntaId+'"]:checked');
+    prevRc=checked?{valor:checked.value}:null;
+  }else if(tipo==='multiple'){
+    const checks=[];
+    wrap.querySelectorAll('.cuestq-correcta-check-'+preguntaId+':checked').forEach(function(cb){checks.push(cb.value);});
+    prevRc={opciones:checks};
+  }
+  const opciones=[];
+  document.querySelectorAll('#cuestq-opciones-list-'+preguntaId+' .cuestq-opcion-input').forEach(function(inp){
+    const v=inp.value.trim();if(v)opciones.push(v);
+  });
+  wrap.innerHTML=cuestRenderCorrectaBlock(preguntaId,tipo,opciones,prevRc);
+}
+function cuestAddOpcionRow(preguntaId){
+  const list=document.getElementById('cuestq-opciones-list-'+preguntaId);
+  if(!list)return;
+  const row=document.createElement('div');
+  row.className='cuestq-opcion-row';
+  row.style.cssText='display:flex;gap:6px;margin-bottom:4px';
+  const inp=document.createElement('input');
+  inp.type='text';inp.className='form-input cuestq-opcion-input';inp.style.cssText='flex:1;font-size:12px;padding:4px 8px';
+  inp.addEventListener('input',function(){cuestSyncRespuestaCorrecta(preguntaId);});
+  const btn=document.createElement('button');
+  btn.type='button';btn.className='btn-sm btn-ghost';btn.style.cssText='padding:3px 8px';
+  btn.innerHTML='<i class="ti ti-x"></i>';
+  btn.addEventListener('click',function(){row.remove();cuestSyncRespuestaCorrecta(preguntaId);});
+  row.appendChild(inp);row.appendChild(btn);
+  list.appendChild(row);
+  inp.focus();
+}
+// "Peso total" en la cabecera de la ficha — suma en vivo el peso de las
+// preguntas con cuenta_para_calificacion=true de la plantilla abierta. Si una
+// tarjeta está expandida usa el valor tecleado (aún sin guardar); si está
+// colapsada usa el último valor guardado en cuestPreguntas. NO bloquea nada,
+// solo colorea ámbar/verde.
+function cuestUpdatePesoTotal(plantillaId){
+  plantillaId=plantillaId||_cuestFichaPlantillaId;
+  const el=document.getElementById('cuestf-peso-total');if(!el||!plantillaId)return;
+  let total=0;
+  cuestPreguntas.filter(function(q){
+    const sec=cuestSecciones.find(function(s){return s.id===q.seccionId;});
+    return sec&&sec.plantillaId===plantillaId;
+  }).forEach(function(q){
+    const pesoInput=document.getElementById('cuestq-peso-'+q.id);
+    const cuentaInput=document.getElementById('cuestq-cuenta-'+q.id);
+    let peso=q.peso||0, cuenta=q.cuentaParaCalificacion;
+    if(pesoInput)peso=parseFloat(pesoInput.value)||0;
+    if(cuentaInput)cuenta=cuentaInput.checked&&!cuentaInput.disabled;
+    if(cuenta)total+=peso;
+  });
+  const totalR=Math.round(total*100)/100;
+  el.textContent='Peso total: '+totalR+'% de 100%';
+  el.style.color=Math.abs(totalR-100)<0.005?'var(--cp-green)':'var(--cp-amber)';
+}
 function cuestOnTipoRespuestaChange(preguntaId){
   const sel=document.getElementById('cuestq-tipo-'+preguntaId);
+  if(!sel)return;
+  const tipo=sel.value;
   const wrap=document.getElementById('cuestq-opciones-wrap-'+preguntaId);
-  if(!sel||!wrap)return;
-  wrap.style.display=(sel.value==='lista'||sel.value==='multiple')?'block':'none';
+  if(wrap){
+    wrap.style.display=(tipo==='lista'||tipo==='multiple'||tipo==='emocional')?'block':'none';
+    const label=wrap.querySelector('.form-label');
+    if(label)label.textContent=tipo==='emocional'?'Caras / etiquetas':'Opciones';
+  }
+  cuestSyncRespuestaCorrecta(preguntaId);
+  const cuentaCb=document.getElementById('cuestq-cuenta-'+preguntaId);
+  if(cuentaCb){
+    if(tipo==='abierta'){cuentaCb.checked=false;cuentaCb.disabled=true;}
+    else{cuentaCb.disabled=false;cuentaCb.checked=tipo!=='multiple';}
+  }
+  cuestUpdatePesoTotal();
 }
 function cuestToggleDispara(preguntaId){
   const wrap=document.getElementById('cuestq-dispara-wrap-'+preguntaId);
@@ -30489,7 +30622,7 @@ function cuestTogglePregunta(preguntaId,plantillaId){
 
 async function cuestAddPregunta(seccionId,plantillaId){
   const orden=cuestPreguntas.filter(function(q){return q.seccionId===seccionId;}).length;
-  const q={id:uid9(),seccionId,orden,texto:'',tipoRespuesta:'abierta',opciones:[],obligatoria:true,evidencia:{tipos:[],obligatoria:false},dispara:{notifica_a:null,genera_folio:false,sla_horas:null}};
+  const q={id:uid9(),seccionId,orden,texto:'',tipoRespuesta:'abierta',opciones:[],obligatoria:true,evidencia:{tipos:[],obligatoria:false},dispara:{notifica_a:null,genera_folio:false,sla_horas:null},peso:0,cuentaParaCalificacion:false,respuestaCorrecta:null};
   await cuestSavePregunta(q).catch(function(){});
   cuestPreguntas.push(q);
   _cuestPreguntasExpandidas[q.id]=true;
@@ -30504,9 +30637,10 @@ async function cuestGuardarPregunta(preguntaId,seccionId,plantillaId){
   const tipoRespuesta=document.getElementById('cuestq-tipo-'+preguntaId)?.value||'abierta';
   const obligatoria=!!document.getElementById('cuestq-obligatoria-'+preguntaId)?.checked;
   let opciones=[];
-  if(tipoRespuesta==='lista'||tipoRespuesta==='multiple'){
-    const raw=document.getElementById('cuestq-opciones-'+preguntaId)?.value||'';
-    opciones=raw.split('\n').map(function(s){return s.trim();}).filter(function(s){return s.length;});
+  if(tipoRespuesta==='lista'||tipoRespuesta==='multiple'||tipoRespuesta==='emocional'){
+    document.querySelectorAll('#cuestq-opciones-list-'+preguntaId+' .cuestq-opcion-input').forEach(function(inp){
+      const v=inp.value.trim();if(v)opciones.push(v);
+    });
   }
   const evTipos=[];
   document.querySelectorAll('.cuestq-ev-tipo-'+preguntaId+':checked').forEach(function(cb){evTipos.push(cb.value);});
@@ -30519,7 +30653,33 @@ async function cuestGuardarPregunta(preguntaId,seccionId,plantillaId){
   const slaRaw=document.getElementById('cuestq-sla-'+preguntaId)?.value;
   const slaHoras=slaRaw!==''&&slaRaw!=null?parseInt(slaRaw,10):null;
   const dispara={notifica_a:notificaA||null,genera_folio:generaFolio,sla_horas:slaHoras};
+  // Peso — SIEMPRE número (parseFloat), nunca el string crudo del input.
+  const pesoRaw=document.getElementById('cuestq-peso-'+preguntaId)?.value;
+  const peso=pesoRaw!==''&&pesoRaw!=null?Math.max(0,Math.min(100,parseFloat(pesoRaw)||0)):0;
+  // abierta fuerza false sin importar el checkbox (bloqueado/deshabilitado
+  // en el DOM, pero se re-afirma aquí por si acaso — mismo criterio de
+  // defensa en profundidad que cuestSavePregunta).
+  const cuentaInput=document.getElementById('cuestq-cuenta-'+preguntaId);
+  const cuentaParaCalificacion=tipoRespuesta==='abierta'?false:!!(cuentaInput&&cuentaInput.checked);
+  // respuesta_correcta — un objeto jsonb completo, distinto por tipo; null
+  // (nunca se muestra el control) para abierta.
+  let respuestaCorrecta=null;
+  if(tipoRespuesta==='si_no'||tipoRespuesta==='iconos'){
+    const checked=document.querySelector('input[name="cuestq-correcta-'+preguntaId+'"]:checked');
+    respuestaCorrecta=checked?{valor:checked.value==='true'}:null;
+  }else if(tipoRespuesta==='lista'){
+    const checked=document.querySelector('input[name="cuestq-correcta-'+preguntaId+'"]:checked');
+    respuestaCorrecta=checked?{opcion:checked.value}:null;
+  }else if(tipoRespuesta==='emocional'){
+    const checked=document.querySelector('input[name="cuestq-correcta-'+preguntaId+'"]:checked');
+    respuestaCorrecta=checked?{valor:checked.value}:null;
+  }else if(tipoRespuesta==='multiple'){
+    const vals=[];
+    document.querySelectorAll('.cuestq-correcta-check-'+preguntaId+':checked').forEach(function(cb){vals.push(cb.value);});
+    respuestaCorrecta=vals.length?{opciones:vals}:null;
+  }
   q.texto=texto;q.tipoRespuesta=tipoRespuesta;q.obligatoria=obligatoria;q.opciones=opciones;q.evidencia=evidencia;q.dispara=dispara;
+  q.peso=peso;q.cuentaParaCalificacion=cuentaParaCalificacion;q.respuestaCorrecta=respuestaCorrecta;
   await cuestSavePregunta(q).catch(function(e){toast('Error: '+e.message,'error');});
   renderCuestSecciones(plantillaId);
   toast('Pregunta guardada ✓','success');
