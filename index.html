@@ -32162,6 +32162,15 @@ function cuestWizCalcularCalificacion(){
 // filtro IS NULL la excluye desde la consulta).
 async function cuestBackfillCalificaciones(){
   if(state.currentUser?.role!=='admin'){console.warn('cuestBackfillCalificaciones: solo admin.');return;}
+  // cuestPreguntas (y el resto del estado del módulo) solo se llena dentro
+  // de cuestLoad(), de carga perezosa (_loadModuleDataInner, case 'cuest') —
+  // si se corre este script desde consola sin haber navegado antes al
+  // módulo Cuestionarios en esa sesión, cuestPreguntas queda [] y CADA fila
+  // de detalle se salta en silencio (!q siempre true), dejando toda
+  // calificación en null sin ningún error visible. Un script de
+  // mantenimiento debe ser autosuficiente: fuerza la carga aquí en vez de
+  // asumir que el operador ya entró al tab.
+  if(!cuestPreguntas.length)await cuestLoad();
   const {data,error}=await sb.from('cuest_respuestas').select('id').eq('estado','completado').is('calificacion',null);
   if(error){console.error('cuestBackfillCalificaciones SELECT',error);return;}
   const rows=data||[];
