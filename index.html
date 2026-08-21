@@ -30575,7 +30575,10 @@ async function cuestLoad(){
   cuestFolioCompartidos=compRaw.map(function(r){return {id:r.id,folioId:r.folio_id,usuarioId:r.usuario_id,compartidoPor:r.compartido_por,createdAt:r.created_at};});
   // cuest_jerarquia: quién supervisa a quién dentro del módulo — chica,
   // se carga completa igual que el resto de tablas chicas.
-  cuestJerarquia=jerRaw.map(function(r){return {id:r.id,usuarioId:r.usuario_id,rolCuest:r.rol_cuest,supervisorId:r.supervisor_id||null};});
+  // usuario_id es la PRIMARY KEY de esta tabla — NO tiene columna id propia
+  // (a diferencia de todas las demás cuest_*), así que el objeto en memoria
+  // tampoco la lleva; usuarioId es la llave real en todo el módulo.
+  cuestJerarquia=jerRaw.map(function(r){return {usuarioId:r.usuario_id,rolCuest:r.rol_cuest,supervisorId:r.supervisor_id||null};});
 }
 // Mapeo compartido de una fila cruda de cuest_folios → objeto en memoria.
 // Extraído para reutilizarlo TAL CUAL en cuestFolioWizRecargarPorRespuesta
@@ -32425,7 +32428,18 @@ async function cuestFolioConfirmarRechazo(id){
 // resto del módulo); cualquiera puede VER la tabla.
 const CUEST_ROLES_JERARQUIA=[{id:'operario',label:'Operario'},{id:'supervisor',label:'Supervisor'},{id:'gerente',label:'Gerente'}];
 function cuestJerarquiaRolLabel(rol){const r=CUEST_ROLES_JERARQUIA.find(function(x){return x.id===rol;});return r?r.label:rol;}
-async function cuestSaveJerarquia(j){return sbUpsert('cuest_jerarquia',{id:j.id,usuario_id:j.usuarioId,rol_cuest:j.rolCuest,supervisor_id:j.supervisorId||null});}
+// cuest_jerarquia usa usuario_id como PRIMARY KEY — a diferencia de TODAS
+// las demás tablas cuest_*, NO tiene columna id propia. sbUpsert genérico
+// asume 'id' como llave (select('id').eq('id',row.id)), así que no sirve
+// aquí — se usa .upsert() directo de supabase-js (mismo patrón que
+// cuestCfgSet para cuest_config, que igual usa 'clave' como llave en vez de
+// 'id'), que resuelve el conflicto contra la PK real de la tabla.
+async function cuestSaveJerarquia(j){
+  const {error}=await sb.from('cuest_jerarquia').upsert({usuario_id:j.usuarioId,rol_cuest:j.rolCuest,supervisor_id:j.supervisorId||null});
+  if(error){console.error('cuestSaveJerarquia',error);toast('[cuest_jerarquia] '+(error.message||error.code||''),'error');return false;}
+  sbInvalidate('cuest_jerarquia');
+  return true;
+}
 // Regla de la sub-tarea: operario→solo supervisores; supervisor→solo
 // gerentes; gerente→ninguno (sin supervisor por encima dentro del módulo).
 function cuestJerarquiaSupervisoresPara(rolCuest){
@@ -32450,13 +32464,13 @@ function renderCuestJerarquia(){
   tbody.innerHTML=cuestJerarquia.map(function(j){
     const supervisores=cuestJerarquiaSupervisoresPara(j.rolCuest);
     const colRol=isAdmin
-      ?'<select class="form-input" style="font-size:12px" onchange="cuestJerarquiaSetRol(\''+j.id+'\',this.value)">'+CUEST_ROLES_JERARQUIA.map(function(r){return '<option value="'+r.id+'"'+(j.rolCuest===r.id?' selected':'')+'>'+r.label+'</option>';}).join('')+'</select>'
+      ?'<select class="form-input" style="font-size:12px" onchange="cuestJerarquiaSetRol(\''+j.usuarioId+'\',this.value)">'+CUEST_ROLES_JERARQUIA.map(function(r){return '<option value="'+r.id+'"'+(j.rolCuest===r.id?' selected':'')+'>'+r.label+'</option>';}).join('')+'</select>'
       :escHtml(cuestJerarquiaRolLabel(j.rolCuest));
     let colSupervisor;
     if(j.rolCuest==='gerente'){
       colSupervisor='<span style="font-size:12px;color:var(--cp-gray-400)">— Sin supervisor —</span>';
     }else if(isAdmin){
-      colSupervisor='<select class="form-input" style="font-size:12px" onchange="cuestJerarquiaSetSupervisor(\''+j.id+'\',this.value)"><option value="">— Sin supervisor —</option>'+
+      colSupervisor='<select class="form-input" style="font-size:12px" onchange="cuestJerarquiaSetSupervisor(\''+j.usuarioId+'\',this.value)"><option value="">— Sin supervisor —</option>'+
         supervisores.map(function(s){return '<option value="'+s.usuarioId+'"'+(j.supervisorId===s.usuarioId?' selected':'')+'>'+escHtml(cuestAsigUsuarioLabel(s.usuarioId))+'</option>';}).join('')+
       '</select>';
     }else{
@@ -32466,7 +32480,7 @@ function renderCuestJerarquia(){
       '<td>'+escHtml(cuestAsigUsuarioLabel(j.usuarioId))+'</td>'+
       '<td>'+colRol+'</td>'+
       '<td>'+colSupervisor+'</td>'+
-      '<td>'+(isAdmin?'<button class="btn-sm btn-ghost" style="color:var(--cp-red)" onclick="cuestJerarquiaQuitar(\''+j.id+'\')" title="Quitar de la jerarquía"><i class="ti ti-trash"></i></button>':'')+'</td>'+
+      '<td>'+(isAdmin?'<button class="btn-sm btn-ghost" style="color:var(--cp-red)" onclick="cuestJerarquiaQuitar(\''+j.usuarioId+'\')" title="Quitar de la jerarquía"><i class="ti ti-trash"></i></button>':'')+'</td>'+
     '</tr>';
   }).join('');
 }
@@ -32474,16 +32488,16 @@ async function cuestJerarquiaAgregar(){
   if(!guardAdmin('cuestJerarquiaAgregar'))return;
   const usuarioId=document.getElementById('cuest-jer-add-usuario')?.value;
   if(!usuarioId){toast('Selecciona un usuario.','error');return;}
-  const j={id:uid9(),usuarioId:usuarioId,rolCuest:'operario',supervisorId:null};
+  const j={usuarioId:usuarioId,rolCuest:'operario',supervisorId:null};
   const ok=await cuestSaveJerarquia(j);
   if(!ok){toast('No se pudo agregar a la jerarquía.','error');return;}
   cuestJerarquia.push(j);
   renderCuestJerarquia();
   toast('Usuario agregado a la jerarquía ✓','success');
 }
-async function cuestJerarquiaSetRol(id,rol){
+async function cuestJerarquiaSetRol(usuarioId,rol){
   if(!guardAdmin('cuestJerarquiaSetRol'))return;
-  const j=cuestJerarquia.find(function(x){return x.id===id;});if(!j)return;
+  const j=cuestJerarquia.find(function(x){return x.usuarioId===usuarioId;});if(!j)return;
   const updated=Object.assign({},j,{rolCuest:rol});
   // Si el supervisor guardado ya no cumple la regla del nuevo rol (p.ej.
   // pasa a gerente, o el supervisor no tiene el rol correcto para el nuevo
@@ -32492,18 +32506,18 @@ async function cuestJerarquiaSetRol(id,rol){
   if(!permitidos.includes(updated.supervisorId))updated.supervisorId=null;
   const ok=await cuestSaveJerarquia(updated);
   if(!ok){toast('No se pudo guardar.','error');return;}
-  const idx=cuestJerarquia.findIndex(function(x){return x.id===id;});
+  const idx=cuestJerarquia.findIndex(function(x){return x.usuarioId===usuarioId;});
   if(idx!==-1)cuestJerarquia[idx]=updated;
   renderCuestJerarquia();
   toast('Jerarquía actualizada ✓','success');
 }
-async function cuestJerarquiaSetSupervisor(id,supervisorId){
+async function cuestJerarquiaSetSupervisor(usuarioId,supervisorId){
   if(!guardAdmin('cuestJerarquiaSetSupervisor'))return;
-  const j=cuestJerarquia.find(function(x){return x.id===id;});if(!j)return;
+  const j=cuestJerarquia.find(function(x){return x.usuarioId===usuarioId;});if(!j)return;
   const updated=Object.assign({},j,{supervisorId:supervisorId||null});
   const ok=await cuestSaveJerarquia(updated);
   if(!ok){toast('No se pudo guardar.','error');return;}
-  const idx=cuestJerarquia.findIndex(function(x){return x.id===id;});
+  const idx=cuestJerarquia.findIndex(function(x){return x.usuarioId===usuarioId;});
   if(idx!==-1)cuestJerarquia[idx]=updated;
   renderCuestJerarquia();
   toast('Jerarquía actualizada ✓','success');
@@ -32511,14 +32525,14 @@ async function cuestJerarquiaSetSupervisor(id,supervisorId){
 // Sin FK conocida que la referencie (no es como cuest_preguntas) — DELETE
 // físico está bien aquí, pero SÍ revisa {error} de verdad (aprendizaje de
 // la sub-tarea del bug de cuestDeletePregunta: nunca un .catch(()=>{}) que
-// esconda el fallo).
-async function cuestJerarquiaQuitar(id){
+// esconda el fallo). Llave real: usuario_id (ver nota en cuestSaveJerarquia).
+async function cuestJerarquiaQuitar(usuarioId){
   if(!guardAdmin('cuestJerarquiaQuitar'))return;
   if(!confirm('¿Quitar a este usuario de la jerarquía?'))return;
-  const {error}=await sb.from('cuest_jerarquia').delete().eq('id',id);
+  const {error}=await sb.from('cuest_jerarquia').delete().eq('usuario_id',usuarioId);
   if(error){toast('No se pudo quitar: '+(error.message||error.code||''),'error');return;}
   sbInvalidate('cuest_jerarquia');
-  cuestJerarquia=cuestJerarquia.filter(function(x){return x.id!==id;});
+  cuestJerarquia=cuestJerarquia.filter(function(x){return x.usuarioId!==usuarioId;});
   renderCuestJerarquia();
   toast('Usuario quitado de la jerarquía','info');
 }
